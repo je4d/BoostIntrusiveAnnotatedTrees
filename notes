@@ -1,0 +1,51 @@
+http://stackoverflow.com/questions/5849203/is-there-an-implementation-of-a-binary-search-tree-annotated-with-sub-tree-size
+http://sigpipe.macromates.com/2009/08/13/maintaining-a-layout/
+
+
+if node_traits doesn't have get_monoid_value
+
+the monoid must then know how to access the stored value
+or we wrap the monoid in something that knows how to get to the stored value
+
+then the hook itself holds the value in some "well known" way? must inherit from a base that can be upcast to. the monoid wrapper then 
+
+
+
+======================
+
+avoid template explosion
+
+tree_algorithms<NodeTraits> must use the same node traits regardless of what monoids are supported.
+
+======================
+
+MonoidNodeTraits
+{
+	typedef ... node_traits;
+};
+
+
+template <typename NodeTraits, typename MonoidNodeTraits>
+tree_algoritms;
+
+// or 
+
+template <typename NodeTraits>
+class tree_algoritms_base;
+
+template <typename MonoidNodeTraits>
+class tree_algoritms : public tree_algorithms_base<typename MonoidNodeTraits::node_traits>
+
+template <typename NodeTraits, typename MonoidNodeTraits>
+
+=====================
+
+class monoid_node_traits
+{
+	
+}
+
+
+
+alias make='make 2>&1 | fold -sw $COLUMNS | head -n $(($LINES - 2))'
+

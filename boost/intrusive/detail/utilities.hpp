@@ -99,6 +99,22 @@ struct external_value_traits_is_true
    static const bool value = external_value_traits_bool<T>::value > sizeof(one)*2;
 };
 
+template <class T>
+struct annotation_associative_fold_bool
+{
+   template<bool Add>
+   struct two_or_three {one _[2 + Add];};
+   template <class U> static one test(...);
+   template <class U> static two_or_three<U::associative_fold> test (int);
+   static const std::size_t value = sizeof(test<T>(0));
+};
+
+template <class T>
+struct annotation_associative_fold_is_true
+{
+   static const bool value = annotation_associative_fold_bool<T>::value > sizeof(one)*2;
+};
+
 template<class Node, class Tag, link_mode_type LinkMode, int>
 struct node_holder
    :  public Node

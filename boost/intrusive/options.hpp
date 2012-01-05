@@ -787,6 +787,29 @@ struct pack_options
    typedef typename do_pack<inverted_typelist>::type type;
 };
 
+namespace detail {
+template <class NodeTraits, class... Annotations>
+struct annotation_list_algorithms;
+}
+
+template <class ...Annotations>
+struct annotations
+{
+   template <template <class ...> class T, class... TArgs>
+   struct apply
+   {
+      typedef T<TArgs..., Annotations...> type;
+   };
+
+/*   template <class AnnotatedNodeTraits>
+   struct algorithms
+   {
+      typedef typename apply_annotations<detail::annotation_list_algorithms, AnnotatedNodeTraits>::type type;
+//      typedef detail::annotation_list_algorithms<AnnotatedNodeTraits,Annotations...> type;
+   };*/
+
+};
+
 #endif
 
 struct hook_defaults

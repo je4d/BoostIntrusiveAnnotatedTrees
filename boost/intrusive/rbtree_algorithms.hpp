@@ -55,7 +55,9 @@
 
 #include <boost/intrusive/detail/assert.hpp>
 #include <boost/intrusive/detail/utilities.hpp>
-#include <boost/intrusive/detail/tree_algorithms.hpp>
+#include <boost/intrusive/detail/node_tree_algorithms.hpp>
+#include <boost/intrusive/detail/annotated_tree_algorithms.hpp>
+#include <boost/intrusive/detail/annotation_algorithms.hpp>
 
 namespace boost {
 namespace intrusive {
@@ -110,9 +112,10 @@ namespace intrusive {
 //! <tt>static color black();</tt>
 //! 
 //! <tt>static color red();</tt>
+
 template<class NodeTraits>
-class rbtree_algorithms
-{
+class node_rbtree_algorithms {
+
    public:
    typedef NodeTraits                           node_traits;
    typedef typename NodeTraits::node            node;
@@ -122,42 +125,7 @@ class rbtree_algorithms
 
    /// @cond
    private:
-
-   typedef detail::tree_algorithms<NodeTraits>  tree_algorithms;
-
-   template<class F>
-   struct rbtree_node_cloner
-      :  private detail::ebo_functor_holder<F>
-   {
-      typedef detail::ebo_functor_holder<F>                 base_t;
-
-      rbtree_node_cloner(F f)
-         :  base_t(f)
-      {}
-      
-      node_ptr operator()(node_ptr p)
-      {
-         node_ptr n = base_t::get()(p);
-         NodeTraits::set_color(n, NodeTraits::get_color(p));
-         return n;
-      }
-   };
-
-   struct rbtree_erase_fixup
-   {
-      void operator()(node_ptr to_erase, node_ptr successor)
-      {
-         //Swap color of y and z
-         color tmp(NodeTraits::get_color(successor));
-         NodeTraits::set_color(successor, NodeTraits::get_color(to_erase));
-         NodeTraits::set_color(to_erase, tmp);
-      }
-   };
-
-   static node_ptr uncast(const_node_ptr ptr)
-   {
-      return node_ptr(const_cast<node*>(::boost::intrusive::detail::boost_intrusive_get_pointer(ptr)));
-   }
+   typedef detail::node_tree_algorithms<NodeTraits>  tree_algorithms;
    /// @endcond
 
    public:
@@ -278,23 +246,6 @@ class rbtree_algorithms
       NodeTraits::set_color(new_node, NodeTraits::get_color(node_to_be_replaced)); 
    }
 
-   //! <b>Requires</b>: node is a tree node but not the header.
-   //! 
-   //! <b>Effects</b>: Unlinks the node and rebalances the tree.
-   //! 
-   //! <b>Complexity</b>: Average complexity is constant time.
-   //! 
-   //! <b>Throws</b>: Nothing.
-   static void unlink(node_ptr node)
-   {
-      node_ptr x = NodeTraits::get_parent(node);
-      if(x){
-         while(!is_header(x))
-            x = NodeTraits::get_parent(x);
-         erase(x, node);
-      }
-   }
-
    //! <b>Requires</b>: header is the header of a tree.
    //! 
    //! <b>Effects</b>: Unlinks the leftmost node from the tree, and
@@ -390,53 +341,6 @@ class rbtree_algorithms
       NodeTraits::set_color(header, NodeTraits::red()); 
    }
 
-   //! <b>Requires</b>: header must be the header of a tree, z a node
-   //!    of that tree and z != header.
-   //!
-   //! <b>Effects</b>: Erases node "z" from the tree with header "header".
-   //! 
-   //! <b>Complexity</b>: Amortized constant time.
-   //! 
-   //! <b>Throws</b>: Nothing.
-   static node_ptr erase(node_ptr header, node_ptr z)
-   {
-      typename tree_algorithms::data_for_rebalance info;
-      tree_algorithms::erase(header, z, rbtree_erase_fixup(), info);
-      node_ptr x = info.x;
-      node_ptr x_parent = info.x_parent;
-
-      //Rebalance rbtree
-      if(NodeTraits::get_color(z) != NodeTraits::red()){
-         rebalance_after_erasure(header, x, x_parent);
-      }
-      return z;
-   }
-
-   //! <b>Requires</b>: "cloner" must be a function
-   //!   object taking a node_ptr and returning a new cloned node of it. "disposer" must
-   //!   take a node_ptr and shouldn't throw.
-   //!
-   //! <b>Effects</b>: First empties target tree calling 
-   //!   <tt>void disposer::operator()(node_ptr)</tt> for every node of the tree
-   //!    except the header.
-   //!    
-   //!   Then, duplicates the entire tree pointed by "source_header" cloning each
-   //!   source node with <tt>node_ptr Cloner::operator()(node_ptr)</tt> to obtain 
-   //!   the nodes of the target tree. If "cloner" throws, the cloned target nodes
-   //!   are disposed using <tt>void disposer(node_ptr)</tt>.
-   //! 
-   //! <b>Complexity</b>: Linear to the number of element of the source tree plus the.
-   //!   number of elements of tree target tree when calling this function.
-   //! 
-   //! <b>Throws</b>: If cloner functor throws. If this happens target nodes are disposed.
-   template <class Cloner, class Disposer>
-   static void clone
-      (const_node_ptr source_header, node_ptr target_header, Cloner cloner, Disposer disposer)
-   {
-      rbtree_node_cloner<Cloner> new_cloner(cloner);
-      tree_algorithms::clone(source_header, target_header, new_cloner, disposer);
-   }
-
    //! <b>Requires</b>: "disposer" must be an object function
    //!   taking a node_ptr parameter and shouldn't throw.
    //!
@@ -518,131 +422,6 @@ class rbtree_algorithms
    static std::pair<node_ptr, node_ptr> equal_range
       (const_node_ptr header, const KeyType &key, KeyNodePtrCompare comp)
    {  return tree_algorithms::equal_range(header, key, comp);  }
-
-   //! <b>Requires</b>: "h" must be the header node of a tree.
-   //!   NodePtrCompare is a function object that induces a strict weak
-   //!   ordering compatible with the strict weak ordering used to create the
-   //!   the tree. NodePtrCompare compares two node_ptrs.
-   //!
-   //! <b>Effects</b>: Inserts new_node into the tree before the upper bound
-   //!   according to "comp".
-   //! 
-   //! <b>Complexity</b>: Average complexity for insert element is at
-   //!   most logarithmic.
-   //! 
-   //! <b>Throws</b>: If "comp" throws.
-   template<class NodePtrCompare>
-   static node_ptr insert_equal_upper_bound
-      (node_ptr h, node_ptr new_node, NodePtrCompare comp)
-   {
-      tree_algorithms::insert_equal_upper_bound(h, new_node, comp);
-      rebalance_after_insertion(h, new_node);
-      return new_node;
-   }
-
-   //! <b>Requires</b>: "h" must be the header node of a tree.
-   //!   NodePtrCompare is a function object that induces a strict weak
-   //!   ordering compatible with the strict weak ordering used to create the
-   //!   the tree. NodePtrCompare compares two node_ptrs.
-   //!
-   //! <b>Effects</b>: Inserts new_node into the tree before the lower bound
-   //!   according to "comp".
-   //! 
-   //! <b>Complexity</b>: Average complexity for insert element is at
-   //!   most logarithmic.
-   //! 
-   //! <b>Throws</b>: If "comp" throws.
-   template<class NodePtrCompare>
-   static node_ptr insert_equal_lower_bound
-      (node_ptr h, node_ptr new_node, NodePtrCompare comp)
-   {
-      tree_algorithms::insert_equal_lower_bound(h, new_node, comp);
-      rebalance_after_insertion(h, new_node);
-      return new_node;
-   }
-
-   //! <b>Requires</b>: "header" must be the header node of a tree.
-   //!   NodePtrCompare is a function object that induces a strict weak
-   //!   ordering compatible with the strict weak ordering used to create the
-   //!   the tree. NodePtrCompare compares two node_ptrs. "hint" is node from
-   //!   the "header"'s tree.
-   //!   
-   //! <b>Effects</b>: Inserts new_node into the tree, using "hint" as a hint to
-   //!   where it will be inserted. If "hint" is the upper_bound
-   //!   the insertion takes constant time (two comparisons in the worst case).
-   //!
-   //! <b>Complexity</b>: Logarithmic in general, but it is amortized
-   //!   constant time if new_node is inserted immediately before "hint".
-   //! 
-   //! <b>Throws</b>: If "comp" throws.
-   template<class NodePtrCompare>
-   static node_ptr insert_equal
-      (node_ptr header, node_ptr hint, node_ptr new_node, NodePtrCompare comp)
-   {
-      tree_algorithms::insert_equal(header, hint, new_node, comp);
-      rebalance_after_insertion(header, new_node);
-      return new_node;
-   }
-
-   //! <b>Requires</b>: "header" must be the header node of a tree.
-   //!   "pos" must be a valid iterator or header (end) node.
-   //!   "pos" must be an iterator pointing to the successor to "new_node"
-   //!   once inserted according to the order of already inserted nodes. This function does not
-   //!   check "pos" and this precondition must be guaranteed by the caller.
-   //!   
-   //! <b>Effects</b>: Inserts new_node into the tree before "pos".
-   //!
-   //! <b>Complexity</b>: Constant-time.
-   //! 
-   //! <b>Throws</b>: Nothing.
-   //! 
-   //! <b>Note</b>: If "pos" is not the successor of the newly inserted "new_node"
-   //! tree invariants might be broken.
-   static node_ptr insert_before
-      (node_ptr header, node_ptr pos, node_ptr new_node)
-   {
-      tree_algorithms::insert_before(header, pos, new_node);
-      rebalance_after_insertion(header, new_node);
-      return new_node;
-   }
-
-   //! <b>Requires</b>: "header" must be the header node of a tree.
-   //!   "new_node" must be, according to the used ordering no less than the
-   //!   greatest inserted key.
-   //!   
-   //! <b>Effects</b>: Inserts new_node into the tree before "pos".
-   //!
-   //! <b>Complexity</b>: Constant-time.
-   //! 
-   //! <b>Throws</b>: Nothing.
-   //! 
-   //! <b>Note</b>: If "new_node" is less than the greatest inserted key
-   //! tree invariants are broken. This function is slightly faster than
-   //! using "insert_before".
-   static void push_back(node_ptr header, node_ptr new_node)
-   {
-      tree_algorithms::push_back(header, new_node);
-      rebalance_after_insertion(header, new_node);
-   }
-
-   //! <b>Requires</b>: "header" must be the header node of a tree.
-   //!   "new_node" must be, according to the used ordering, no greater than the
-   //!   lowest inserted key.
-   //!   
-   //! <b>Effects</b>: Inserts new_node into the tree before "pos".
-   //!
-   //! <b>Complexity</b>: Constant-time.
-   //! 
-   //! <b>Throws</b>: Nothing.
-   //! 
-   //! <b>Note</b>: If "new_node" is greater than the lowest inserted key
-   //! tree invariants are broken. This function is slightly faster than
-   //! using "insert_before".
-   static void push_front(node_ptr header, node_ptr new_node)
-   {
-      tree_algorithms::push_front(header, new_node);
-      rebalance_after_insertion(header, new_node);
-   }
 
    //! <b>Requires</b>: "header" must be the header node of a tree.
    //!   KeyNodePtrCompare is a function object that induces a strict weak
@@ -729,30 +508,6 @@ class rbtree_algorithms
       ,KeyNodePtrCompare comp, insert_commit_data &commit_data)
    {  return tree_algorithms::insert_unique_check(header, hint, key, comp, commit_data);  }
 
-   //! <b>Requires</b>: "header" must be the header node of a tree.
-   //!   "commit_data" must have been obtained from a previous call to
-   //!   "insert_unique_check". No objects should have been inserted or erased
-   //!   from the set between the "insert_unique_check" that filled "commit_data"
-   //!   and the call to "insert_commit". 
-   //! 
-   //! 
-   //! <b>Effects</b>: Inserts new_node in the set using the information obtained
-   //!   from the "commit_data" that a previous "insert_check" filled.
-   //!
-   //! <b>Complexity</b>: Constant time.
-   //!
-   //! <b>Throws</b>: Nothing.
-   //! 
-   //! <b>Notes</b>: This function has only sense if a "insert_unique_check" has been
-   //!   previously executed to fill "commit_data". No value should be inserted or
-   //!   erased between the "insert_check" and "insert_commit" calls.
-   static void insert_unique_commit
-      (node_ptr header, node_ptr new_value, const insert_commit_data &commit_data)
-   {
-      tree_algorithms::insert_unique_commit(header, new_value, commit_data);
-      rebalance_after_insertion(header, new_value);
-   }
-
    //! <b>Requires</b>: "n" must be a node inserted in a tree.
    //!
    //! <b>Effects</b>: Returns a pointer to the header node of the tree.
@@ -780,125 +535,520 @@ class rbtree_algorithms
       //return NodeTraits::get_color(p) == NodeTraits::red() && 
       //       NodeTraits::get_parent(NodeTraits::get_parent(p)) == p;
    }
+   /// @endcond
+};
+
+template<class AnnotatedNodeTraits, class AnnotationList>
+class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename AnnotatedNodeTraits::node_traits>
+{
+   public:
+   typedef typename AnnotatedNodeTraits::node_traits    node_traits;
+   typedef typename node_traits::node            node;
+   typedef typename node_traits::node_ptr        node_ptr;
+   typedef typename node_traits::const_node_ptr  const_node_ptr;
+   typedef typename node_traits::color           color;
+
+   /// @cond
+   private:
+
+   typedef node_rbtree_algorithms<typename AnnotatedNodeTraits::node_traits>                          base_rbtree_algorithms;
+   typedef detail::node_tree_algorithms<node_traits>                                                  node_tree_algorithms;
+   typedef detail::annotated_tree_algorithms<AnnotatedNodeTraits,AnnotationList>                      annotated_tree_algorithms;
+   typedef typename annotated_tree_algorithms::insert_commit_data                                     insert_commit_data;
+   typedef typename detail::make_annotation_list_algorithms<AnnotatedNodeTraits,AnnotationList>::type annotation_algorithms;
+
+   template<class F>
+   struct rbtree_node_cloner
+      :  private detail::ebo_functor_holder<F>
+   {
+      typedef detail::ebo_functor_holder<F>                 base_t;
+
+      rbtree_node_cloner(F f)
+         :  base_t(f)
+      {}
+
+      node_ptr operator()(node_ptr p)
+      {
+         node_ptr n = base_t::get()(p);
+         node_traits::set_color(n, node_traits::get_color(p));
+         return n;
+      }
+   };
+
+   struct rbtree_erase_fixup
+   {
+      void operator()(node_ptr to_erase, node_ptr successor)
+      {
+         //Swap color of y and z
+         color tmp(node_traits::get_color(successor));
+         node_traits::set_color(successor, node_traits::get_color(to_erase));
+         node_traits::set_color(to_erase, tmp);
+      }
+   };
+
+   public:
+   //! <b>Requires</b>: node1 and node2 can't be header nodes
+   //!  of two trees.
+   //! 
+   //! <b>Effects</b>: Swaps two nodes. After the function node1 will be inserted
+   //!   in the position node2 before the function. node2 will be inserted in the
+   //!   position node1 had before the function.
+   //! 
+   //! <b>Complexity</b>: Logarithmic. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: This function will break container ordering invariants if
+   //!   node1 and node2 are not equivalent according to the ordering rules.
+   //!
+   //!Experimental function
+   static void swap_nodes(node_ptr node1, node_ptr node2)
+   {
+      if(node1 == node2)
+         return;
+   
+      node_ptr header1(annotated_tree_algorithms::get_header(node1)), header2(annotated_tree_algorithms::get_header(node2));
+      swap_nodes(node1, header1, node2, header2);
+   }
+
+   //! <b>Requires</b>: node1 and node2 can't be header nodes
+   //!  of two trees with header header1 and header2.
+   //! 
+   //! <b>Effects</b>: Swaps two nodes. After the function node1 will be inserted
+   //!   in the position node2 before the function. node2 will be inserted in the
+   //!   position node1 had before the function.
+   //! 
+   //! <b>Complexity</b>: Constant. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: This function will break container ordering invariants if
+   //!   node1 and node2 are not equivalent according to the ordering rules.
+   //!
+   //!Experimental function
+   static void swap_nodes(node_ptr node1, node_ptr header1, node_ptr node2, node_ptr header2)
+   {
+      if(node1 == node2)   return;
+
+      annotated_tree_algorithms::swap_nodes(node1, header1, node2, header2);
+      //Swap color
+      color c = node_traits::get_color(node1);
+      node_traits::set_color(node1, node_traits::get_color(node2)); 
+      node_traits::set_color(node2, c); 
+   }
+
+   //! <b>Requires</b>: node_to_be_replaced must be inserted in a tree
+   //!   and new_node must not be inserted in a tree.
+   //! 
+   //! <b>Effects</b>: Replaces node_to_be_replaced in its position in the
+   //!   tree with new_node. The tree does not need to be rebalanced
+   //! 
+   //! <b>Complexity</b>: Logarithmic. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: This function will break container ordering invariants if
+   //!   new_node is not equivalent to node_to_be_replaced according to the
+   //!   ordering rules. This function is faster than erasing and inserting
+   //!   the node, since no rebalancing and comparison is needed.
+   //!
+   //!Experimental function
+   static void replace_node(node_ptr node_to_be_replaced, node_ptr new_node)
+   {
+      if(node_to_be_replaced == new_node)
+         return;
+      replace_node(node_to_be_replaced, annotated_tree_algorithms::get_header(node_to_be_replaced), new_node);
+   }
+
+   //! <b>Requires</b>: node_to_be_replaced must be inserted in a tree
+   //!   with header "header" and new_node must not be inserted in a tree.
+   //! 
+   //! <b>Effects</b>: Replaces node_to_be_replaced in its position in the
+   //!   tree with new_node. The tree does not need to be rebalanced
+   //! 
+   //! <b>Complexity</b>: Constant. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: This function will break container ordering invariants if
+   //!   new_node is not equivalent to node_to_be_replaced according to the
+   //!   ordering rules. This function is faster than erasing and inserting
+   //!   the node, since no rebalancing or comparison is needed.
+   //!
+   //!Experimental function
+   static void replace_node(node_ptr node_to_be_replaced, node_ptr header, node_ptr new_node)
+   {
+      annotated_tree_algorithms::replace_node(node_to_be_replaced, header, new_node);
+      node_traits::set_color(new_node, node_traits::get_color(node_to_be_replaced)); 
+   }
+
+   //! <b>Requires</b>: node is a tree node but not the header.
+   //! 
+   //! <b>Effects</b>: Unlinks the node and rebalances the tree.
+   //! 
+   //! <b>Complexity</b>: Average complexity is constant time.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   static void unlink(node_ptr node)
+   {
+      node_ptr x = node_traits::get_parent(node);
+      if(x){
+         while(!is_header(x))
+            x = node_traits::get_parent(x);
+         erase(x, node);
+      }
+   }
+
+   //! <b>Requires</b>: header must be the header of a tree, z a node
+   //!    of that tree and z != header.
+   //!
+   //! <b>Effects</b>: Erases node "z" from the tree with header "header".
+   //! 
+   //! <b>Complexity</b>: Amortized constant time.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   static node_ptr erase(node_ptr header, node_ptr z)
+   {
+      typename annotated_tree_algorithms::data_for_rebalance info;
+      node_tree_algorithms::erase(header, z, rbtree_erase_fixup(), info);
+      node_ptr x = info.x;
+      node_ptr x_parent = info.x_parent;
+
+      //Rebalance rbtree
+      if(node_traits::get_color(z) != node_traits::red()){
+         rebalance_after_erasure(header, x, x_parent);
+      } else {
+         annotation_algorithms::update_to_top(x_parent);
+      }
+      return z;
+   }
+
+   //! <b>Requires</b>: "cloner" must be a function
+   //!   object taking a node_ptr and returning a new cloned node of it. "disposer" must
+   //!   take a node_ptr and shouldn't throw.
+   //!
+   //! <b>Effects</b>: First empties target tree calling 
+   //!   <tt>void disposer::operator()(node_ptr)</tt> for every node of the tree
+   //!    except the header.
+   //!    
+   //!   Then, duplicates the entire tree pointed by "source_header" cloning each
+   //!   source node with <tt>node_ptr Cloner::operator()(node_ptr)</tt> to obtain 
+   //!   the nodes of the target tree. If "cloner" throws, the cloned target nodes
+   //!   are disposed using <tt>void disposer(node_ptr)</tt>.
+   //! 
+   //! <b>Complexity</b>: Linear to the number of element of the source tree plus the.
+   //!   number of elements of tree target tree when calling this function.
+   //! 
+   //! <b>Throws</b>: If cloner functor throws. If this happens target nodes are disposed.
+   template <class Cloner, class Disposer>
+   static void clone
+      (const_node_ptr source_header, node_ptr target_header, Cloner cloner, Disposer disposer)
+   {
+      typename base_rbtree_algorithms::template rbtree_node_cloner<Cloner> new_cloner(cloner);
+      annotated_tree_algorithms::clone(source_header, target_header, new_cloner, disposer);
+   }
+
+   //! <b>Requires</b>: "h" must be the header node of a tree.
+   //!   NodePtrCompare is a function object that induces a strict weak
+   //!   ordering compatible with the strict weak ordering used to create the
+   //!   the tree. NodePtrCompare compares two node_ptrs.
+   //!
+   //! <b>Effects</b>: Inserts new_node into the tree before the upper bound
+   //!   according to "comp".
+   //! 
+   //! <b>Complexity</b>: Average complexity for insert element is at
+   //!   most logarithmic.
+   //! 
+   //! <b>Throws</b>: If "comp" throws.
+   template<class NodePtrCompare>
+   static node_ptr insert_equal_upper_bound
+      (node_ptr h, node_ptr new_node, NodePtrCompare comp)
+   {
+      annotated_tree_algorithms::insert_equal_upper_bound(h, new_node, comp);
+      rebalance_after_insertion(h, new_node);
+      return new_node;
+   }
+
+   //! <b>Requires</b>: "h" must be the header node of a tree.
+   //!   NodePtrCompare is a function object that induces a strict weak
+   //!   ordering compatible with the strict weak ordering used to create the
+   //!   the tree. NodePtrCompare compares two node_ptrs.
+   //!
+   //! <b>Effects</b>: Inserts new_node into the tree before the lower bound
+   //!   according to "comp".
+   //! 
+   //! <b>Complexity</b>: Average complexity for insert element is at
+   //!   most logarithmic.
+   //! 
+   //! <b>Throws</b>: If "comp" throws.
+   template<class NodePtrCompare>
+   static node_ptr insert_equal_lower_bound
+      (node_ptr h, node_ptr new_node, NodePtrCompare comp)
+   {
+      annotated_tree_algorithms::insert_equal_lower_bound(h, new_node, comp);
+      rebalance_after_insertion(h, new_node);
+      return new_node;
+   }
+
+   //! <b>Requires</b>: "header" must be the header node of a tree.
+   //!   NodePtrCompare is a function object that induces a strict weak
+   //!   ordering compatible with the strict weak ordering used to create the
+   //!   the tree. NodePtrCompare compares two node_ptrs. "hint" is node from
+   //!   the "header"'s tree.
+   //!   
+   //! <b>Effects</b>: Inserts new_node into the tree, using "hint" as a hint to
+   //!   where it will be inserted. If "hint" is the upper_bound
+   //!   the insertion takes constant time (two comparisons in the worst case).
+   //!
+   //! <b>Complexity</b>: Logarithmic in general, but it is amortized
+   //!   constant time if new_node is inserted immediately before "hint".
+   //! 
+   //! <b>Throws</b>: If "comp" throws.
+   template<class NodePtrCompare>
+   static node_ptr insert_equal
+      (node_ptr header, node_ptr hint, node_ptr new_node, NodePtrCompare comp)
+   {
+      annotated_tree_algorithms::insert_equal(header, hint, new_node, comp);
+      rebalance_after_insertion(header, new_node);
+      return new_node;
+   }
+
+   //! <b>Requires</b>: "header" must be the header node of a tree.
+   //!   "pos" must be a valid iterator or header (end) node.
+   //!   "pos" must be an iterator pointing to the successor to "new_node"
+   //!   once inserted according to the order of already inserted nodes. This function does not
+   //!   check "pos" and this precondition must be guaranteed by the caller.
+   //!   
+   //! <b>Effects</b>: Inserts new_node into the tree before "pos".
+   //!
+   //! <b>Complexity</b>: Constant-time.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: If "pos" is not the successor of the newly inserted "new_node"
+   //! tree invariants might be broken.
+   static node_ptr insert_before
+      (node_ptr header, node_ptr pos, node_ptr new_node)
+   {
+      annotated_tree_algorithms::insert_before(header, pos, new_node);
+      rebalance_after_insertion(header, new_node);
+      return new_node;
+   }
+
+   //! <b>Requires</b>: "header" must be the header node of a tree.
+   //!   "new_node" must be, according to the used ordering no less than the
+   //!   greatest inserted key.
+   //!   
+   //! <b>Effects</b>: Inserts new_node into the tree before "pos".
+   //!
+   //! <b>Complexity</b>: Constant-time.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: If "new_node" is less than the greatest inserted key
+   //! tree invariants are broken. This function is slightly faster than
+   //! using "insert_before".
+   static void push_back(node_ptr header, node_ptr new_node)
+   {
+      annotated_tree_algorithms::push_back(header, new_node);
+      rebalance_after_insertion(header, new_node);
+   }
+
+   //! <b>Requires</b>: "header" must be the header node of a tree.
+   //!   "new_node" must be, according to the used ordering, no greater than the
+   //!   lowest inserted key.
+   //!   
+   //! <b>Effects</b>: Inserts new_node into the tree before "pos".
+   //!
+   //! <b>Complexity</b>: Constant-time.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Note</b>: If "new_node" is greater than the lowest inserted key
+   //! tree invariants are broken. This function is slightly faster than
+   //! using "insert_before".
+   static void push_front(node_ptr header, node_ptr new_node)
+   {
+      annotated_tree_algorithms::push_front(header, new_node);
+      rebalance_after_insertion(header, new_node);
+   }
+
+   //! <b>Requires</b>: "header" must be the header node of a tree.
+   //!   "commit_data" must have been obtained from a previous call to
+   //!   "insert_unique_check". No objects should have been inserted or erased
+   //!   from the set between the "insert_unique_check" that filled "commit_data"
+   //!   and the call to "insert_commit". 
+   //! 
+   //! 
+   //! <b>Effects</b>: Inserts new_node in the set using the information obtained
+   //!   from the "commit_data" that a previous "insert_check" filled.
+   //!
+   //! <b>Complexity</b>: Constant time if AnnotationList is the empty list, Logarithmic otherwise.
+   //!
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Notes</b>: This function has only sense if a "insert_unique_check" has been
+   //!   previously executed to fill "commit_data". No value should be inserted or
+   //!   erased between the "insert_check" and "insert_commit" calls.
+   static void insert_unique_commit
+      (node_ptr header, node_ptr new_value, const insert_commit_data &commit_data)
+   {
+      node_tree_algorithms::insert_unique_commit(header, new_value, commit_data);
+      rebalance_after_insertion(header, new_value);
+   }
+
+   /// @cond
+   private:
+
+   //! <b>Requires</b>: p is a node of a tree.
+   //! 
+   //! <b>Effects</b>: Returns true if p is the header of the tree.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   static bool is_header(const_node_ptr p)
+   {
+      return node_traits::get_color(p) == node_traits::red() &&
+            annotated_tree_algorithms::is_header(p);
+      //return node_traits::get_color(p) == node_traits::red() && 
+      //       node_traits::get_parent(node_traits::get_parent(p)) == p;
+   }
 
    static void rebalance_after_erasure(node_ptr header, node_ptr x, node_ptr x_parent)
    {
-      while(x != NodeTraits::get_parent(header) && (x == 0 || NodeTraits::get_color(x) == NodeTraits::black())){
-         if(x == NodeTraits::get_left(x_parent)){
-            node_ptr w = NodeTraits::get_right(x_parent);
-            if(NodeTraits::get_color(w) == NodeTraits::red()){
-               NodeTraits::set_color(w, NodeTraits::black());
-               NodeTraits::set_color(x_parent, NodeTraits::red());
-               tree_algorithms::rotate_left(x_parent, header);
-               w = NodeTraits::get_right(x_parent);
+      while(x != node_traits::get_parent(header) && (x == 0 || node_traits::get_color(x) == node_traits::black())){
+         if(x == node_traits::get_left(x_parent)){
+            node_ptr w = node_traits::get_right(x_parent);
+            if(node_traits::get_color(w) == node_traits::red()){
+               node_traits::set_color(w, node_traits::black());
+               node_traits::set_color(x_parent, node_traits::red());
+               node_tree_algorithms::rotate_left(x_parent, header);
+               w = node_traits::get_right(x_parent);
             }
-            if((NodeTraits::get_left(w) == 0 || NodeTraits::get_color(NodeTraits::get_left(w))  == NodeTraits::black()) &&
-               (NodeTraits::get_right(w) == 0 || NodeTraits::get_color(NodeTraits::get_right(w)) == NodeTraits::black())){
-               NodeTraits::set_color(w, NodeTraits::red());
+            if((node_traits::get_left(w) == 0 || node_traits::get_color(node_traits::get_left(w))  == node_traits::black()) &&
+               (node_traits::get_right(w) == 0 || node_traits::get_color(node_traits::get_right(w)) == node_traits::black())){
+               node_traits::set_color(w, node_traits::red());
                x = x_parent;
-               x_parent = NodeTraits::get_parent(x_parent);
+               annotation_algorithms::update(x_parent);
+               x_parent = node_traits::get_parent(x_parent);
             } 
             else {
-               if(NodeTraits::get_right(w) == 0 || NodeTraits::get_color(NodeTraits::get_right(w)) == NodeTraits::black()){
-                  NodeTraits::set_color(NodeTraits::get_left(w), NodeTraits::black());
-                  NodeTraits::set_color(w, NodeTraits::red());
-                  tree_algorithms::rotate_right(w, header);
-                  w = NodeTraits::get_right(x_parent);
+               if(node_traits::get_right(w) == 0 || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()){
+                  node_traits::set_color(node_traits::get_left(w), node_traits::black());
+                  node_traits::set_color(w, node_traits::red());
+                  node_tree_algorithms::rotate_right(w, header);
+                  annotation_algorithms::update(w);
+                  w = node_traits::get_right(x_parent);
                }
-               NodeTraits::set_color(w, NodeTraits::get_color(x_parent));
-               NodeTraits::set_color(x_parent, NodeTraits::black());
-               if(NodeTraits::get_right(w))
-                  NodeTraits::set_color(NodeTraits::get_right(w), NodeTraits::black());
-               tree_algorithms::rotate_left(x_parent, header);
+               node_traits::set_color(w, node_traits::get_color(x_parent));
+               node_traits::set_color(x_parent, node_traits::black());
+               if(node_traits::get_right(w))
+                  node_traits::set_color(node_traits::get_right(w), node_traits::black());
+               node_tree_algorithms::rotate_left(x_parent, header);
                break;
             }
          }
          else {
             // same as above, with right_ <-> left_.
-            node_ptr w = NodeTraits::get_left(x_parent);
-            if(NodeTraits::get_color(w) == NodeTraits::red()){
-               NodeTraits::set_color(w, NodeTraits::black());
-               NodeTraits::set_color(x_parent, NodeTraits::red());
-               tree_algorithms::rotate_right(x_parent, header);
-               w = NodeTraits::get_left(x_parent);
+            node_ptr w = node_traits::get_left(x_parent);
+            if(node_traits::get_color(w) == node_traits::red()){
+               node_traits::set_color(w, node_traits::black());
+               node_traits::set_color(x_parent, node_traits::red());
+               node_tree_algorithms::rotate_right(x_parent, header);
+               w = node_traits::get_left(x_parent);
             }
-            if((NodeTraits::get_right(w) == 0 || NodeTraits::get_color(NodeTraits::get_right(w)) == NodeTraits::black()) &&
-               (NodeTraits::get_left(w) == 0 || NodeTraits::get_color(NodeTraits::get_left(w)) == NodeTraits::black())){
-               NodeTraits::set_color(w, NodeTraits::red());
+            if((node_traits::get_right(w) == 0 || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()) &&
+               (node_traits::get_left(w) == 0 || node_traits::get_color(node_traits::get_left(w)) == node_traits::black())){
+               node_traits::set_color(w, node_traits::red());
                x = x_parent;
-               x_parent = NodeTraits::get_parent(x_parent);
+               annotation_algorithms::update(x_parent);
+               x_parent = node_traits::get_parent(x_parent);
             }
             else {
-               if(NodeTraits::get_left(w) == 0 || NodeTraits::get_color(NodeTraits::get_left(w)) == NodeTraits::black()){
-                  NodeTraits::set_color(NodeTraits::get_right(w), NodeTraits::black());
-                  NodeTraits::set_color(w, NodeTraits::red());
-                  tree_algorithms::rotate_left(w, header);
-                  w = NodeTraits::get_left(x_parent);
+               if(node_traits::get_left(w) == 0 || node_traits::get_color(node_traits::get_left(w)) == node_traits::black()){
+                  node_traits::set_color(node_traits::get_right(w), node_traits::black());
+                  node_traits::set_color(w, node_traits::red());
+                  node_tree_algorithms::rotate_left(w, header);
+                  annotation_algorithms::update(w);
+                  w = node_traits::get_left(x_parent);
                }
-               NodeTraits::set_color(w, NodeTraits::get_color(x_parent));
-               NodeTraits::set_color(x_parent, NodeTraits::black());
-               if(NodeTraits::get_left(w))
-                  NodeTraits::set_color(NodeTraits::get_left(w), NodeTraits::black());
-               tree_algorithms::rotate_right(x_parent, header);
+               node_traits::set_color(w, node_traits::get_color(x_parent));
+               node_traits::set_color(x_parent, node_traits::black());
+               if(node_traits::get_left(w))
+                  node_traits::set_color(node_traits::get_left(w), node_traits::black());
+               node_tree_algorithms::rotate_right(x_parent, header);
                break;
             }
          }
       }
       if(x)
-         NodeTraits::set_color(x, NodeTraits::black());
+         node_traits::set_color(x, node_traits::black());
+      annotation_algorithms::update_to_top(x_parent);
    }
-
 
    static void rebalance_after_insertion(node_ptr header, node_ptr p)
    {
-      NodeTraits::set_color(p, NodeTraits::red());
-      while(p != NodeTraits::get_parent(header) && NodeTraits::get_color(NodeTraits::get_parent(p)) == NodeTraits::red()){
-         node_ptr p_parent(NodeTraits::get_parent(p));
-         node_ptr p_parent_parent(NodeTraits::get_parent(p_parent));
-         if(tree_algorithms::is_left_child(p_parent)){
-            node_ptr x = NodeTraits::get_right(p_parent_parent);
-            if(x && NodeTraits::get_color(x) == NodeTraits::red()){
-               NodeTraits::set_color(p_parent, NodeTraits::black());
-               NodeTraits::set_color(p_parent_parent, NodeTraits::red());
-               NodeTraits::set_color(x, NodeTraits::black());
+      node_traits::set_color(p, node_traits::red());
+      while(p != node_traits::get_parent(header) && node_traits::get_color(node_traits::get_parent(p)) == node_traits::red()){
+         node_ptr p_parent(node_traits::get_parent(p));
+         node_ptr p_parent_parent(node_traits::get_parent(p_parent));
+         if(annotated_tree_algorithms::is_left_child(p_parent)){
+            node_ptr x = node_traits::get_right(p_parent_parent);
+            if(x && node_traits::get_color(x) == node_traits::red()){
+               node_traits::set_color(p_parent, node_traits::black());
+               node_traits::set_color(p_parent_parent, node_traits::red());
+               node_traits::set_color(x, node_traits::black());
+               annotation_algorithms::update(p);
+               annotation_algorithms::update(p_parent);
                p = p_parent_parent;
             }
             else {
-               if(!tree_algorithms::is_left_child(p)){
+               if(!annotated_tree_algorithms::is_left_child(p)){
                   p = p_parent;
-                  tree_algorithms::rotate_left(p, header);
+                  node_tree_algorithms::rotate_left(p, header);
                }
-               node_ptr new_p_parent(NodeTraits::get_parent(p));
-               node_ptr new_p_parent_parent(NodeTraits::get_parent(new_p_parent));
-               NodeTraits::set_color(new_p_parent, NodeTraits::black());
-               NodeTraits::set_color(new_p_parent_parent, NodeTraits::red());
-               tree_algorithms::rotate_right(new_p_parent_parent, header);
+               node_ptr new_p_parent(node_traits::get_parent(p));
+               node_ptr new_p_parent_parent(node_traits::get_parent(new_p_parent));
+               node_traits::set_color(new_p_parent, node_traits::black());
+               node_traits::set_color(new_p_parent_parent, node_traits::red());
+               node_tree_algorithms::rotate_right(new_p_parent_parent, header);
+               annotation_algorithms::update(new_p_parent_parent);
             }
          }
          else{
-            node_ptr x = NodeTraits::get_left(p_parent_parent);
-            if(x && NodeTraits::get_color(x) == NodeTraits::red()){
-               NodeTraits::set_color(p_parent, NodeTraits::black());
-               NodeTraits::set_color(p_parent_parent, NodeTraits::red());
-               NodeTraits::set_color(x, NodeTraits::black());
+            node_ptr x = node_traits::get_left(p_parent_parent);
+            if(x && node_traits::get_color(x) == node_traits::red()){
+               node_traits::set_color(p_parent, node_traits::black());
+               node_traits::set_color(p_parent_parent, node_traits::red());
+               node_traits::set_color(x, node_traits::black());
+               annotation_algorithms::update(p);
+               annotation_algorithms::update(p_parent);
                p = p_parent_parent;
             }
             else{
-               if(tree_algorithms::is_left_child(p)){
+               if(annotated_tree_algorithms::is_left_child(p)){
                   p = p_parent;
-                  tree_algorithms::rotate_right(p, header);
+                  node_tree_algorithms::rotate_right(p, header);
                }
-               node_ptr new_p_parent(NodeTraits::get_parent(p));
-               node_ptr new_p_parent_parent(NodeTraits::get_parent(new_p_parent));
-               NodeTraits::set_color(new_p_parent, NodeTraits::black());
-               NodeTraits::set_color(new_p_parent_parent, NodeTraits::red());
-               tree_algorithms::rotate_left(new_p_parent_parent, header);
+               node_ptr new_p_parent(node_traits::get_parent(p));
+               node_ptr new_p_parent_parent(node_traits::get_parent(new_p_parent));
+               node_traits::set_color(new_p_parent, node_traits::black());
+               node_traits::set_color(new_p_parent_parent, node_traits::red());
+               node_tree_algorithms::rotate_left(new_p_parent_parent, header);
+               annotation_algorithms::update(new_p_parent_parent);
             }
          }
       }
-      NodeTraits::set_color(NodeTraits::get_parent(header), NodeTraits::black());
+      node_traits::set_color(node_traits::get_parent(header), node_traits::black());
+      annotation_algorithms::update_to_top(p);
    }
    /// @endcond
+};
+
+template<class NodeTraits>
+class rbtree_algorithms : public annotated_rbtree_algorithms< ::boost::intrusive::trivial_annotated_node_traits<NodeTraits>, ::boost::intrusive::annotations<> >
+{
 };
 
 } //namespace intrusive 
