@@ -85,6 +85,12 @@ struct make_default_definer
       , no_default_definer>::type type;
 };
 
+template <class Node, class AnnotationList>
+struct node_plus_annotations : public Node
+{
+   AnnotationList annotations_;
+};
+
 template
    < class GetNodeAlgorithms
    , class Tag
@@ -93,14 +99,16 @@ template
    >
 struct make_node_holder
 {
+   typedef typename GetNodeAlgorithms::type::annotated_node annotated_node;
+
    typedef typename detail::if_c
       <!detail::is_same<Tag, member_tag>::value
       , detail::node_holder
-         < typename GetNodeAlgorithms::type::node
+         < node
          , Tag
          , LinkMode
          , HookType>
-      , typename GetNodeAlgorithms::type::node
+      , annotated_node
       >::type type;
 };
 

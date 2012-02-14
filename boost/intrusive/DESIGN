@@ -1,0 +1,70 @@
+Current work
+==============
+Figure out how to allocate the annotations object
+
+
+
+
+
+Aims:
+ - Avoid unnecessary template explosion
+
+Nodes vs Values
+===============
+
+
+Algorithms Layer
+================
+tree_algorithms    has generic binary tree algorithms
+rbtree_algorithms  wraps tree_algorithms to make a set of algorithms appropriate to rbtrees
+
+Monoids
+================
+
+The algorithms must be able to update the monoid value
+For that they need to be able to run a function that is specific to the monoid
+That function needs an input which  may be constant per node, may be based purely on the 
+
+
+Annotations
+================
+What about more generalized annotations on the tree?
+
+There exist annotations, e.g. of subtree depth, that can be maintained in logarithmic time but do not have the associativity invairant of monoids
+This breaks some optimisations such as the update-plus-copy maintenance operation for node rotations
+
+- Start with annotations.
+What does an annotation need?
+	Somewhere to store a computed value
+	Something to compute that value
+	
+Inputs to the computed value:
+	* The Node
+	* The Value (in the sense of ValueTraits), sometimes
+
+There are annotations for which only node data is needed (subtree count, tree depth). other need some sort of access to the node - or a stored value
+
+How about starting with a simple option where we store the node value if it is needed?
+
+
+=================
+
+Annotation is ambiguious - it could be an object that holds an annotation value, or the struct that defines the operations
+An annotation list is always a list of objects
+
+AnnotationList... is a list of objects with storage for the annotations,
+Annotations... is a list of the structs defining the operations
+
+
+annotation_list - an object with  ?
+annotated_node_algorithms - algorithms on an annotated node, takes an Annotations... parameter to support updating a subset of supported algorithms
+annotated_node_traits - traits relating the annotations to the node, c.f. value traits
+annotation_list_traits - traits relating to the list of annotations
+
+
+
+
+
+
+
+

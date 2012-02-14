@@ -789,7 +789,7 @@ struct pack_options
 
 namespace detail {
 template <class NodeTraits, class... Annotations>
-struct annotation_list_algorithms;
+struct annotated_node_algorithms;
 }
 
 template <class ...Annotations>
@@ -804,8 +804,8 @@ struct annotations
 /*   template <class AnnotatedNodeTraits>
    struct algorithms
    {
-      typedef typename apply_annotations<detail::annotation_list_algorithms, AnnotatedNodeTraits>::type type;
-//      typedef detail::annotation_list_algorithms<AnnotatedNodeTraits,Annotations...> type;
+      typedef typename apply_annotations<detail::annotated_node_algorithms, AnnotatedNodeTraits>::type type;
+//      typedef detail::annotated_node_algorithms<AnnotatedNodeTraits,Annotations...> type;
    };*/
 
 };

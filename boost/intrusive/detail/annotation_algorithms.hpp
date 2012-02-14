@@ -26,39 +26,26 @@ class tree_algorithms;
 template <class AnnotatedNodeTraits, class Annotation>
 struct annotation_algorithms
 {
-//   typedef typename AnnotatedNodeTraits::node_traits               node_traits;
-//   typedef typename node_traits::node_ptr                          node_ptr;
-//   typedef typename node_traits::const_node_ptr                    const_node_ptr;
-   typedef typename AnnotatedNodeTraits::annotated_node_ptr        annotated_node_ptr;
-   typedef typename AnnotatedNodeTraits::const_annotated_node_ptr  const_annotated_node_ptr;
+   typedef typename AnnotatedNodeTraits::annotation_list_ptr        annotation_list_ptr;
+   typedef typename AnnotatedNodeTraits::const_annotation_list_ptr  const_annotation_list_ptr;
 
-
-   static void update(annotated_node_ptr n){
+   static void update(annotation_list_ptr n){
       Annotation::template update_node<AnnotatedNodeTraits>(n);
-/*      node_ptr left = node_traits::get_left(n);
-      node_ptr right = node_traits::get_right(n);
-      typename Annotation::type n_value = AnnotatedNodeTraits::get_annotation_input_value(AnnotatedNodeTraits::to_annotated_node_ptr(n));
-      typename Annotation::type left_plus_value = left ?
-          typename Annotation::operation()(AnnotatedNodeTraits::template get_annotation_value<Annotation>(AnnotatedNodeTraits::to_annotated_node_ptr(left)), n_value) :
-          n_value;
-      AnnotatedNodeTraits::template set_annotation_value<Annotation>(n, right ?
-            typename Annotation::operation()(left_plus_value, AnnotatedNodeTraits::template get_annotation_value<Annotation>(AnnotatedNodeTraits::to_annotated_node_ptr(right))) :
-            left_plus_value);*/
    }
 
-   static void clone_node(const_annotated_node_ptr source, annotated_node_ptr target){
+   static void clone_node(const_annotation_list_ptr source, annotation_list_ptr target){
       AnnotatedNodeTraits::template set_annotation_value<Annotation>(target, AnnotatedNodeTraits::template get_annotation_value<Annotation>(source));
    }
 };
 
 template <class NodeTraits, class... Annotations>
-struct annotation_list_algorithms;
+struct annotated_node_algorithms;
 
 /*
 Specialize the no-annotation case to avoid iterating to the top of the tree for update_to_top
 */
 template <class AnnotatedNodeTraits>
-struct annotation_list_algorithms<AnnotatedNodeTraits>
+struct annotated_node_algorithms<AnnotatedNodeTraits>
 {
    typedef typename AnnotatedNodeTraits::node_ptr        node_ptr;
    typedef typename AnnotatedNodeTraits::const_node_ptr  const_node_ptr;
@@ -70,10 +57,10 @@ struct annotation_list_algorithms<AnnotatedNodeTraits>
 };
 
 template <class AnnotatedNodeTraits, class AnnotationsHead, class... AnnotationsTail>
-struct annotation_list_algorithms<AnnotatedNodeTraits, AnnotationsHead, AnnotationsTail...> : private annotation_list_algorithms<AnnotatedNodeTraits, AnnotationsTail...>
+struct annotated_node_algorithms<AnnotatedNodeTraits, AnnotationsHead, AnnotationsTail...> : private annotated_node_algorithms<AnnotatedNodeTraits, AnnotationsTail...>
 {
 private:
-   typedef annotation_list_algorithms<AnnotatedNodeTraits, AnnotationsTail...>  list_tail_algorithms;
+   typedef annotated_node_algorithms<AnnotatedNodeTraits, AnnotationsTail...>  list_tail_algorithms;
    typedef typename AnnotatedNodeTraits::node_traits                            node_traits;
    typedef node_tree_algorithms<node_traits>                                    base_tree_algorithms;
 
@@ -82,12 +69,12 @@ public:
    typedef typename AnnotatedNodeTraits::const_node_ptr  const_node_ptr;
 
    static void update(node_ptr n){
-      annotation_algorithms<AnnotatedNodeTraits, AnnotationsHead>::update(AnnotatedNodeTraits::to_annotated_node_ptr(n));
+      annotation_algorithms<AnnotatedNodeTraits, AnnotationsHead>::update(AnnotatedNodeTraits::to_annotation_list_ptr(n));
       list_tail_algorithms::update(n);
    };
 
    static void clone_node(const_node_ptr source, node_ptr target){
-      annotation_algorithms<AnnotatedNodeTraits, AnnotationsHead>::clone_node(AnnotatedNodeTraits::to_annotated_node_ptr(source), AnnotatedNodeTraits::to_annotated_node_ptr(target));
+      annotation_algorithms<AnnotatedNodeTraits, AnnotationsHead>::clone_node(AnnotatedNodeTraits::to_annotation_list_ptr(source), AnnotatedNodeTraits::to_annotation_list_ptr(target));
       list_tail_algorithms::clone_node(source, target);
    }
 
@@ -114,30 +101,14 @@ public:
    }
 };
 
-template <class AnnotatedNodeTraits, class AnnotationList>
-struct make_annotation_list_algorithms
+template <class AnnotatedNodeTraits, class Annotations>
+struct make_annotated_node_algorithms
 {
-   typedef typename AnnotationList::template apply<
-         annotation_list_algorithms,
+   typedef typename Annotations::template apply<
+         annotated_node_algorithms,
          AnnotatedNodeTraits
       >::type type;
 };
-
-/*
-BOOST_MPL_HAS_XXX_TRAIT_DEF(annotations);
-
-template <class T>
-struct eval_annotations
-{
-    typedef typename T::annotations type;
-};
-
-template <class T, class Default>
-struct extract_annotations
-{
-    typedef typename std::conditional<has_annotations<T>::value, eval_annotations<T>, identity<Default>>::type::type::template apply<T>::type type;
-};
-*/
 
 }
 }

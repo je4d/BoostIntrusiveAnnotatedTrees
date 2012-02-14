@@ -21,14 +21,13 @@
 //iG pending #include <boost/pointer_cast.hpp>
 #include <boost/intrusive/detail/node_tree_algorithms.hpp>
 #include <boost/intrusive/detail/annotation_algorithms.hpp>
-#include <boost/intrusive/trivial_annotated_node_traits.hpp>
 #include <boost/intrusive/options.hpp>
 
 namespace boost {
 namespace intrusive {
 namespace detail {
 
-template<class AnnotatedNodeTraits, class AnnotationList = ::boost::intrusive::annotations<> >
+template<class AnnotatedNodeTraits, class Annotations = ::boost::intrusive::annotations<> >
 class annotated_tree_algorithms : public node_tree_algorithms<typename AnnotatedNodeTraits::node_traits>
 {
    public:
@@ -39,8 +38,8 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    typedef node_tree_algorithms<node_traits>          base_type;
    typedef typename base_type::insert_commit_data     insert_commit_data;
    typedef typename base_type::data_for_rebalance     data_for_rebalance;
-   typedef typename make_annotation_list_algorithms<
-      AnnotatedNodeTraits, AnnotationList>::type      annotation_algorithms;
+   typedef typename make_annotated_node_algorithms<
+      AnnotatedNodeTraits, Annotations>::type         annotation_algorithms;
 
    private:
    struct nop_erase_fixup
@@ -237,11 +236,6 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
          erase(x, node);
       }
    }
-};
-
-template<class NodeTraits>
-class tree_algorithms : public annotated_tree_algorithms< ::boost::intrusive::trivial_annotated_node_traits<NodeTraits>, ::boost::intrusive::annotations<> >
-{
 };
 
 }  //namespace detail {

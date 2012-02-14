@@ -26,10 +26,10 @@ namespace boost {
 namespace intrusive {
 
 /// @cond
-template<class VoidPointer, bool OptimizeSize = false>
+template<class VoidPointer, bool OptimizeSize = false, class Annotations = annotations<> >
 struct get_set_node_algo
 {
-   typedef rbtree_algorithms<rbtree_node_traits<VoidPointer, OptimizeSize> > type;
+   typedef annotated_rbtree_algorithms<rbtree_node_traits<VoidPointer, OptimizeSize> > type;
 };
 /// @endcond
 

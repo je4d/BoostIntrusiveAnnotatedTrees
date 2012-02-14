@@ -58,6 +58,7 @@
 #include <boost/intrusive/detail/node_tree_algorithms.hpp>
 #include <boost/intrusive/detail/annotated_tree_algorithms.hpp>
 #include <boost/intrusive/detail/annotation_algorithms.hpp>
+#include <boost/intrusive/trivial_annotated_node_traits.hpp>
 
 namespace boost {
 namespace intrusive {
@@ -542,11 +543,13 @@ template<class AnnotatedNodeTraits, class AnnotationList>
 class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename AnnotatedNodeTraits::node_traits>
 {
    public:
-   typedef typename AnnotatedNodeTraits::node_traits    node_traits;
-   typedef typename node_traits::node            node;
-   typedef typename node_traits::node_ptr        node_ptr;
-   typedef typename node_traits::const_node_ptr  const_node_ptr;
-   typedef typename node_traits::color           color;
+   typedef AnnotatedNodeTraits                                     annotated_node_traits;
+   typedef typename AnnotatedNodeTraits::node_traits               node_traits;
+   typedef typename node_traits::node                              node;
+   typedef typename node_traits::node_ptr                          node_ptr;
+   typedef typename node_traits::const_node_ptr                    const_node_ptr;
+   typedef typename node_traits::color                             color;
+   typedef typename AnnotatedNodeTraits::annotated_node            annotated_node;
 
    /// @cond
    private:
@@ -555,7 +558,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    typedef detail::node_tree_algorithms<node_traits>                                                  node_tree_algorithms;
    typedef detail::annotated_tree_algorithms<AnnotatedNodeTraits,AnnotationList>                      annotated_tree_algorithms;
    typedef typename annotated_tree_algorithms::insert_commit_data                                     insert_commit_data;
-   typedef typename detail::make_annotation_list_algorithms<AnnotatedNodeTraits,AnnotationList>::type annotation_algorithms;
+   typedef typename detail::make_annotated_node_algorithms<AnnotatedNodeTraits,AnnotationList>::type annotation_algorithms;
 
    template<class F>
    struct rbtree_node_cloner

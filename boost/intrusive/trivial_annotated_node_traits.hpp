@@ -26,22 +26,30 @@ struct trivial_annotated_node_traits
    typedef NodeTraits                           node_traits;
    typedef typename NodeTraits::node_ptr        node_ptr;
    typedef typename NodeTraits::const_node_ptr  const_node_ptr;
+   typedef typename NodeTraits::node            annotation_list;
+   typedef typename NodeTraits::node_ptr        annotation_list_ptr;
+   typedef typename NodeTraits::const_node_ptr  const_annotation_list_ptr;
    typedef typename NodeTraits::node            annotated_node;
    typedef typename NodeTraits::node_ptr        annotated_node_ptr;
    typedef typename NodeTraits::const_node_ptr  const_annotated_node_ptr;
 
+   struct annotation_list_traits {
+      typedef typename NodeTraits::node            annotation_list;
+      typedef typename NodeTraits::node_ptr        annotation_list_ptr;
+      typedef typename NodeTraits::const_node_ptr  const_annotation_list_ptr;
+      template <class Annotation> static typename Annotation::type get_annotation_value(const_annotation_list_ptr n)
+      { static_assert(sizeof(Annotation)==0, "get_annotation_value called for unsupported annotation"); }
+      template <class Annotation> static void set_annotation_value(annotation_list_ptr n, typename Annotation::type value)
+      { static_assert(sizeof(Annotation)==0, "set_annotation_value called for unsupported annotation"); }
 
-   static node_ptr               to_node_ptr                (annotated_node_ptr mn)       { return mn; }
-   static const_node_ptr         to_node_ptr                (const_annotated_node_ptr mn) { return mn; }
-   static annotated_node_ptr        to_annotated_node_ptr         (node_ptr n)               { return n; }
-   static const_annotated_node_ptr  to_const_annotated_node_ptr   (const_node_ptr n)         { return n; }
+/*   template <class Annotation> static typename Annotation::type get_node_value(const_node_ptr n)
+   { static_assert(sizeof(Annotation)!=sizeof(Annotation), "get_annotation_value called for unsupported annotation"); }*/
+   };
 
-   template <class Annotation> static typename Annotation::type get_node_value(const_node_ptr n)
-   { static_assert(std::is_class<Annotation>::value && false, "get_monoid_value called for unsupported monoid"); }
-   template <class Annotation> static typename Annotation::type get_monoid_value(const_node_ptr n)
-   { static_assert(std::is_class<Annotation>::value && false, "get_monoid_value called for unsupported monoid"); }
-   template <class Annotation> static void set_monoid_value(node_ptr n, typename Annotation::type value)
-   { static_assert(std::is_class<Annotation>::value && false, "set_monoid_value called for unsupported monoid"); }
+   static node_ptr       to_node_ptr  (annotation_list_ptr       an) { return an; }
+   static const_node_ptr to_node_ptr  (const_annotation_list_ptr an) { return an; }
+   static annotation_list_ptr       to_annotation_list_ptr       (node_ptr       n) { return n; }
+   static const_annotation_list_ptr to_const_annotation_list_ptr (const_node_ptr n) { return n; }
 };
 
 } //namespace intrusive 

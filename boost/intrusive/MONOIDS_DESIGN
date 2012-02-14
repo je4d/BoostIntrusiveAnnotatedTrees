@@ -1,0 +1,4 @@
+
+Some algorithms, such as compress_subtree, need to have the monoid updating quite tightly integrated
+We need to avoid breaking current code, and avoid duplicating algorithms
+

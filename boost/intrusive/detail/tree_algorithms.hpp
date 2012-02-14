@@ -20,13 +20,14 @@
 #include <boost/intrusive/detail/utilities.hpp>
 //iG pending #include <boost/pointer_cast.hpp>
 #include <boost/intrusive/annotated_tree_algorithms.hpp>
+#include <boost/intrusive/trivial_annotated_node_traits.hpp>
 
 namespace boost {
 namespace intrusive {
 namespace detail {
 
 template<class NodeTraits>
-class tree_algorithms : public annotated_tree_algorithms<NodeTraits, ::boot::intrusive::trivial_annotated_node_traits<NodeTraits>, ::boost::intrusive::annotated_node_traits<> >
+class tree_algorithms : public annotated_tree_algorithms<::boost::intrusive::trivial_annotated_node_traits<NodeTraits>>
 {
 };
 
