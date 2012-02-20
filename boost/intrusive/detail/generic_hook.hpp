@@ -104,7 +104,7 @@ struct make_node_holder
    typedef typename detail::if_c
       <!detail::is_same<Tag, member_tag>::value
       , detail::node_holder
-         < node
+         < annotated_node
          , Tag
          , LinkMode
          , HookType>
@@ -149,6 +149,7 @@ class generic_hook
       static const link_mode_type link_mode = LinkMode;
       typedef Tag                                           tag;
       typedef typename GetNodeAlgorithms::type::node_traits node_traits;
+      typedef typename GetNodeAlgorithms::type::annotated_node_traits annotated_node_traits;
       static const bool is_base_hook = !detail::is_same<Tag, member_tag>::value;
       static const bool safemode_or_autounlink = 
          (int)link_mode == (int)auto_unlink || (int)link_mode == (int)safe_link;
@@ -199,6 +200,13 @@ class generic_hook
       BOOST_STATIC_ASSERT(( (int)boost_intrusive_tags::link_mode == (int)auto_unlink ));
       node_algorithms::unlink(static_cast<node*>(this));
       node_algorithms::init(static_cast<node*>(this));
+   }
+
+   template <class Annotation>
+   typename Annotation::type get_annotation_value()
+   {
+      return node_algorithms::annotated_node_traits::annotation_list_traits::template get_annotation_value<Annotation>(
+            node_algorithms::annotated_node_traits::to_annotation_list_ptr(static_cast<node*>(this)));
    }
 };
 

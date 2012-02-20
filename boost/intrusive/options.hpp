@@ -583,6 +583,25 @@ struct incremental
    /// @endcond
 };
 
+#if defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+template <class ...Annotations>
+struct annotations
+{
+   /* putting this here allows both direct use and use as an option */
+   template <template <class ...> class T, class... TArgs>
+   struct apply
+   {
+      typedef T<TArgs..., Annotations...> type;
+   };
+
+   template<class Base>
+   struct pack : Base
+   {
+      typedef ::boost::intrusive::annotations<Annotations...> annotations;
+   };
+};
+#endif
+
 /// @cond
 
 //To-do: pass to variadic templates
@@ -787,29 +806,6 @@ struct pack_options
    typedef typename do_pack<inverted_typelist>::type type;
 };
 
-namespace detail {
-template <class NodeTraits, class... Annotations>
-struct annotated_node_algorithms;
-}
-
-template <class ...Annotations>
-struct annotations
-{
-   template <template <class ...> class T, class... TArgs>
-   struct apply
-   {
-      typedef T<TArgs..., Annotations...> type;
-   };
-
-/*   template <class AnnotatedNodeTraits>
-   struct algorithms
-   {
-      typedef typename apply_annotations<detail::annotated_node_algorithms, AnnotatedNodeTraits>::type type;
-//      typedef detail::annotated_node_algorithms<AnnotatedNodeTraits,Annotations...> type;
-   };*/
-
-};
-
 #endif
 
 struct hook_defaults
@@ -822,6 +818,7 @@ struct hook_defaults
       , store_hash<false>
       , linear<false>
       , optimize_multikey<false>
+      , annotations<>
       >::type
 {};
 

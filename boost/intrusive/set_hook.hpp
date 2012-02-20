@@ -22,6 +22,9 @@
 #include <boost/intrusive/options.hpp>
 #include <boost/intrusive/detail/generic_hook.hpp>
 
+#include <boost/intrusive/detail/generic_annotated_node.hpp>
+#include <boost/intrusive/detail/generic_annotation_list.hpp>
+
 namespace boost {
 namespace intrusive {
 
@@ -29,7 +32,12 @@ namespace intrusive {
 template<class VoidPointer, bool OptimizeSize = false, class Annotations = annotations<> >
 struct get_set_node_algo
 {
-   typedef annotated_rbtree_algorithms<rbtree_node_traits<VoidPointer, OptimizeSize> > type;
+   typedef annotated_rbtree_algorithms<
+      detail::generic_annotated_node_traits<
+         rbtree_node_traits<VoidPointer, OptimizeSize>
+         ,detail::generic_annotation_list_traits<VoidPointer,Annotations>
+      >
+      ,Annotations> type;
 };
 /// @endcond
 
@@ -54,7 +62,8 @@ struct make_set_base_hook
 
    typedef detail::generic_hook
    < get_set_node_algo<typename packed_options::void_pointer
-                      ,packed_options::optimize_size>
+                      ,packed_options::optimize_size
+                      ,typename packed_options::annotations>
    , typename packed_options::tag
    , packed_options::link_mode
    , detail::SetBaseHook

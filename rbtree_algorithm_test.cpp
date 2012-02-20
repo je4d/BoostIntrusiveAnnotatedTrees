@@ -4,6 +4,7 @@
 #include "boost/intrusive/detail/generic_annotation_list.hpp"
 #include "boost/intrusive/detail/generic_annotated_node.hpp"
 #include "boost/intrusive/detail/rbtree_node.hpp"
+#include "boost/intrusive/set_hook.hpp"
 #include <cstddef>
 #include <type_traits>
 #include <iostream>
@@ -64,34 +65,108 @@ bool check(my_annotated_node_traits::node_ptr header, MonoidNode* node)
 	}
 }
 
-int main()
+void test_algo()
 {
-
 	my_annotated_node_traits::node header;
 	ralgo::init_header(&header);
 
 	for (int i = 0; i < 100; ++i) {
 		ralgo::insert_equal(&header, &header, new Value(), Compare());
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_left(&header)));
-		std::cout << i << std::endl;
+		std::cout << i << " ";
 	}
+	std::cout << std::endl;
 	Value::a = -100;
 	for (int i = 0; i < 100; ++i) {
 		ralgo::insert_equal(&header, &header, new Value(), Compare());
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_left(&header)));
-		std::cout << i << std::endl;
+		std::cout << i << " ";
 	}
+	std::cout << std::endl;
 	Value::a = 0;
 	for (int i = 0; i < 50; ++i) {
 		ralgo::erase(&header, my_annotated_node_traits::node_traits::get_left(&header));
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_left(&header)));
-		std::cout << i << std::endl;
+		std::cout << i << " ";
 	}
+	std::cout << std::endl;
 	for (int i = 0; i < 50; ++i) {
 		ralgo::erase(&header, my_annotated_node_traits::node_traits::get_right(&header));
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_right(&header)));
-		std::cout << i << std::endl;
+		std::cout << i << " ";
 	}
+	std::cout << std::endl;
+}
+
+typedef boost::intrusive::set_base_hook<my_annotation_list> my_hook;
+
+struct ValueUsingHook : public my_hook
+{
+	static int a;
+	ValueUsingHook() : val(a++) {}
+	int val;
+};
+
+int ValueUsingHook::a = 998;
+
+
+struct CompareUsingHook
+{
+	bool operator()(my_hook::boost_intrusive_tags::node_traits::const_node_ptr a, my_hook::boost_intrusive_tags::node_traits::const_node_ptr b) { return static_cast<const ValueUsingHook&>(*a).val < static_cast<const ValueUsingHook&>(*b).val; }
+};
+
+bool check_hook(my_hook::boost_intrusive_tags::node_traits::node_ptr header, my_hook* node)
+{
+	size_t count = 0;
+	while (node != header) {
+		if (ralgo::count(node) != node->get_annotation_value<subtree_count_annotation>())
+			std::cout << "oops!" << std::endl;
+		node = static_cast<my_hook*>(ralgo::next_node(node));
+	}
+}
+
+void test_hook()
+{
+	typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, my_annotation_list> node_algorithms;
+	//typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, boost::intrusive::annotations<>> node_algorithms;
+	node_algorithms::node header;
+	node_algorithms::init_header(&header);
+
+	typedef node_algorithms ralgo;
+	typedef ralgo::node_traits node_traits;
+
+	for (int i = 0; i < 100; ++i) {
+		ralgo::insert_equal(&header, &header, new ValueUsingHook(), CompareUsingHook());
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+	Value::a = -100;
+	for (int i = 0; i < 100; ++i) {
+		ralgo::insert_equal(&header, &header, new Value(), Compare());
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+	Value::a = 0;
+	for (int i = 0; i < 50; ++i) {
+		ralgo::erase(&header, node_traits::get_left(&header));
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+	for (int i = 0; i < 50; ++i) {
+		ralgo::erase(&header, node_traits::get_right(&header));
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_right(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+}
+
+int main()
+{
+	test_algo();
+	test_hook();
 
 //	int x = *((int*)0); 
 
