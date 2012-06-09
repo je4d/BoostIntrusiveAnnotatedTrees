@@ -60,7 +60,7 @@
 // (Niels Dekker, LKEB, April 2010)
 #  define BOOST_NO_COMPLETE_VALUE_INITIALIZATION
 
-#  ifdef NDEBUG
+#  if defined(NDEBUG) && defined(__cplusplus)
       // fix broken <cstring> so that Boost.test works:
 #     include <cstring>
 #     undef strcmp
@@ -100,6 +100,7 @@
 #define BOOST_NO_FUNCTION_TEMPLATE_DEFAULT_ARGS
 #define BOOST_NO_INITIALIZER_LISTS
 #define BOOST_NO_LAMBDAS
+#define BOOST_NO_NOEXCEPT
 #define BOOST_NO_NULLPTR
 #define BOOST_NO_RAW_LITERALS
 #define BOOST_NO_RVALUE_REFERENCES
@@ -107,6 +108,7 @@
 #define BOOST_NO_TEMPLATE_ALIASES
 #define BOOST_NO_UNICODE_LITERALS
 #define BOOST_NO_VARIADIC_TEMPLATES
+#define BOOST_NO_UNIFIED_INITIALIZATION_SYNTAX
 
 //
 // TR1 macros:

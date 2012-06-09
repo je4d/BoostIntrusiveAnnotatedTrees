@@ -1,6 +1,9 @@
-// implementation_status (developed in the context of Boost.Geometry documentation)
-//
-// Copyright Barend Gehrels 2010, 2011, Geodan, Amsterdam, the Netherlands
+// Boost.Geometry (aka GGL, Generic Geometry Library)
+// Tool reporting Implementation Status in QBK format
+
+// Copyright (c) 2011 Barend Gehrels, Amsterdam, the Netherlands.
+// Copyright (c) 2011 Bruno Lalande, Paris, France.
+
 // Use, modification and distribution is subject to the Boost Software License,
 // Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
@@ -68,8 +71,9 @@ struct compile_msvc
             command <<  "u";
         }
 
-        command << "implementation_status.hpp tmp/t.cpp > tmp/t.out";
-            // For debugging: << type1 << "_" << type2 << ".out"; 
+        command << "implementation_status.hpp tmp/t.cpp > tmp/t" //.out";
+            // For debugging: 
+            << type1 << "_" << type2 << ".out"; 
 
         int failed = system(command.str().c_str());
         return failed == 0;
@@ -297,7 +301,9 @@ int main(int argc, char** argv)
     algorithms.push_back(algorithm("correct"));
     algorithms.push_back(algorithm("distance", 2));
     algorithms.push_back(algorithm("centroid", 2));
-    //algorithms.push_back(algorithm("within", 2));
+    algorithms.push_back(algorithm("intersects", 2));
+    algorithms.push_back(algorithm("within", 2));
+    algorithms.push_back(algorithm("equals", 2));
 
     typedef std::vector<cs> cs_type;
     cs_type css;

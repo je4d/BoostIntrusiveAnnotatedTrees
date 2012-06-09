@@ -20,6 +20,7 @@
 #include <boost/spirit/home/support/meta_compiler.hpp>
 #include <boost/spirit/home/support/detail/make_vector.hpp>
 #include <boost/spirit/home/support/unused.hpp>
+#include <boost/spirit/home/support/detail/is_spirit_tag.hpp>
 #include <boost/preprocessor/tuple/elem.hpp>
 
 #include <boost/spirit/home/support/terminal_expression.hpp>
@@ -64,6 +65,13 @@ namespace boost { namespace spirit
     template <typename Domain, typename Terminal, int Arity, typename Enable = void>
     struct use_lazy_directive : mpl::false_ {};
 
+    template <typename Terminal>
+    struct terminal;
+
+    template <typename Domain, typename Terminal>
+    struct use_terminal<Domain, terminal<Terminal> >
+        : use_terminal<Domain, Terminal> {};
+
     template <typename Domain, typename Terminal, int Arity, typename Actor>
     struct use_terminal<Domain, lazy_terminal<Terminal, Actor, Arity> >
         : use_lazy_terminal<Domain, Terminal, Arity> {};
@@ -88,7 +96,7 @@ namespace boost { namespace spirit
             proto::terminal<
                 lazy_terminal<
                     typename F::terminal_type
-                  , typename phoenix::expression::function<F, A0>::type
+                  , typename phoenix::detail::expression::function_eval<F, A0>::type
                   , 1 // arity
                 >
             >::type
@@ -100,7 +108,7 @@ namespace boost { namespace spirit
         {
             typedef typename result_type::proto_child0 child_type;
             return result_type::make(child_type(
-                phoenix::expression::function<F, A0>::make(f, _0)
+                phoenix::detail::expression::function_eval<F, A0>::make(f, _0)
               , f.proto_base().child0
             ));
         }
@@ -113,7 +121,7 @@ namespace boost { namespace spirit
             proto::terminal<
                lazy_terminal<
                     typename F::terminal_type
-                  , typename phoenix::expression::function<F, A0, A1>::type
+                  , typename phoenix::detail::expression::function_eval<F, A0, A1>::type
                   , 2 // arity
                 >
             >::type
@@ -125,7 +133,7 @@ namespace boost { namespace spirit
         {
             typedef typename result_type::proto_child0 child_type;
             return result_type::make(child_type(
-                phoenix::expression::function<F, A0, A1>::make(f, _0, _1)
+                phoenix::detail::expression::function_eval<F, A0, A1>::make(f, _0, _1)
               , f.proto_base().child0
             ));
         }
@@ -138,7 +146,7 @@ namespace boost { namespace spirit
             proto::terminal<
                lazy_terminal<
                     typename F::terminal_type
-                  , typename phoenix::expression::function<F, A0, A1, A2>::type
+                  , typename phoenix::detail::expression::function_eval<F, A0, A1, A2>::type
                   , 3 // arity
                 >
             >::type
@@ -150,7 +158,7 @@ namespace boost { namespace spirit
         {
             typedef typename result_type::proto_child0 child_type;
             return result_type::make(child_type(
-                phoenix::expression::function<F, A0, A1, A2>::make(f, _0, _1, _2)
+                phoenix::detail::expression::function_eval<F, A0, A1, A2>::make(f, _0, _1, _2)
               , f.proto_base().child0
             ));
         }
@@ -487,7 +495,7 @@ namespace boost { namespace spirit
           , typename DataTag1 = unused_type, typename DataTag2 = unused_type>
         struct stateful_tag
         {
-            typedef void is_spirit_tag;
+            BOOST_SPIRIT_IS_TAG()
 
             typedef Data data_type;
 
@@ -573,7 +581,7 @@ namespace boost { namespace phoenix
 #ifndef BOOST_SPIRIT_NO_PREDEFINED_TERMINALS
 
 #define BOOST_SPIRIT_TERMINAL_NAME(name, type_name)                             \
-    namespace tag { struct name { typedef void is_spirit_tag; }; }              \
+    namespace tag { struct name { BOOST_SPIRIT_IS_TAG() }; }                    \
     typedef boost::proto::terminal<tag::name>::type type_name;                  \
     type_name const name = {{}};                                                \
     inline void BOOST_PP_CAT(silence_unused_warnings_, name)() { (void) name; } \
@@ -582,7 +590,7 @@ namespace boost { namespace phoenix
 #else
 
 #define BOOST_SPIRIT_TERMINAL_NAME(name, type_name)                             \
-    namespace tag { struct name { typedef void is_spirit_tag; }; }              \
+    namespace tag { struct name { BOOST_SPIRIT_IS_TAG() }; }                    \
     typedef boost::proto::terminal<tag::name>::type type_name;                  \
     /***/
 
@@ -611,7 +619,7 @@ namespace boost { namespace phoenix
 #ifndef BOOST_SPIRIT_NO_PREDEFINED_TERMINALS
 
 #define BOOST_SPIRIT_TERMINAL_NAME_EX(name, type_name)                          \
-    namespace tag { struct name { typedef void is_spirit_tag; }; }              \
+    namespace tag { struct name { BOOST_SPIRIT_IS_TAG() }; }                    \
     typedef boost::spirit::terminal<tag::name> type_name;                       \
     type_name const name = type_name();                                         \
     inline void BOOST_PP_CAT(silence_unused_warnings_, name)() { (void) name; } \
@@ -620,7 +628,7 @@ namespace boost { namespace phoenix
 #else
 
 #define BOOST_SPIRIT_TERMINAL_NAME_EX(name, type_name)                          \
-    namespace tag { struct name { typedef void is_spirit_tag; }; }              \
+    namespace tag { struct name { BOOST_SPIRIT_IS_TAG() }; }                    \
     typedef boost::spirit::terminal<tag::name> type_name;                       \
     /***/
 

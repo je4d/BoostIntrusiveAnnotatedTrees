@@ -89,10 +89,10 @@ namespace chrono {
 
     template <class Duration, class Rep2,
         bool = (
-                    (boost::is_convertible<typename Duration::rep,
-                        typename common_type<typename Duration::rep, Rep2>::type>::value)
-                &&  (boost::is_convertible<Rep2,
-                        typename common_type<typename Duration::rep, Rep2>::type>::value)
+                    ((boost::is_convertible<typename Duration::rep,
+                        typename common_type<typename Duration::rep, Rep2>::type>::value))
+                &&  ((boost::is_convertible<Rep2,
+                        typename common_type<typename Duration::rep, Rep2>::type>::value))
                 )
         >
     struct duration_divide_imp
@@ -119,10 +119,10 @@ namespace chrono {
 
     template <class Rep, class Duration,
         bool = (
-                    (boost::is_convertible<typename Duration::rep,
-                        typename common_type<typename Duration::rep, Rep>::type>::value)
-                &&  (boost::is_convertible<Rep,
-                        typename common_type<typename Duration::rep, Rep>::type>::value)
+                    ((boost::is_convertible<typename Duration::rep,
+                        typename common_type<typename Duration::rep, Rep>::type>::value))
+                &&  ((boost::is_convertible<Rep,
+                        typename common_type<typename Duration::rep, Rep>::type>::value))
                 )
         >
     struct duration_divide_imp2
@@ -430,7 +430,7 @@ namespace chrono {
     public:
 
         BOOST_CHRONO_CONSTEXPR
-      duration() : rep_(duration_values<rep>::zero()) { }
+        duration() : rep_(duration_values<rep>::zero()) { }
         template <class Rep2>
         BOOST_CHRONO_CONSTEXPR
         explicit duration(const Rep2& r
@@ -446,7 +446,7 @@ namespace chrono {
                         >
                     >
                 >::type* = 0
-		    ) : rep_(r) { }
+            ) : rep_(r) { }
         ~duration() {} //= default;
         duration(const duration& rhs) : rep_(rhs.rep_) {} // = default;
         duration& operator=(const duration& rhs) // = default;

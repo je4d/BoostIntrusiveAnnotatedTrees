@@ -20,8 +20,7 @@
 #include <boost/range.hpp>
 
 #include <boost/geometry/core/cs.hpp>
-#include <boost/geometry/algorithms/convert.hpp>
-#include <boost/geometry/strategies/distance_result.hpp>
+#include <boost/geometry/strategies/distance.hpp>
 
 
 

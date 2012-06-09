@@ -80,13 +80,20 @@ public:
 
   // Request the io_service to invoke the given handler.
   template <typename Handler>
-  void dispatch(implementation_type& impl, Handler& handler);
+  void dispatch(implementation_type& impl, Handler handler);
 
   // Request the io_service to invoke the given handler and return immediately.
   template <typename Handler>
-  void post(implementation_type& impl, Handler& handler);
+  void post(implementation_type& impl, Handler handler);
 
 private:
+  // Helper function to dispatch a handler. Returns true if the handler should
+  // be dispatched immediately.
+  BOOST_ASIO_DECL bool do_dispatch(implementation_type& impl, operation* op);
+
+  // Helper fiunction to post a handler.
+  BOOST_ASIO_DECL void do_post(implementation_type& impl, operation* op);
+
   BOOST_ASIO_DECL static void do_complete(io_service_impl* owner,
       operation* base, boost::system::error_code ec,
       std::size_t bytes_transferred);

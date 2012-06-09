@@ -1,6 +1,7 @@
 /*=============================================================================
     Copyright (c) 2001-2011 Joel de Guzman
     Copyright (c) 2001-2011 Hartmut Kaiser
+    Copyright (c)      2011 Bryce Lelbach
 
     Distributed under the Boost Software License, Version 1.0. (See accompanying
     file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -15,7 +16,10 @@
 #endif
 
 #include <exception>
-#include <ios>
+#if !defined(BOOST_SPIRIT_DISABLE_UTREE_IO)
+  #include <ios>
+  #include <boost/io/ios_state.hpp>
+#endif
 #include <boost/spirit/home/support/utree/utree.hpp>
 #include <boost/preprocessor/cat.hpp>
 #include <boost/throw_exception.hpp>
@@ -24,22 +28,6 @@
 
 namespace boost { namespace spirit 
 {
-    struct illegal_arithmetic_operation : utree_exception
-    {
-        virtual const char* what() const throw()
-        {
-            return "utree: Illegal arithmetic operation.";
-        }
-    };
-
-    struct illegal_integral_operation : utree_exception
-    {
-        virtual const char* what() const throw()
-        {
-            return "utree: Illegal integral operation.";
-        }
-    };
-
     // Relational operators
     bool operator==(utree const& a, utree const& b);
     bool operator<(utree const& a, utree const& b);
@@ -48,12 +36,12 @@ namespace boost { namespace spirit
     bool operator<=(utree const& a, utree const& b);
     bool operator>=(utree const& a, utree const& b);
 
-    // Input and output
+#if !defined(BOOST_SPIRIT_DISABLE_UTREE_IO)
+    // output
     std::ostream& operator<<(std::ostream& out, utree const& x);
-    std::istream& operator>>(std::istream& in, utree& x);
-
     std::ostream& operator<<(std::ostream& out, utree::invalid_type const& x);
     std::ostream& operator<<(std::ostream& out, utree::nil_type const& x);
+#endif
 
     // Logical operators
     utree operator&&(utree const& a, utree const& b);
@@ -175,29 +163,38 @@ namespace boost { namespace spirit
 
         bool operator()(utree::invalid_type, utree::invalid_type) const
         {
-            boost::throw_exception(bad_type_exception());
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("no less-than comparison for this utree type",
+               utree_type::invalid_type));
             return false; // no less than comparison for nil
         }
 
         bool operator()(utree::nil_type, utree::nil_type) const
         {
-            boost::throw_exception(bad_type_exception());
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("no less-than comparison for this utree type",
+               utree_type::nil_type));
             return false; // no less than comparison for nil
         }
 
         bool operator()(any_ptr const&, any_ptr const&) const
         {
-            boost::throw_exception(bad_type_exception());
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("no less-than comparison for this utree type",
+               utree_type::any_type));
             return false; // no less than comparison for any_ptr
         }
 
         bool operator()(function_base const&, function_base const&) const
         {
-            boost::throw_exception(bad_type_exception());
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("no less-than comparison for this utree type",
+               utree_type::function_type));
             return false; // no less than comparison of functions
         }
     };
 
+#if !defined(BOOST_SPIRIT_DISABLE_UTREE_IO)
     struct utree_print
     {
         typedef void result_type;
@@ -228,6 +225,7 @@ namespace boost { namespace spirit
 
         void operator()(binary_range_type const& b) const
         {
+            boost::io::ios_all_saver saver(out);
             out << "#";
             out.width(2);
             out.fill('0');
@@ -235,7 +233,7 @@ namespace boost { namespace spirit
             typedef binary_range_type::const_iterator iterator;
             for (iterator i = b.begin(); i != b.end(); ++i)
                 out << std::hex << int((unsigned char)*i);
-            out << std::dec << "# ";
+            out << "# ";
         }
 
         void operator()(utf8_string_range_type const& str) const
@@ -279,6 +277,7 @@ namespace boost { namespace spirit
             return (*this)("<function>");
         }
     };
+#endif
 
     template <typename Base>
     struct logical_function
@@ -354,7 +353,6 @@ namespace boost { namespace spirit
         template <typename A, typename B>
         utree dispatch(A const&, B const&, boost::mpl::false_) const
         {
-            boost::throw_exception(illegal_arithmetic_operation());
             return utree(); // cannot apply to non-arithmetic types
         }
 
@@ -377,7 +375,6 @@ namespace boost { namespace spirit
         template <typename A>
         utree dispatch(A const&, boost::mpl::false_) const
         {
-            boost::throw_exception(illegal_arithmetic_operation());
             return utree(); // cannot apply to non-arithmetic types
         }
 
@@ -403,7 +400,6 @@ namespace boost { namespace spirit
         template <typename A, typename B>
         utree dispatch(A const&, B const&, boost::mpl::false_) const
         {
-            boost::throw_exception(illegal_integral_operation());
             return utree(); // cannot apply to non-integral types
         }
 
@@ -426,7 +422,6 @@ namespace boost { namespace spirit
         template <typename A>
         utree dispatch(A const&, boost::mpl::false_) const
         {
-            boost::throw_exception(illegal_integral_operation());
             return utree(); // cannot apply to non-integral types
         }
 
@@ -506,6 +501,7 @@ namespace boost { namespace spirit
         return !(a < b);
     }
 
+#if !defined(BOOST_SPIRIT_DISABLE_UTREE_IO)
     inline std::ostream& operator<<(std::ostream& out, utree const& x)
     {
         utree::visit(x, utree_print(out));
@@ -521,6 +517,7 @@ namespace boost { namespace spirit
     {
         return out;
     }
+#endif
 
     BOOST_SPIRIT_UTREE_CREATE_LOGICAL_FUNCTION(and_, a&&b)
     BOOST_SPIRIT_UTREE_CREATE_LOGICAL_FUNCTION(or_, a||b)
@@ -542,7 +539,7 @@ namespace boost { namespace spirit
 
     inline utree operator&&(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, logical_function_and_);
+          return utree::visit(a, b, logical_function_and_);
     }
 
     inline utree operator||(utree const& a, utree const& b)
@@ -557,62 +554,146 @@ namespace boost { namespace spirit
 
     inline utree operator+(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, arithmetic_function_plus);
+        utree r = utree::visit(a, b, arithmetic_function_plus);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("addition performed on non-arithmetic utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator-(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, arithmetic_function_minus);
+        utree r = utree::visit(a, b, arithmetic_function_minus);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("subtraction performed on non-arithmetic utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator*(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, arithmetic_function_times);
+        utree r = utree::visit(a, b, arithmetic_function_times);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("multiplication performed on non-arithmetic utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator/(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, arithmetic_function_divides);
+        utree r = utree::visit(a, b, arithmetic_function_divides);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("division performed on non-arithmetic utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator%(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, integral_function_modulus);
+        utree r = utree::visit(a, b, integral_function_modulus);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("modulos performed on non-integral utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator-(utree const& a)
     {
-        return utree::visit(a, arithmetic_function_negate);
+        utree r = utree::visit(a, arithmetic_function_negate);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("negation performed on non-arithmetic utree type",
+               a.which()));
+        } 
+        return r;
     }
 
     inline utree operator&(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, integral_function_bitand_);
+        utree r = utree::visit(a, b, integral_function_bitand_);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("bitwise and performed on non-integral utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator|(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, integral_function_bitor_);
+        utree r = utree::visit(a, b, integral_function_bitor_);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("bitwise or performed on non-integral utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator^(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, integral_function_bitxor_);
+        utree r = utree::visit(a, b, integral_function_bitxor_);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("bitwise xor performed on non-integral utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator<<(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, integral_function_shift_left);
+        utree r = utree::visit(a, b, integral_function_shift_left);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("left shift performed on non-integral utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator>>(utree const& a, utree const& b)
     {
-        return utree::visit(a, b, integral_function_shift_right);
+        utree r = utree::visit(a, b, integral_function_shift_right);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("right shift performed on non-integral utree types",
+               a.which(), b.which()));
+        } 
+        return r;
     }
 
     inline utree operator~(utree const& a)
     {
-        return utree::visit(a, integral_function_invert);
+        utree r = utree::visit(a, integral_function_invert);
+        if (r.which() == utree_type::invalid_type)
+        {
+            BOOST_THROW_EXCEPTION(bad_type_exception
+              ("inversion performed on non-integral utree type",
+               a.which()));
+        } 
+        return r;
     }
 }}
 

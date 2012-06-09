@@ -8,7 +8,7 @@
 
 [article Spirit
     [quickbook 1.5]
-    [version 2.5]
+    [version 2.6]
     [authors [de Guzman, Joel], [Kaiser, Hartmut]]
     [copyright 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 Joel de Guzman, Hartmut Kaiser]
     [/ purpose Parser and Generator Library]
@@ -23,12 +23,12 @@
 
 [/ Some links ]
 
-[def __version__                V2.5]
+[def __version__                V2.6]
 
 [def __spirit__                 [@http://boost-spirit.com Spirit]]
 [def __spirit_list__            [@http://www.nabble.com/The-Spirit-Parser-Library-f3430.html Spirit General List]]
 [def __phoenix__                [@../../phoenix/doc/html/index.html Phoenix]]
-[def __boost_phoenix__          [@../../phoenix/doc/html/index.html Boost.Phoenix]]
+[def __boost_phoenix__          [@boost:/libs/phoenix/doc/html/index.html Boost.Phoenix]]
 [def __fusion__                 [@boost:/libs/fusion/doc/html/index.html Boost.Fusion]]
 [def __mpl__                    [@http://www.boost.org/libs/mpl/index.html Boost.Mpl]]
 [def __stl__                    [@http://www.sgi.com/tech/stl/ STL]]
@@ -386,6 +386,21 @@ For now, I'll put my stuff here ad-hoc (JDG). $$$]
 [/ action]
 [def __qi_semantic_actions__        Semantic Actions] [/ TODO Link Me]
 
+[/ char]
+[template qi_char[str]              [link spirit.qi.reference.char.char [str]]]
+[template qi_char_class[str]        [link spirit.qi.reference.char.char_class [str]]]
+
+[/ numerics]
+[template qi_signed_int[str]        [link spirit.qi.reference.numeric.int [str]]]
+[template qi_unsigned_int[str]      [link spirit.qi.reference.numeric.uint [str]]]
+[template qi_real_number[str]       [link spirit.qi.reference.numeric.real [str]]]
+[template qi_boolean[str]           [link spirit.qi.reference.numeric.boolean [str]]]
+
+[/ binary]
+[template qi_native_binary[str]     [link spirit.qi.reference.binary.binary_native [str]]]
+[template qi_little_binary[str]     [link spirit.qi.reference.binary.binary_little [str]]]
+[template qi_big_binary[str]        [link spirit.qi.reference.binary.binary_big [str]]]
+
 [/ auxiliary]
 [def __qi_attr__                    [link spirit.qi.reference.auxiliary.attr `attr`]]
 [def __qi_eol__                     [link spirit.qi.reference.auxiliary.eol `eol`]]
@@ -436,7 +451,7 @@ For now, I'll put my stuff here ad-hoc (JDG). $$$]
 [template qi_auto[str]              [link spirit.qi.reference.auto [str]]]
 [def __create_parser__              [link spirit.qi.reference.parse_api.create_parser `create_parser`]]
 
-[__parse_api__                      [link spirit.qi.reference.parse_api The Parse API]]
+[def __parse_api__                  [link spirit.qi.reference.parse_api The Parse API]]
 
 [/ Here we go ]
 

@@ -88,11 +88,11 @@ public:
 
   // Request invocation of the given handler.
   template <typename Handler>
-  void dispatch(Handler& handler);
+  void dispatch(Handler handler);
 
   // Request invocation of the given handler and return immediately.
   template <typename Handler>
-  void post(Handler& handler);
+  void post(Handler handler);
 
   // Request invocation of the given operation and return immediately. Assumes
   // that work_started() has not yet been called for the operation.
@@ -105,6 +105,10 @@ public:
   // Request invocation of the given operations and return immediately. Assumes
   // that work_started() was previously called for each operation.
   BOOST_ASIO_DECL void post_deferred_completions(op_queue<operation>& ops);
+
+  // Process unfinished operations as part of a shutdown_service operation.
+  // Assumes that work_started() was previously called for the operations.
+  BOOST_ASIO_DECL void abandon_operations(op_queue<operation>& ops);
 
 private:
   // Structure containing information about an idle thread.

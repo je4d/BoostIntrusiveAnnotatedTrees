@@ -27,6 +27,8 @@ namespace boost { namespace spirit { namespace lex
     {
         typedef mpl::true_ no_nullary;
 
+        typedef unused_type result_type;
+
         template <typename Env>
         struct result
         {
@@ -57,6 +59,8 @@ namespace boost { namespace spirit { namespace lex
     {
         typedef mpl::true_ no_nullary;
 
+        typedef unused_type result_type;
+
         template <typename Env>
         struct result
         {
@@ -77,42 +81,6 @@ namespace boost { namespace spirit { namespace lex
     struct eoi_getter;
 }}}
 
-BOOST_PHOENIX_DEFINE_CUSTOM_TERMINAL(
-    template<>
-  , boost::spirit::lex::value_context
-  , mpl::false_
-  , v2_eval(
-        proto::make<boost::spirit::lex::value_getter()>
-      , proto::call<
-            functional::env(proto::_state)
-        >
-    )
-)
-
-BOOST_PHOENIX_DEFINE_CUSTOM_TERMINAL(
-    template<>
-  , boost::spirit::lex::state_context
-  , mpl::false_
-  , v2_eval(
-        proto::make<boost::spirit::lex::state_getter()>
-      , proto::call<
-            functional::env(proto::_state)
-        >
-    )
-)
-
-BOOST_PHOENIX_DEFINE_CUSTOM_TERMINAL(
-    template<>
-  , boost::spirit::lex::eoi_getter
-  , mpl::false_
-  , v2_eval(
-        proto::make<boost::spirit::lex::eoi_getter()>
-      , proto::call<
-            functional::env(proto::_state)
-        >
-    )
-)
-
 ///////////////////////////////////////////////////////////////////////////////
 #ifdef BOOST_SPIRIT_USE_PHOENIX_V3
 
@@ -128,6 +96,27 @@ BOOST_PHOENIX_DEFINE_EXPRESSION(
 
 namespace boost { namespace phoenix
 {
+    namespace result_of
+    {
+        template <>
+        struct is_nullary<custom_terminal<boost::spirit::lex::value_context> >
+          : mpl::false_
+        {};
+    }
+    
+    template <typename Dummy>
+    struct is_custom_terminal<boost::spirit::lex::value_context, Dummy>: mpl::true_ {};
+    
+    template <typename Dummy>
+    struct custom_terminal<boost::spirit::lex::value_context, Dummy>
+      : proto::call<
+            v2_eval(
+                proto::make<boost::spirit::lex::value_getter()>
+              , proto::call<functional::env(proto::_state)>
+            )
+        >
+    {};
+
     template <typename Dummy>
     struct is_nullary::when<spirit::lex::rule::value_setter, Dummy>
       : proto::make<mpl::false_()>
@@ -152,7 +141,7 @@ namespace boost { namespace phoenix
       : boost::phoenix::actor<proto::terminal<spirit::lex::value_context>::type>
     {
         typedef boost::phoenix::actor<
-            typename proto::terminal<spirit::lex::value_context>::type
+            proto::terminal<spirit::lex::value_context>::type
         > base_type;
 
         actor(base_type const & base = base_type())
@@ -170,6 +159,27 @@ namespace boost { namespace phoenix
                 >::make(phoenix::as_actor<Expr>::convert(expr));
         }
     };
+    
+    namespace result_of
+    {
+        template <>
+        struct is_nullary<custom_terminal<boost::spirit::lex::state_context> >
+          : mpl::false_
+        {};
+    }
+    
+    template <typename Dummy>
+    struct is_custom_terminal<boost::spirit::lex::state_context, Dummy>: mpl::true_ {};
+    
+    template <typename Dummy>
+    struct custom_terminal<boost::spirit::lex::state_context, Dummy>
+      : proto::call<
+            v2_eval(
+                proto::make<boost::spirit::lex::state_getter()>
+              , proto::call<functional::env(proto::_state)>
+            )
+        >
+    {};
 
     template <typename Dummy>
     struct is_nullary::when<spirit::lex::rule::state_setter, Dummy>
@@ -195,7 +205,7 @@ namespace boost { namespace phoenix
       : boost::phoenix::actor<proto::terminal<spirit::lex::state_context>::type>
     {
         typedef boost::phoenix::actor<
-            typename proto::terminal<spirit::lex::state_context>::type
+            proto::terminal<spirit::lex::state_context>::type
         > base_type;
 
         actor(base_type const & base = base_type())
@@ -213,6 +223,27 @@ namespace boost { namespace phoenix
                 >::make(phoenix::as_actor<Expr>::convert(expr));
         }
     };
+    
+    namespace result_of
+    {
+        template <>
+        struct is_nullary<custom_terminal<boost::spirit::lex::eoi_getter> >
+          : mpl::false_
+        {};
+    }
+    
+    template <typename Dummy>
+    struct is_custom_terminal<boost::spirit::lex::eoi_getter, Dummy>: mpl::true_ {};
+    
+    template <typename Dummy>
+    struct custom_terminal<boost::spirit::lex::eoi_getter, Dummy>
+      : proto::call<
+            v2_eval(
+                proto::make<boost::spirit::lex::eoi_getter()>
+              , proto::call<functional::env(proto::_state)>
+            )
+        >
+    {};
 }}
 
 #endif // BOOST_SPIRIT_USE_PHOENIX_V3

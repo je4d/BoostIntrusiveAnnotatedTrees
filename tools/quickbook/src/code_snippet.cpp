@@ -24,7 +24,7 @@ namespace quickbook
     struct code_snippet_actions
     {
         code_snippet_actions(std::vector<template_symbol>& storage,
-                                 std::string const& filename,
+                                 fs::path const& filename,
                                  std::string const& doc_id,
                                  char const* source_type)
             : callout_id(0)
@@ -166,12 +166,12 @@ namespace quickbook
                 // Note: Unlike escaped_comment and ignore, this doesn't
                 // swallow preceeding whitespace.
                 pass_thru_comment
-                    =   "#="
+                    =   "#=" >> (cl::eps_p - '=')
                     >>  (   *(cl::anychar_p - cl::eol_p)
                         >>  (cl::eol_p | cl::end_p)
                         )                           [boost::bind(&actions_type::pass_thru, &actions, _1, _2)]
                     |   cl::confix_p(
-                            "\"\"\"=",
+                            "\"\"\"=" >> (cl::eps_p - '='),
                             (*cl::anychar_p)        [boost::bind(&actions_type::pass_thru, &actions, _1, _2)],
                             "\"\"\""
                         )
@@ -288,12 +288,12 @@ namespace quickbook
                 // Note: Unlike escaped_comment and ignore, this doesn't
                 // swallow preceeding whitespace.
                 pass_thru_comment
-                    =   "//="
+                    =   "//=" >> (cl::eps_p - '=')
                     >>  (   *(cl::anychar_p - cl::eol_p)
                         >>  (cl::eol_p | cl::end_p)
                         )                           [boost::bind(&actions_type::pass_thru, &actions, _1, _2)]
                     |   cl::confix_p(
-                            "/*`",
+                            "/*=" >> (cl::eps_p - '='),
                             (*cl::anychar_p)        [boost::bind(&actions_type::pass_thru, &actions, _1, _2)],
                             "*/"
                         )
@@ -312,7 +312,7 @@ namespace quickbook
     };
 
     int load_snippets(
-        std::string const& file
+        fs::path const& file
       , std::vector<template_symbol>& storage   // snippets are stored in a
                                                 // vector of template_symbols
       , std::string const& extension

@@ -19,7 +19,8 @@
 
 namespace quickbook
 {
-    actions::actions(fs::path const& filein_, fs::path const& xinclude_base_, string_stream& out_)
+    actions::actions(fs::path const& filein_, fs::path const& xinclude_base_,
+            string_stream& out_, id_generator& ids)
         : grammar_()
 
     // header info
@@ -35,8 +36,7 @@ namespace quickbook
 
     // value actions
         , values()
-        , phrase_value(*this, phrase)
-        , out_value(*this, out)
+        , to_value(*this)
         , docinfo_value(*this)
         , scoped_cond_phrase(*this)
         , scoped_output(*this)
@@ -63,6 +63,8 @@ namespace quickbook
         , no_eols(true)
         , suppress(false)
         , warned_about_breaks(false)
+        , context(0)
+        , ids(ids)
 
     // actions
         , element(*this)
@@ -73,10 +75,9 @@ namespace quickbook
         , paragraph(*this)
         , space_char(phrase)
         , plain_char(phrase, *this)
-        , raw_char(phrase, *this)
         , escape_unicode(phrase, *this)
 
-        , simple_markup(phrase, macro, *this)
+        , simple_markup(phrase, *this)
 
         , break_(phrase, *this)
         , do_macro(phrase, *this)

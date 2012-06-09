@@ -121,6 +121,7 @@
 // in type_traits code among other things, getting this correct
 // for the Intel compiler is actually remarkably fragile and tricky:
 //
+#ifdef __cplusplus
 #if defined(BOOST_NO_INTRINSIC_WCHAR_T)
 #include <cwchar>
 template< typename T > struct assert_no_intrinsic_wchar_t;
@@ -133,6 +134,7 @@ template< typename T > struct assert_intrinsic_wchar_t;
 template<> struct assert_intrinsic_wchar_t<wchar_t> {};
 // if you see an error here then define BOOST_NO_INTRINSIC_WCHAR_T on the command line:
 template<> struct assert_intrinsic_wchar_t<unsigned short> {};
+#endif
 #endif
 
 #if defined(_MSC_VER) && (_MSC_VER+0 >= 1000)
@@ -208,7 +210,7 @@ template<> struct assert_intrinsic_wchar_t<unsigned short> {};
 #endif
 
 #if defined(BOOST_INTEL_STDCXX0X) && (BOOST_INTEL_CXX_VERSION >= 1200)
-#  undef  BOOST_NO_RVALUE_REFERENCES
+//#  undef  BOOST_NO_RVALUE_REFERENCES // Enabling this breaks Filesystem and Exception libraries
 //#  undef  BOOST_NO_SCOPED_ENUMS  // doesn't really work!!
 #  undef  BOOST_NO_DELETED_FUNCTIONS
 #  undef  BOOST_NO_DEFAULTED_FUNCTIONS

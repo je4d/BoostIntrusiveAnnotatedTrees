@@ -53,8 +53,9 @@ namespace quickbook
 
     typedef cl::symbols<std::string> string_symbols;
 
-    int load_snippets(std::string const& file, std::vector<template_symbol>& storage,
+    int load_snippets(fs::path const& file, std::vector<template_symbol>& storage,
         std::string const& extension, std::string const& doc_id);
+
     std::string syntax_highlight(
         iterator first, iterator last,
         actions& escape_actions,
@@ -123,16 +124,13 @@ namespace quickbook
 
         simple_phrase_action(
             collector& out
-          , string_symbols const& macro
           , quickbook::actions& actions)
         : out(out)
-        , macro(macro)
         , actions(actions) {}
 
         void operator()(char) const;
 
         collector& out;
-        string_symbols const& macro;
         quickbook::actions& actions;
     };
 
@@ -158,6 +156,27 @@ namespace quickbook
         void operator()(iterator first, iterator last) const;
 
         char const* name;
+        collector& out;
+    };
+
+    struct span_start
+    {
+        span_start(char const* name, collector& out)
+        : name(name), out(out) {}
+
+        void operator()(iterator first, iterator last) const;
+
+        char const* name;
+        collector& out;
+    };
+
+    struct span_end
+    {
+        span_end(collector& out)
+        : out(out) {}
+
+        void operator()(iterator first, iterator last) const;
+
         collector& out;
     };
 
@@ -231,22 +250,6 @@ namespace quickbook
         collector& out;
         actions& escape_actions;
         std::string& save;
-    };
-
-    struct raw_char_action
-    {
-        // Prints a single raw (unprocessed) char.
-        // Allows '<', '>'... etc.
-
-        raw_char_action(collector& phrase, quickbook::actions& actions)
-        : phrase(phrase)
-        , actions(actions) {}
-
-        void operator()(char ch) const;
-        void operator()(iterator first, iterator /*last*/) const;
-
-        collector& phrase;
-        quickbook::actions& actions;
     };
 
     struct plain_char_action
@@ -356,15 +359,14 @@ namespace quickbook
     
     typedef phoenix::function<phrase_to_docinfo_action_impl> phrase_to_docinfo_action;
 
-    struct collector_to_value_action
+    struct to_value_action
     {
-        collector_to_value_action(quickbook::actions& actions, collector& output)
-            : actions(actions), output(output) {}
+        to_value_action(quickbook::actions& actions)
+            : actions(actions) {}
 
         void operator()(iterator first, iterator last) const;
 
         quickbook::actions& actions;
-        collector& output;
     };
 
     struct scoped_output_push : scoped_action_base

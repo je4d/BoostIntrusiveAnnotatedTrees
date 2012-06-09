@@ -1,4 +1,4 @@
-//  This file was automatically generated on Tue Mar 15 12:25:21 2011
+//  This file was automatically generated on Wed Jul 13 18:50:14 2011
 //  by libs/config/tools/generate.cpp
 //  Copyright John Maddock 2002-4.
 //  Use, modification and distribution are subject to the 
@@ -197,6 +197,11 @@ namespace boost_no_cwctype = empty_boost;
 #else
 namespace boost_no_decltype = empty_boost;
 #endif
+#ifndef BOOST_NO_DECLTYPE_N3276
+#include "boost_no_decltype_n3276.ipp"
+#else
+namespace boost_no_decltype_n3276 = empty_boost;
+#endif
 #ifndef BOOST_DEDUCED_TYPENAME
 #include "boost_no_ded_typename.ipp"
 #else
@@ -366,6 +371,11 @@ namespace boost_no_pointer_to_member_template_parameters = empty_boost;
 #include "boost_no_nested_friendship.ipp"
 #else
 namespace boost_no_nested_friendship = empty_boost;
+#endif
+#ifndef BOOST_NO_NOEXCEPT
+#include "boost_no_noexcept.ipp"
+#else
+namespace boost_no_noexcept = empty_boost;
 #endif
 #ifndef BOOST_NO_NULLPTR
 #include "boost_no_nullptr.ipp"
@@ -552,6 +562,11 @@ namespace boost_no_typename_with_ctor = empty_boost;
 #else
 namespace boost_no_unicode_literals = empty_boost;
 #endif
+#ifndef BOOST_NO_UNIFIED_INITIALIZATION_SYNTAX
+#include "boost_no_unified_init.ipp"
+#else
+namespace boost_no_unified_initialization_syntax = empty_boost;
+#endif
 #ifndef BOOST_FUNCTION_SCOPE_USING_DECLARATION_BREAKS_ADL
 #include "boost_no_using_breaks_adl.ipp"
 #else
@@ -617,6 +632,11 @@ namespace boost_has_expm1 = empty_boost;
 #include "boost_has_ftime.ipp"
 #else
 namespace boost_has_ftime = empty_boost;
+#endif
+#ifdef BOOST_HAS_GETSYSTEMTIMEASFILETIME
+#include "boost_has_getsystemtimeasfiletime.ipp"
+#else
+namespace boost_has_getsystemtimeasfiletime = empty_boost;
 #endif
 #ifdef BOOST_HAS_GETTIMEOFDAY
 #include "boost_has_gettimeofday.ipp"
@@ -869,6 +889,11 @@ int main( int, char *[] )
    if(0 != boost_has_ftime::test())
    {
       std::cerr << "Failed test for BOOST_HAS_FTIME at: " << __FILE__ << ":" << __LINE__ << std::endl;
+      ++error_count;
+   }
+   if(0 != boost_has_getsystemtimeasfiletime::test())
+   {
+      std::cerr << "Failed test for BOOST_HAS_GETSYSTEMTIMEASFILETIME at: " << __FILE__ << ":" << __LINE__ << std::endl;
       ++error_count;
    }
    if(0 != boost_has_gettimeofday::test())
@@ -1266,6 +1291,11 @@ int main( int, char *[] )
       std::cerr << "Failed test for BOOST_NO_DECLTYPE at: " << __FILE__ << ":" << __LINE__ << std::endl;
       ++error_count;
    }
+   if(0 != boost_no_decltype_n3276::test())
+   {
+      std::cerr << "Failed test for BOOST_NO_DECLTYPE_N3276 at: " << __FILE__ << ":" << __LINE__ << std::endl;
+      ++error_count;
+   }
    if(0 != boost_deduced_typename::test())
    {
       std::cerr << "Failed test for BOOST_DEDUCED_TYPENAME at: " << __FILE__ << ":" << __LINE__ << std::endl;
@@ -1434,6 +1464,11 @@ int main( int, char *[] )
    if(0 != boost_no_nested_friendship::test())
    {
       std::cerr << "Failed test for BOOST_NO_NESTED_FRIENDSHIP at: " << __FILE__ << ":" << __LINE__ << std::endl;
+      ++error_count;
+   }
+   if(0 != boost_no_noexcept::test())
+   {
+      std::cerr << "Failed test for BOOST_NO_NOEXCEPT at: " << __FILE__ << ":" << __LINE__ << std::endl;
       ++error_count;
    }
    if(0 != boost_no_nullptr::test())
@@ -1619,6 +1654,11 @@ int main( int, char *[] )
    if(0 != boost_no_unicode_literals::test())
    {
       std::cerr << "Failed test for BOOST_NO_UNICODE_LITERALS at: " << __FILE__ << ":" << __LINE__ << std::endl;
+      ++error_count;
+   }
+   if(0 != boost_no_unified_initialization_syntax::test())
+   {
+      std::cerr << "Failed test for BOOST_NO_UNIFIED_INITIALIZATION_SYNTAX at: " << __FILE__ << ":" << __LINE__ << std::endl;
       ++error_count;
    }
    if(0 != boost_function_scope_using_declaration_breaks_adl::test())

@@ -29,7 +29,6 @@
 #include <boost/geometry/multi/algorithms/area.hpp>
 #include <boost/geometry/multi/algorithms/centroid.hpp>
 #include <boost/geometry/multi/algorithms/clear.hpp>
-#include <boost/geometry/multi/algorithms/convex_hull.hpp>
 #include <boost/geometry/multi/algorithms/correct.hpp>
 #include <boost/geometry/multi/algorithms/distance.hpp>
 #include <boost/geometry/multi/algorithms/envelope.hpp>
@@ -44,7 +43,6 @@
 #include <boost/geometry/multi/algorithms/reverse.hpp>
 #include <boost/geometry/multi/algorithms/simplify.hpp>
 #include <boost/geometry/multi/algorithms/transform.hpp>
-#include <boost/geometry/multi/algorithms/union.hpp>
 #include <boost/geometry/multi/algorithms/unique.hpp>
 #include <boost/geometry/multi/algorithms/within.hpp>
 
@@ -60,16 +58,12 @@
 #include <boost/geometry/multi/algorithms/detail/overlay/get_turns.hpp>
 #include <boost/geometry/multi/algorithms/detail/overlay/self_turn_points.hpp>
 
-#include <boost/geometry/multi/geometries/multi_point.hpp>
-#include <boost/geometry/multi/geometries/multi_linestring.hpp>
-#include <boost/geometry/multi/geometries/multi_polygon.hpp>
 #include <boost/geometry/multi/geometries/concepts/check.hpp>
 #include <boost/geometry/multi/geometries/concepts/multi_point_concept.hpp>
 #include <boost/geometry/multi/geometries/concepts/multi_linestring_concept.hpp>
 #include <boost/geometry/multi/geometries/concepts/multi_polygon_concept.hpp>
 
-#include <boost/geometry/multi/iterators/range_type.hpp>
-
+#include <boost/geometry/multi/views/detail/range_type.hpp>
 #include <boost/geometry/multi/strategies/cartesian/centroid_average.hpp>
 
 #include <boost/geometry/multi/util/write_dsv.hpp>

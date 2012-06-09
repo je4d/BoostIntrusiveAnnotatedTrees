@@ -4,9 +4,9 @@
 <title>Spirit V2.5</title>
 <link rel="stylesheet" href="../../../../../../doc/src/boostbook.css" type="text/css">
 <meta name="generator" content="DocBook XSL Stylesheets V1.75.0">
-<link rel="home" href="../../index.html" title="Spirit 2.5">
+<link rel="home" href="../../index.html" title="Spirit 2.6">
 <link rel="up" href="../what_s_new.html" title="What's New">
-<link rel="prev" href="../what_s_new.html" title="What's New">
+<link rel="prev" href="spirit_2_5_1.html" title="Spirit V2.5.1">
 <link rel="next" href="spirit_2_4_2.html" title="Spirit V2.4.2">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
@@ -20,20 +20,35 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="../what_s_new.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../what_s_new.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="spirit_2_4_2.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="spirit_2_5_1.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../what_s_new.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="spirit_2_4_2.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 <div class="section">
 <div class="titlepage"><div><div><h3 class="title">
 <a name="spirit.what_s_new.spirit_2_5"></a><a class="link" href="spirit_2_5.html" title="Spirit V2.5">Spirit V2.5</a>
 </h3></div></div></div>
 <a name="spirit.what_s_new.spirit_2_5.what_s_changed_in__emphasis_spirit_qi__emphasis__and__emphasis_spirit_karma__emphasis__from_v2_4_2__boost_v1_46_0__to_v2_5__boost_v1_47_0_"></a><h5>
-<a name="id854484"></a>
+<a name="spirit.what_s_new.spirit_2_5.what_s_changed_in__emphasis_spirit_qi__emphasis__and__emphasis_spirit_karma__emphasis__from_v2_4_2__boost_v1_46_0__to_v2_5__boost_v1_47_0_-heading"></a>
         <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.what_s_changed_in__emphasis_spirit_qi__emphasis__and__emphasis_spirit_karma__emphasis__from_v2_4_2__boost_v1_46_0__to_v2_5__boost_v1_47_0_">What's
         changed in <span class="emphasis"><em>Spirit.Qi</em></span> and <span class="emphasis"><em>Spirit.Karma</em></span>
         from V2.4.2 (Boost V1.46.0) to V2.5 (Boost V1.47.0)</a>
       </h5>
+<p>
+        This version of <a href="http://boost-spirit.com" target="_top">Spirit</a> now supports
+        the new version of <a href="../../../../../../libs/phoenix/doc/html/index.html" target="_top">Boost.Phoenix</a>
+        (V3), which has been released as part of Boost V1.47. Please note that this
+        support is purely preliminary and should not be considered production quality.
+        The reason why we are releasing this now is to enable people who want to
+        use the new version of <a href="../../../../../../libs/phoenix/doc/html/index.html" target="_top">Boost.Phoenix</a>
+        in their code to do so without any conflicts with existing code using <a href="http://boost-spirit.com" target="_top">Spirit</a>. Generally, no <a href="http://boost-spirit.com" target="_top">Spirit</a>
+        code needs to be changed. To activate the use of <a href="../../../../../../libs/phoenix/doc/html/index.html" target="_top">Boost.Phoenix</a>
+        V3 for <a href="http://boost-spirit.com" target="_top">Spirit</a> you need to define
+        the following preprocessor constant for your builds (before including any
+        of Spirit's include files):
+      </p>
+<pre class="programlisting"><span class="preprocessor">#define</span> <span class="identifier">BOOST_SPIRIT_USE_PHOENIX_V3</span> <span class="number">1</span>
+</pre>
 <a name="spirit.what_s_new.spirit_2_5.new_features_in_qi_or_karma"></a><h5>
-<a name="id854508"></a>
+<a name="spirit.what_s_new.spirit_2_5.new_features_in_qi_or_karma-heading"></a>
         <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.new_features_in_qi_or_karma">New
         Features in Qi or Karma</a>
       </h5>
@@ -57,6 +72,9 @@
             with a bogus double underscore that is reserved for system use in C++.
           </li>
 <li class="listitem">
+            The numeric parsers now allow arbitrary radix from 2..10 and 16
+          </li>
+<li class="listitem">
             The placeholder <code class="computeroutput"><span class="identifier">_val</span></code>
             now can be used in top level semantic actions outside of any right hand
             side of a rule. Here is an example: 
@@ -75,9 +93,14 @@
             placeholder allowing to use it everywhere, not only in semantic actions
             attached to the right hand sides of a rule.
           </li>
+<li class="listitem">
+            Added support for <span class="emphasis"><em>Spirit.Karma</em></span> <a class="link" href="../karma/reference/numeric/unsigned_int.html" title="Unsigned Integer Number Generators (uint_, etc.)">unsigned
+            numeric generators</a> with arbitrary radix values in the (inclusive)
+            range from <code class="computeroutput"><span class="number">2</span></code> .. <code class="computeroutput"><span class="number">36</span></code>.
+          </li>
 </ul></div>
 <a name="spirit.what_s_new.spirit_2_5.bug_fixes_in_qi_or_karma"></a><h5>
-<a name="id854820"></a>
+<a name="spirit.what_s_new.spirit_2_5.bug_fixes_in_qi_or_karma-heading"></a>
         <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.bug_fixes_in_qi_or_karma">Bug
         Fixes in Qi or Karma</a>
       </h5>
@@ -111,9 +134,13 @@
             parser component was successful. Thanks to Brian O'Kennedy who reported
             the problem on Stackoverflow.
           </li>
+<li class="listitem">
+            Fixed failing Karma numerics generators when used with adapted ADTs (thanks
+            to Colin Rundel for reporting that problem).
+          </li>
 </ul></div>
 <a name="spirit.what_s_new.spirit_2_5.breaking_changes"></a><h5>
-<a name="id854986"></a>
+<a name="spirit.what_s_new.spirit_2_5.breaking_changes-heading"></a>
         <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.breaking_changes">Breaking Changes</a>
       </h5>
 <div class="itemizedlist"><ul class="itemizedlist" type="disc">
@@ -137,18 +164,36 @@
           </li>
 </ul></div>
 <a name="spirit.what_s_new.spirit_2_5.new_features_in_lex"></a><h5>
-<a name="id855097"></a>
+<a name="spirit.what_s_new.spirit_2_5.new_features_in_lex-heading"></a>
         <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.new_features_in_lex">New Features
         in Lex</a>
       </h5>
-<div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem">
+<div class="itemizedlist"><ul class="itemizedlist" type="disc">
+<li class="listitem">
             Added the possibility to specify a token id while creating a token definition
             using <code class="computeroutput"><span class="identifier">lex</span><span class="special">::</span><span class="identifier">char_</span></code> and <code class="computeroutput"><span class="identifier">lex</span><span class="special">::</span><span class="identifier">string</span></code>.
             Both primitives now accept a second parameter which will be interpreted
             as the requested token id for any token generated from this definition.
+          </li>
+<li class="listitem">
+            Added a new token type <code class="computeroutput"><span class="identifier">lex</span><span class="special">::</span><span class="identifier">lexertl</span><span class="special">::</span><span class="identifier">position_token</span><span class="special">&lt;&gt;</span></code>, which is essentially plup-in
+            compatible with the existing <code class="computeroutput"><span class="identifier">lex</span><span class="special">::</span><span class="identifier">lexertl</span><span class="special">::</span><span class="identifier">token</span><span class="special">&lt;&gt;</span></code> class. However it additionally
+            stores the pair of iterators pointing to the underlying matched input
+            sequence as an iterator_range.
+          </li>
+</ul></div>
+<a name="spirit.what_s_new.spirit_2_5.bug_fixes_in_lex"></a><h5>
+<a name="spirit.what_s_new.spirit_2_5.bug_fixes_in_lex-heading"></a>
+        <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.bug_fixes_in_lex">Bug Fixes in
+        Lex</a>
+      </h5>
+<div class="itemizedlist"><ul class="itemizedlist" type="disc"><li class="listitem">
+            Fixed a problem with associating token definitions with all states (using
+            <code class="computeroutput"><span class="string">"*"</span></code> as the state
+            name) when actions were attached to them.
           </li></ul></div>
 <a name="spirit.what_s_new.spirit_2_5.making_stuff_work"></a><h5>
-<a name="id855150"></a>
+<a name="spirit.what_s_new.spirit_2_5.making_stuff_work-heading"></a>
         <a class="link" href="spirit_2_5.html#spirit.what_s_new.spirit_2_5.making_stuff_work">Making Stuff
         Work</a>
       </h5>
@@ -195,7 +240,7 @@
 </tr></table>
 <hr>
 <div class="spirit-nav">
-<a accesskey="p" href="../what_s_new.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../what_s_new.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="spirit_2_4_2.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
+<a accesskey="p" href="spirit_2_5_1.html"><img src="../../../../../../doc/src/images/prev.png" alt="Prev"></a><a accesskey="u" href="../what_s_new.html"><img src="../../../../../../doc/src/images/up.png" alt="Up"></a><a accesskey="h" href="../../index.html"><img src="../../../../../../doc/src/images/home.png" alt="Home"></a><a accesskey="n" href="spirit_2_4_2.html"><img src="../../../../../../doc/src/images/next.png" alt="Next"></a>
 </div>
 </body>
 </html>
