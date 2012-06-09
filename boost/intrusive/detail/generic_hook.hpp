@@ -85,12 +85,6 @@ struct make_default_definer
       , no_default_definer>::type type;
 };
 
-template <class Node, class AnnotationList>
-struct node_plus_annotations : public Node
-{
-   AnnotationList annotations_;
-};
-
 template
    < class GetNodeAlgorithms
    , class Tag
@@ -145,14 +139,15 @@ class generic_hook
    public:
    struct boost_intrusive_tags
    {
-      static const int hook_type = HookType;
-      static const link_mode_type link_mode = LinkMode;
-      typedef Tag                                           tag;
-      typedef typename GetNodeAlgorithms::type::node_traits node_traits;
-      typedef typename GetNodeAlgorithms::type::annotated_node_traits annotated_node_traits;
-      static const bool is_base_hook = !detail::is_same<Tag, member_tag>::value;
-      static const bool safemode_or_autounlink = 
-         (int)link_mode == (int)auto_unlink || (int)link_mode == (int)safe_link;
+      static const int                                                 hook_type = HookType;
+      static const link_mode_type                                      link_mode = LinkMode;
+      typedef Tag                                                      tag;
+      typedef typename GetNodeAlgorithms::type::node_traits            node_traits;
+      typedef typename GetNodeAlgorithms::type::annotated_node_traits  annotated_node_traits;
+      static const bool                                                is_base_hook
+         = !detail::is_same<Tag, member_tag>::value;
+      static const bool                                                safemode_or_autounlink
+         = (int)link_mode == (int)auto_unlink || (int)link_mode == (int)safe_link;
    };
 
    public:

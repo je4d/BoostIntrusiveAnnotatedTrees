@@ -20,6 +20,8 @@ struct generic_annotated_node_traits
    typedef typename NodeTraits::const_node_ptr     const_node_ptr;
 
    typedef AnnotationListTraits                    annotation_list_traits;
+   typedef typename AnnotationListTraits::annotations
+                                                   annotations;
    typedef typename AnnotationListTraits::annotation_list
                                                    annotation_list;
    typedef typename boost::pointer_to_other<

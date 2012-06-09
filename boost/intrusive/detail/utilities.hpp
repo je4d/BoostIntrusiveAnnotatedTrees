@@ -100,12 +100,28 @@ struct external_value_traits_is_true
 };
 
 template <class T>
+struct annotations_supported_bool
+{
+   template<bool Add>
+   struct two_or_three {one _[2 + Add];};
+   template <class U> static one test(...);
+   template <class U> static two_or_three<U::annotations_supported> test (int);
+   static const std::size_t value = sizeof(test<T>(0));
+};
+
+template <class T>
+struct annotations_supported_is_true
+{
+   static const bool value = annotations_supported_bool<T>::value > sizeof(one)*2;
+};
+
+template <class T>
 struct annotation_associative_fold_bool
 {
    template<bool Add>
    struct two_or_three {one _[2 + Add];};
    template <class U> static one test(...);
-   template <class U> static two_or_three<U::associative_fold> test (int);
+   template <class U> static two_or_three<U::is_associative_fold> test (int);
    static const std::size_t value = sizeof(test<T>(0));
 };
 
@@ -113,6 +129,38 @@ template <class T>
 struct annotation_associative_fold_is_true
 {
    static const bool value = annotation_associative_fold_bool<T>::value > sizeof(one)*2;
+};
+
+template <class T>
+struct apply_annotation_config_bool
+{
+   template<bool Add>
+   struct two_or_three {one _[2 + Add];};
+   template <class U> static one test(...);
+   template <class U> static two_or_three<U::apply_config> test (int);
+   static const std::size_t value = sizeof(test<T>(0));
+};
+
+template <class T>
+struct apply_annotation_config_is_true
+{
+   static const bool value = apply_annotation_config_bool<T>::value > sizeof(one)*2;
+};
+
+template <class T>
+struct explicit_annotation_hook_bool
+{
+   template<bool Add>
+   struct two_or_three {one _[2 + Add];};
+   template <class U> static one test(...);
+   template <class U> static two_or_three<U::explicit_annotation_hook_type> test (int);
+   static const std::size_t value = sizeof(test<T>(0));
+};
+
+template <class T>
+struct explicit_annotation_hook_is_true
+{
+   static const bool value = explicit_annotation_hook_bool<T>::value > sizeof(one)*2;
 };
 
 template<class Node, class Tag, link_mode_type LinkMode, int>
@@ -381,13 +429,16 @@ template<class Hook>
 void destructor_impl(Hook &, detail::link_dispatch<normal_link>)
 {}
 
-template<class T, class NodeTraits, link_mode_type LinkMode, class Tag, int HookType>
+template<class T, class AnnotatedNodeTraits, link_mode_type LinkMode, class Tag, int HookType>
 struct base_hook_traits
 {
-   public:
+   typedef typename AnnotatedNodeTraits::annotated_node              annotated_node;
    typedef detail::node_holder
-      <typename NodeTraits::node, Tag, LinkMode, HookType>           node_holder;
-   typedef NodeTraits                                                node_traits;
+      <annotated_node, Tag, LinkMode, HookType>                      node_holder;
+
+   public:
+   typedef AnnotatedNodeTraits                                       annotated_node_traits;
+   typedef typename AnnotatedNodeTraits::node_traits                 node_traits;
    typedef T                                                         value_type;
    typedef typename node_traits::node_ptr                            node_ptr;
    typedef typename node_traits::const_node_ptr                      const_node_ptr;
@@ -396,6 +447,7 @@ struct base_hook_traits
    typedef typename std::iterator_traits<pointer>::reference         reference;
    typedef typename std::iterator_traits<const_pointer>::reference   const_reference;
    static const link_mode_type link_mode = LinkMode;
+   static const bool annotations_supported = true;
 
    static node_ptr to_node_ptr(reference value)
    { return static_cast<node_holder*>(&value); }
@@ -413,9 +465,12 @@ struct base_hook_traits
 template<class T, class Hook, Hook T::* P>
 struct member_hook_traits
 {
-   public:
    typedef Hook                                                      hook_type;
-   typedef typename hook_type::boost_intrusive_tags::node_traits     node_traits;
+   typedef typename hook_type::boost_intrusive_tags                  hook_tags;
+
+   public:
+   typedef typename hook_tags::annotated_node_traits                 annotated_node_traits;
+   typedef typename hook_tags::node_traits                           node_traits;
    typedef typename node_traits::node                                node;
    typedef T                                                         value_type;
    typedef typename node_traits::node_ptr                            node_ptr;
@@ -424,7 +479,8 @@ struct member_hook_traits
    typedef typename boost::pointer_to_other<node_ptr, const T>::type const_pointer;
    typedef typename std::iterator_traits<pointer>::reference         reference;
    typedef typename std::iterator_traits<const_pointer>::reference   const_reference;
-   static const link_mode_type link_mode = Hook::boost_intrusive_tags::link_mode;
+   static const link_mode_type link_mode = hook_tags::link_mode;
+   static const bool annotations_supported = true;
 
    static node_ptr to_node_ptr(reference value)
    {  return static_cast<node*>(&(value.*P));   }

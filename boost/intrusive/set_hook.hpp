@@ -195,7 +195,8 @@ struct make_set_member_hook
 
    typedef detail::generic_hook
    < get_set_node_algo<typename packed_options::void_pointer
-                      ,packed_options::optimize_size>
+                      ,packed_options::optimize_size
+                      ,typename packed_options::annotations>
    , member_tag
    , packed_options::link_mode
    , detail::NoBaseHook

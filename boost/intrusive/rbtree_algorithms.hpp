@@ -557,7 +557,11 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    typedef node_rbtree_algorithms<typename AnnotatedNodeTraits::node_traits>                          base_rbtree_algorithms;
    typedef detail::node_tree_algorithms<node_traits>                                                  node_tree_algorithms;
    typedef detail::annotated_tree_algorithms<AnnotatedNodeTraits,AnnotationList>                      annotated_tree_algorithms;
+   //@endcond
+   public:
    typedef typename annotated_tree_algorithms::insert_commit_data                                     insert_commit_data;
+   //@cond
+   private:
    typedef typename detail::make_annotated_node_algorithms<AnnotatedNodeTraits,AnnotationList>::type annotation_algorithms;
 
    template<class F>

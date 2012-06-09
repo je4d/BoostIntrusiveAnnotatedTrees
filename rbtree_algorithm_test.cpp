@@ -5,6 +5,7 @@
 #include "boost/intrusive/detail/generic_annotated_node.hpp"
 #include "boost/intrusive/detail/rbtree_node.hpp"
 #include "boost/intrusive/set_hook.hpp"
+#include "boost/intrusive/rbtree.hpp"
 #include <cstddef>
 #include <type_traits>
 #include <iostream>
@@ -128,7 +129,7 @@ bool check_hook(my_hook::boost_intrusive_tags::node_traits::node_ptr header, my_
 void test_hook()
 {
 	typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, my_annotation_list> node_algorithms;
-	//typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, boost::intrusive::annotations<>> node_algorithms;
+//	typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, boost::intrusive::annotations<>> node_algorithms;
 	node_algorithms::node header;
 	node_algorithms::init_header(&header);
 
@@ -141,14 +142,14 @@ void test_hook()
 		std::cout << i << " ";
 	}
 	std::cout << std::endl;
-	Value::a = -100;
+	ValueUsingHook::a = -100;
 	for (int i = 0; i < 100; ++i) {
-		ralgo::insert_equal(&header, &header, new Value(), Compare());
+		ralgo::insert_equal(&header, &header, new ValueUsingHook(), Compare());
 		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
 		std::cout << i << " ";
 	}
 	std::cout << std::endl;
-	Value::a = 0;
+	ValueUsingHook::a = 0;
 	for (int i = 0; i < 50; ++i) {
 		ralgo::erase(&header, node_traits::get_left(&header));
 		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
@@ -163,10 +164,54 @@ void test_hook()
 	std::cout << std::endl;
 }
 
+bool operator<(const ValueUsingHook& a, const ValueUsingHook& b) { return a.val < b.val; }
+
+void test_tree()
+{
+	typedef boost::intrusive::rbtree<ValueUsingHook, boost::intrusive::base_hook<my_hook>> my_tree;
+//	typedef boost::intrusive::rbtree<ValueUsingHook, boost::intrusive::base_hook<my_hook>, boost::intrusive::annotations<>> my_tree;
+
+	my_tree tree;
+
+	typedef my_tree::node_algorithms node_algorithms;
+	typedef my_tree::node_traits node_traits;
+	node_algorithms::node& header(*tree.end());
+
+	ValueUsingHook::a = 0;
+	for (int i = 0; i < 100; ++i) {
+		tree.insert_equal(*(new ValueUsingHook));
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+	ValueUsingHook::a = -100;
+	for (int i = 0; i < 100; ++i) {
+		tree.insert_equal(*(new ValueUsingHook));
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+	ValueUsingHook::a = 0;
+	for (int i = 0; i < 50; ++i) {
+		tree.erase(tree.begin());
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+	for (int i = 0; i < 50; ++i) {
+		auto endIt = tree.end();
+		tree.erase(--endIt);
+		check_hook(&header, static_cast<my_hook*>(node_traits::get_right(&header)));
+		std::cout << i << " ";
+	}
+	std::cout << std::endl;
+}
+
 int main()
 {
 	test_algo();
 	test_hook();
+	test_tree();
 
 //	int x = *((int*)0); 
 

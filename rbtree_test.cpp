@@ -11,15 +11,23 @@
 #include <cassert>
 #include <iostream>
 
+class ValueMemberHook;
+class ValueBaseHook;
+
 struct subtree_count_monoid
 {
 	typedef std::size_t              type;
 	typedef std::plus<type>          operation;
 	static const type                identity = 0;
 	static const type                value = 1;
+	struct get_input_value {
+		type operator()(ValueMemberHook&);
+		type operator()(ValueBaseHook&);
+	};
 };
 
-typedef boost::intrusive::fixed_value_monoid_annotation<subtree_count_monoid> subtree_count_annotation;
+typedef boost::intrusive::function_monoid_annotation<subtree_count_monoid> subtree_count_annotation;
+//typedef boost::intrusive::fixed_value_monoid_annotation<subtree_count_monoid> subtree_count_annotation;
 
 template <class ValueTraits, class Hook, class Algo>
 int check(typename Algo::node_traits::node_ptr header, typename ValueTraits::value_type& value)
@@ -93,6 +101,16 @@ struct ValueMemberHook
 };
 
 int ValueMemberHook::a = 998;
+
+subtree_count_monoid::type subtree_count_monoid::get_input_value::operator()(ValueMemberHook& val)
+{
+	return 1;
+}
+
+subtree_count_monoid::type subtree_count_monoid::get_input_value::operator()(ValueBaseHook& val)
+{
+	return 1;
+}
 
 bool operator<(const ValueMemberHook& a, const ValueMemberHook& b) { return a.val < b.val; }
 

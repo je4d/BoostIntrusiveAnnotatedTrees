@@ -40,12 +40,13 @@ namespace intrusive {
 
 /// @cond
 
-template <class ValueTraits, class Compare, class SizeType, bool ConstantTimeSize>
+template <class ValueTraits, class Compare, class SizeType, class Annotations, bool ConstantTimeSize>
 struct setopt
 {
    typedef ValueTraits  value_traits;
    typedef Compare      compare;
    typedef SizeType     size_type;
+   typedef Annotations  annotations;
    static const bool constant_time_size = ConstantTimeSize;
 };
 
@@ -57,6 +58,7 @@ struct set_defaults
       , constant_time_size<true>
       , size_type<std::size_t>
       , compare<std::less<T> >
+      , detail::default_annotations
       >::type
 {};
 
@@ -89,11 +91,7 @@ class rbtree_impl
    /// @cond
    static const bool external_value_traits =
       detail::external_value_traits_is_true<value_traits>::value;
-   typedef typename detail::eval_if_c
-      < external_value_traits
-      , detail::eval_value_traits<value_traits>
-      , detail::identity<value_traits>
-      >::type                                                        real_value_traits;
+   typedef typename detail::get_real_value_traits<value_traits>::type real_value_traits;
    /// @endcond
    typedef typename real_value_traits::pointer                       pointer;
    typedef typename real_value_traits::const_pointer                 const_pointer;
@@ -113,7 +111,41 @@ class rbtree_impl
    typedef typename node_traits::node                                node;
    typedef typename node_traits::node_ptr                            node_ptr;
    typedef typename node_traits::const_node_ptr                      const_node_ptr;
-   typedef rbtree_algorithms<node_traits>                            node_algorithms;
+   // @cond
+   struct annotation_config {
+      typedef real_value_traits          value_traits;
+      typedef typename Config::size_type size_type;
+   };
+   typedef typename detail::get_real_annotations<
+      annotation_config, typename Config::annotations>::type         real_annotations;
+   // @endcond
+#ifdef BOOST_INTRUSIVE_DOXYGEN_INVOKED
+   // XXX how to document this??
+//   typedef rbtree_algorithms<node_traits>                            node_algorithms; // deprecated
+   typedef typename Config::annotations                              annotations;
+   typedef typename real_value_traits::annotated_node_traits         annotated_node_traits;
+   typedef typename annotated_rbtree_algorithms
+      <annotated_node_traits, real_annotations>                      annotated_node_algorithms;
+#else
+   typedef typename Config::annotations                              annotations;
+   typedef typename detail::eval_if_c
+      < detail::annotations_supported_is_true<real_value_traits>::value
+      , detail::eval_annotated_node_traits<real_value_traits>
+      , detail::identity<trivial_annotated_node_traits<node_traits>>
+      >::type                                                        annotated_node_traits;
+/*   typedef typename detail::if_c
+      < detail::annotations_supported_is_true<real_value_traits>::value
+         && !(detail::is_same<annotations, intrusive::annotations<> >::value)
+      , annotated_rbtree_algorithms<annotated_node_traits, annotations>
+      , rbtree_algorithms<node_traits>
+      >::type                                                        node_algorithms;*/
+   typedef typename detail::if_c
+      < detail::annotations_supported_is_true<real_value_traits>::value
+      , annotated_rbtree_algorithms<annotated_node_traits, real_annotations>
+      , rbtree_algorithms<node_traits>
+      >::type                                                        annotated_node_algorithms;
+#endif
+   typedef annotated_node_algorithms                                 node_algorithms;
 
    static const bool constant_time_size = Config::constant_time_size;
    static const bool stateful_value_traits = detail::is_stateful_value_traits<real_value_traits>::value;
@@ -229,7 +261,7 @@ class rbtree_impl
               , const value_traits &v_traits = value_traits()) 
       :  data_(cmp, v_traits)
    {  
-      node_algorithms::init_header(&priv_header());  
+      annotated_node_algorithms::init_header(&priv_header());
       this->priv_size_traits().set_size(size_type(0));
    }
 
@@ -251,7 +283,7 @@ class rbtree_impl
               , const value_traits &v_traits = value_traits())
       : data_(cmp, v_traits)
    {
-      node_algorithms::init_header(&priv_header());
+      annotated_node_algorithms::init_header(&priv_header());
       this->priv_size_traits().set_size(size_type(0));
       if(unique)
          this->insert_unique(b, e);
@@ -264,7 +296,7 @@ class rbtree_impl
    rbtree_impl(BOOST_RV_REF(rbtree_impl) x)
       : data_(::boost::move(x.priv_comp()), ::boost::move(x.priv_value_traits()))
    {
-      node_algorithms::init_header(&priv_header());  
+      annotated_node_algorithms::init_header(&priv_header());
       this->priv_size_traits().set_size(size_type(0));
       this->swap(x);
    }
@@ -444,7 +476,7 @@ class rbtree_impl
    //! 
    //! <b>Throws</b>: Nothing.
    bool empty() const
-   {  return node_algorithms::unique(const_node_ptr(&priv_header()));   }
+   {  return annotated_node_algorithms::unique(const_node_ptr(&priv_header()));   }
 
    //! <b>Effects</b>: Returns the number of elements stored in the tree.
    //! 
@@ -457,7 +489,7 @@ class rbtree_impl
       if(constant_time_size)
          return this->priv_size_traits().get_size();
       else{
-         return (size_type)node_algorithms::size(const_node_ptr(&priv_header()));
+         return (size_type)annotated_node_algorithms::size(const_node_ptr(&priv_header()));
       }
    }
 
@@ -472,7 +504,7 @@ class rbtree_impl
       using std::swap;
       swap(priv_comp(), priv_comp());
       //These can't throw
-      node_algorithms::swap_tree(node_ptr(&priv_header()), node_ptr(&other.priv_header()));
+      annotated_node_algorithms::swap_tree(node_ptr(&priv_header()), node_ptr(&other.priv_header()));
       if(constant_time_size){
          size_type backup = this->priv_size_traits().get_size();
          this->priv_size_traits().set_size(other.priv_size_traits().get_size());
@@ -497,8 +529,8 @@ class rbtree_impl
          key_node_comp(priv_comp(), this);
       node_ptr to_insert(get_real_value_traits().to_node_ptr(value));
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(node_algorithms::unique(to_insert));
-      iterator ret(node_algorithms::insert_equal_upper_bound
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(annotated_node_algorithms::unique(to_insert));
+      iterator ret(annotated_node_algorithms::insert_equal_upper_bound
          (node_ptr(&priv_header()), to_insert, key_node_comp), this);
       this->priv_size_traits().increment();
       return ret;
@@ -524,8 +556,8 @@ class rbtree_impl
          key_node_comp(priv_comp(), this);
       node_ptr to_insert(get_real_value_traits().to_node_ptr(value));
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(node_algorithms::unique(to_insert));
-      iterator ret(node_algorithms::insert_equal
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(annotated_node_algorithms::unique(to_insert));
+      iterator ret(annotated_node_algorithms::insert_equal
          (node_ptr(&priv_header()), hint.pointed_node(), to_insert, key_node_comp), this);
       this->priv_size_traits().increment();
       return ret;
@@ -661,7 +693,7 @@ class rbtree_impl
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          comp(key_value_comp, this);
       std::pair<node_ptr, bool> ret = 
-         (node_algorithms::insert_unique_check
+         (annotated_node_algorithms::insert_unique_check
             (node_ptr(&priv_header()), key, comp, commit_data));
       return std::pair<iterator, bool>(iterator(ret.first, this), ret.second);
    }
@@ -706,7 +738,7 @@ class rbtree_impl
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          comp(key_value_comp, this);
       std::pair<node_ptr, bool> ret = 
-         (node_algorithms::insert_unique_check
+         (annotated_node_algorithms::insert_unique_check
             (node_ptr(&priv_header()), hint.pointed_node(), key, comp, commit_data));
       return std::pair<iterator, bool>(iterator(ret.first, this), ret.second);
    }
@@ -732,8 +764,8 @@ class rbtree_impl
    {
       node_ptr to_insert(get_real_value_traits().to_node_ptr(value));
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(node_algorithms::unique(to_insert));
-      node_algorithms::insert_unique_commit
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(annotated_node_algorithms::unique(to_insert));
+      annotated_node_algorithms::insert_unique_commit
                (node_ptr(&priv_header()), to_insert, commit_data);
       this->priv_size_traits().increment();
       return iterator(to_insert, this);
@@ -757,9 +789,9 @@ class rbtree_impl
    {
       node_ptr to_insert(get_real_value_traits().to_node_ptr(value));
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(node_algorithms::unique(to_insert));
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(annotated_node_algorithms::unique(to_insert));
       this->priv_size_traits().increment();
-      return iterator(node_algorithms::insert_before
+      return iterator(annotated_node_algorithms::insert_before
          (node_ptr(&priv_header()), pos.pointed_node(), to_insert), this);
    }
 
@@ -781,9 +813,9 @@ class rbtree_impl
    {
       node_ptr to_insert(get_real_value_traits().to_node_ptr(value));
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(node_algorithms::unique(to_insert));
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(annotated_node_algorithms::unique(to_insert));
       this->priv_size_traits().increment();
-      node_algorithms::push_back(node_ptr(&priv_header()), to_insert);
+      annotated_node_algorithms::push_back(node_ptr(&priv_header()), to_insert);
    }
 
    //! <b>Requires</b>: value must be an lvalue, and it must be no greater
@@ -804,9 +836,9 @@ class rbtree_impl
    {
       node_ptr to_insert(get_real_value_traits().to_node_ptr(value));
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(node_algorithms::unique(to_insert));
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(annotated_node_algorithms::unique(to_insert));
       this->priv_size_traits().increment();
-      node_algorithms::push_front(node_ptr(&priv_header()), to_insert);
+      annotated_node_algorithms::push_front(node_ptr(&priv_header()), to_insert);
    }
 
    //! <b>Effects</b>: Erases the element pointed to by pos. 
@@ -823,11 +855,11 @@ class rbtree_impl
       ++ret;
       node_ptr to_erase(i.pointed_node());
       if(safemode_or_autounlink)
-         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(!node_algorithms::unique(to_erase));
-      node_algorithms::erase(&priv_header(), to_erase);
+         BOOST_INTRUSIVE_SAFE_HOOK_DEFAULT_ASSERT(!annotated_node_algorithms::unique(to_erase));
+      annotated_node_algorithms::erase(&priv_header(), to_erase);
       this->priv_size_traits().decrement();
       if(safemode_or_autounlink)
-         node_algorithms::init(to_erase);
+         annotated_node_algorithms::init(to_erase);
       return ret.unconst();
    }
 
@@ -986,7 +1018,7 @@ class rbtree_impl
          this->clear_and_dispose(detail::null_disposer());
       }
       else{
-         node_algorithms::init_header(&priv_header());
+         annotated_node_algorithms::init_header(&priv_header());
          this->priv_size_traits().set_size(0);
       }
    }
@@ -1003,9 +1035,9 @@ class rbtree_impl
    template<class Disposer>
    void clear_and_dispose(Disposer disposer)
    {
-      node_algorithms::clear_and_dispose(node_ptr(&priv_header())
+      annotated_node_algorithms::clear_and_dispose(node_ptr(&priv_header())
          , detail::node_disposer<Disposer, rbtree_impl>(disposer, this));
-      node_algorithms::init_header(&priv_header());
+      annotated_node_algorithms::init_header(&priv_header());
       this->priv_size_traits().set_size(0);
    }
 
@@ -1060,7 +1092,7 @@ class rbtree_impl
    {
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
-      return iterator(node_algorithms::lower_bound
+      return iterator(annotated_node_algorithms::lower_bound
          (const_node_ptr(&priv_header()), key, key_node_comp), this);
    }
 
@@ -1075,7 +1107,7 @@ class rbtree_impl
    {
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
-      return const_iterator(node_algorithms::lower_bound
+      return const_iterator(annotated_node_algorithms::lower_bound
          (const_node_ptr(&priv_header()), key, key_node_comp), this);
    }
 
@@ -1100,7 +1132,7 @@ class rbtree_impl
    {
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
-      return iterator(node_algorithms::upper_bound
+      return iterator(annotated_node_algorithms::upper_bound
          (const_node_ptr(&priv_header()), key, key_node_comp), this);
    }
 
@@ -1125,7 +1157,7 @@ class rbtree_impl
    {
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
-      return const_iterator(node_algorithms::upper_bound
+      return const_iterator(annotated_node_algorithms::upper_bound
          (const_node_ptr(&priv_header()), key, key_node_comp), this);
    }
 
@@ -1150,7 +1182,7 @@ class rbtree_impl
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
       return iterator
-         (node_algorithms::find(const_node_ptr(&priv_header()), key, key_node_comp), this);
+         (annotated_node_algorithms::find(const_node_ptr(&priv_header()), key, key_node_comp), this);
    }
 
    //! <b>Effects</b>: Finds a const_iterator to the first element whose key is 
@@ -1174,7 +1206,7 @@ class rbtree_impl
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
       return const_iterator
-         (node_algorithms::find(const_node_ptr(&priv_header()), key, key_node_comp), this);
+         (annotated_node_algorithms::find(const_node_ptr(&priv_header()), key, key_node_comp), this);
    }
 
    //! <b>Effects</b>: Finds a range containing all elements whose key is k or
@@ -1200,7 +1232,7 @@ class rbtree_impl
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
       std::pair<node_ptr, node_ptr> ret
-         (node_algorithms::equal_range(const_node_ptr(&priv_header()), key, key_node_comp));
+         (annotated_node_algorithms::equal_range(const_node_ptr(&priv_header()), key, key_node_comp));
       return std::pair<iterator, iterator>(iterator(ret.first, this), iterator(ret.second, this));
    }
 
@@ -1229,7 +1261,7 @@ class rbtree_impl
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          key_node_comp(comp, this);
       std::pair<node_ptr, node_ptr> ret
-         (node_algorithms::equal_range(const_node_ptr(&priv_header()), key, key_node_comp));
+         (annotated_node_algorithms::equal_range(const_node_ptr(&priv_header()), key, key_node_comp));
       return std::pair<const_iterator, const_iterator>(const_iterator(ret.first, this), const_iterator(ret.second, this));
    }
 
@@ -1254,7 +1286,7 @@ class rbtree_impl
       if(!src.empty()){
          detail::exception_disposer<rbtree_impl, Disposer>
             rollback(*this, disposer);
-         node_algorithms::clone
+         annotated_node_algorithms::clone
             (const_node_ptr(&src.priv_header())
             ,node_ptr(&this->priv_header())
             ,detail::node_cloner<Cloner, rbtree_impl>(cloner, this)
@@ -1277,13 +1309,13 @@ class rbtree_impl
    //!   controlled destruction of the tree.
    pointer unlink_leftmost_without_rebalance()
    {
-      node_ptr to_be_disposed(node_algorithms::unlink_leftmost_without_rebalance
+      node_ptr to_be_disposed(annotated_node_algorithms::unlink_leftmost_without_rebalance
                            (node_ptr(&priv_header())));
       if(!to_be_disposed)
          return 0;
       this->priv_size_traits().decrement();
       if(safemode_or_autounlink)//If this is commented does not work with normal_link
-         node_algorithms::init(to_be_disposed);
+         annotated_node_algorithms::init(to_be_disposed);
       return get_real_value_traits().to_value_ptr(to_be_disposed);
    }
 
@@ -1303,11 +1335,11 @@ class rbtree_impl
    //!   the node, since no rebalancing or comparison is needed.
    void replace_node(iterator replace_this, reference with_this)
    {
-      node_algorithms::replace_node( get_real_value_traits().to_node_ptr(*replace_this)
+      annotated_node_algorithms::replace_node( get_real_value_traits().to_node_ptr(*replace_this)
                                    , node_ptr(&priv_header())
                                    , get_real_value_traits().to_node_ptr(with_this));
       if(safemode_or_autounlink)
-         node_algorithms::init(replace_this.pointed_node());
+         annotated_node_algorithms::init(replace_this.pointed_node());
    }
 
    //! <b>Requires</b>: value must be an lvalue and shall be in a set of
@@ -1382,7 +1414,7 @@ class rbtree_impl
    //! <b>Note</b>: This function puts the hook in the well-known default state
    //!   used by auto_unlink and safe hooks.
    static void init_node(reference value)
-   { node_algorithms::init(value_traits::to_node_ptr(value)); }
+   { annotated_node_algorithms::init(value_traits::to_node_ptr(value)); }
 
    //! <b>Effects</b>: removes "value" from the container.
    //! 
@@ -1400,9 +1432,9 @@ class rbtree_impl
    {
       BOOST_STATIC_ASSERT((!constant_time_size));
       node_ptr to_remove(value_traits::to_node_ptr(value));
-      node_algorithms::unlink(to_remove);
+      annotated_node_algorithms::unlink(to_remove);
       if(safemode_or_autounlink)
-         node_algorithms::init(to_remove);
+         annotated_node_algorithms::init(to_remove);
    }
 
    /// @cond
@@ -1576,10 +1608,13 @@ struct make_rbtree_opt
    typedef typename detail::get_value_traits
       <T, typename packed_options::value_traits>::type value_traits;
 
+   typedef typename detail::get_annotations
+      <value_traits, typename packed_options::annotations>::type annotations;
    typedef setopt
          < value_traits
          , typename packed_options::compare
          , typename packed_options::size_type
+         , annotations
          , packed_options::constant_time_size
          > type;
 };

@@ -29,9 +29,13 @@ namespace intrusive {
 struct default_tag;
 struct member_tag;
 
+template <class ...Annotations>
+struct annotations;
+
 namespace detail{
 
 struct default_hook_tag{};
+struct default_annotations_tag{};
 
 #define BOOST_INTRUSIVE_DEFAULT_HOOK_MARKER_DEFINITION(BOOST_INTRUSIVE_DEFAULT_HOOK_MARKER) \
 struct BOOST_INTRUSIVE_DEFAULT_HOOK_MARKER : public default_hook_tag\
@@ -75,7 +79,7 @@ struct concrete_hook_base_value_traits
    typedef typename BaseHook::boost_intrusive_tags tags;
    typedef detail::base_hook_traits
       < T
-      , typename tags::node_traits
+      , typename tags::annotated_node_traits
       , tags::link_mode
       , typename tags::tag
       , tags::hook_type> type;
@@ -136,24 +140,44 @@ struct get_member_node_traits
 template<class T, class SupposedValueTraits>
 struct get_value_traits
 {
-   typedef typename detail::eval_if_c
-      <detail::is_convertible<SupposedValueTraits*, detail::default_hook_tag*>::value
-      ,detail::apply<SupposedValueTraits, T>
-      ,detail::identity<SupposedValueTraits>
+   // SupposedValueTraits is either a value traits class, one of our hooks,
+   // or placeholder derrived from default_hook_tag.
+
+   // Base hooks with no Tag option will have default_x_tag defined via
+   // make_default_definer. if the user doesn't specify a hook to the container,
+   // SupposedValueTraits will be detail::default_x_tag. In this case, use
+   // apply to get default_x_tag out of T, yielding the real hook type.
+   typedef typename eval_if_c
+      < is_convertible<SupposedValueTraits*, default_hook_tag*>::value
+      , apply<SupposedValueTraits, T>
+      , identity<SupposedValueTraits>
    >::type supposed_value_traits;
-   //...if it's a default hook
-   typedef typename detail::eval_if_c
+   //...supposed_value_traits is either a hook or a custom value traits class.
+
+   typedef typename eval_if_c
       < internal_base_hook_bool_is_true<supposed_value_traits>::value
       //...get it's internal value traits using
       //the provided T value type.
       , get_base_value_traits<T, supposed_value_traits>
       //...else use it's internal value traits tag
       //(member hooks and custom value traits are in this group)
-      , detail::eval_if_c
+      , eval_if_c
          < internal_member_value_traits<supposed_value_traits>::value
          , get_member_value_traits<T, supposed_value_traits>
-         , detail::identity<supposed_value_traits>
+         , identity<supposed_value_traits>
          >
+      >::type type;
+};
+
+template<class ValueTraits>
+struct get_real_value_traits
+{
+   static const bool external_value_traits =
+      external_value_traits_is_true<ValueTraits>::value;
+   typedef typename eval_if_c
+      < external_value_traits
+      , eval_value_traits<ValueTraits>
+      , identity<ValueTraits>
       >::type type;
 };
 
@@ -168,14 +192,14 @@ struct get_node_traits
 {
    typedef SupposedValueTraits supposed_value_traits;
    //...if it's a base hook
-   typedef typename detail::eval_if_c
+   typedef typename eval_if_c
       < internal_base_hook_bool_is_true<supposed_value_traits>::value
       //...get it's internal value traits using
       //the provided T value type.
       , get_base_node_traits<supposed_value_traits>
       //...else use it's internal value traits tag
       //(member hooks and custom value traits are in this group)
-      , detail::eval_if_c
+      , eval_if_c
          < internal_member_value_traits<supposed_value_traits>::value
          , get_member_node_traits<supposed_value_traits>
          , get_explicit_node_traits<supposed_value_traits>
@@ -183,7 +207,74 @@ struct get_node_traits
       >::type type;
 };
 
-}  //namespace detail{
+template<class RealValueTraits>
+struct get_hook_annotations
+{
+   typedef typename RealValueTraits::annotated_node_traits::annotations type;
+};
+
+template<class ValueTraits, class Annotations>
+struct get_annotations
+{
+   typedef typename get_real_value_traits<ValueTraits>::type  real_value_traits;
+   // If you fail this static assertion, you're trying to use annotations but
+   // your hook/value_traits doesn't support them.
+   BOOST_STATIC_ASSERT((
+         is_same<Annotations, default_annotations_tag>::value ||
+         annotations_supported_is_true<real_value_traits>::value));
+
+   // (Annotations != default_annotations_tag) => Annotations
+   // (real_value_traits::annotations_supported != true) => annotations<>
+   // otherwise => real_value_traits::annotated_node_traits::annotations
+   typedef typename eval_if_c
+      < is_same<Annotations, default_annotations_tag>::value
+      , eval_if_c
+         < annotations_supported_is_true<real_value_traits>::value
+         , get_hook_annotations<real_value_traits>
+         , identity<annotations<> >
+         >
+      , identity<Annotations>
+      >::type type;
+};
+
+template<class Annotation, class Config>
+struct make_real_annotation
+{
+   typedef typename Annotation::template make_real_annotation<Config>::type real_annotation;
+
+   struct type : real_annotation
+   {
+      static const bool explicit_annotation_hook_type = true;
+      typedef Annotation annotation_hook;
+   };
+};
+
+template<class Config, class... Annotations>
+struct get_real_annotations_impl
+{
+   typedef annotations
+      < typename eval_if_c
+         < apply_annotation_config_is_true<Annotations>::value
+         , make_real_annotation<Annotations, Config>
+         , identity<Annotations>
+         >::type...
+      > type;
+};
+
+template<class Config, class Annotations>
+struct get_real_annotations
+{
+   typedef typename Annotations::template apply<get_real_annotations_impl, Config>::type::type type;
+};
+
+template<class ValueTraits>
+struct eval_annotated_node_traits
+{
+   typedef typename get_real_value_traits<ValueTraits>::type  real_value_traits;
+   typedef typename real_value_traits::annotated_node_traits type;
+};
+
+}  //namespace detail
 
 
 //!This type indicates that no option is being used
@@ -600,6 +691,19 @@ struct annotations
       typedef ::boost::intrusive::annotations<Annotations...> annotations;
    };
 };
+
+namespace detail{
+
+struct default_annotations
+{
+   template<class Base>
+   struct pack : Base
+   {
+      typedef default_annotations_tag annotations;
+   };
+};
+
+} //namespace detail
 #endif
 
 /// @cond

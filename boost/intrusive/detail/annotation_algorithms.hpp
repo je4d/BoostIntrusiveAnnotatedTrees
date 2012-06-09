@@ -16,9 +16,27 @@
 #include <boost/mpl/has_xxx.hpp>
 #include <boost/mpl/identity.hpp>
 
+#include <boost/intrusive/options.hpp>
+
 namespace boost {
 namespace intrusive {
 namespace detail {
+
+template <class T>
+struct eval_annotation_hook
+{
+   typedef typename T::annotation_hook type;
+};
+
+template <class T>
+struct get_annotation_hook
+{
+   typedef typename eval_if_c
+      < explicit_annotation_hook_is_true<T>::value
+      , eval_annotation_hook<T>
+      , identity<T>
+      >::type type;
+};
 
 template <class T>
 class tree_algorithms;
@@ -28,13 +46,14 @@ struct annotation_algorithms
 {
    typedef typename AnnotatedNodeTraits::annotation_list_ptr        annotation_list_ptr;
    typedef typename AnnotatedNodeTraits::const_annotation_list_ptr  const_annotation_list_ptr;
+   typedef typename get_annotation_hook<Annotation>::type           annotation_hook;
 
    static void update(annotation_list_ptr n){
       Annotation::template update_node<AnnotatedNodeTraits>(n);
    }
 
    static void clone_node(const_annotation_list_ptr source, annotation_list_ptr target){
-      AnnotatedNodeTraits::template set_annotation_value<Annotation>(target, AnnotatedNodeTraits::template get_annotation_value<Annotation>(source));
+      AnnotatedNodeTraits::template set_annotation_value<annotation_hook>(target, AnnotatedNodeTraits::template get_annotation_value<annotation_hook>(source));
    }
 };
 

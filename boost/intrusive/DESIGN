@@ -46,8 +46,55 @@ There are annotations for which only node data is needed (subtree count, tree de
 
 How about starting with a simple option where we store the node value if it is needed?
 
+==== For hooks
+
+// If explicit algo lists are going to be used, this is sufficient:
+struct annotation
+{
+   typedef MyType type;
+   static bool store_annotation_input_value; // optional
+};
+
+// otherwise, same as for trees
+
+
+==== For algos
+
+need => update()
+
+struct annotation
+{
+   const bool explicit_annotation_hook; // optional
+   typedef annotation annotation_hook;
+   const bool this_or_that_optimization;
+
+   template <class AnnotatedNodeTraits>
+   static void update(typename AnnotatedNodeTraits::annotation_list_ptr n) {
+      ...
+   }
+};
+
+==== For trees/hooks
+
+struct annotation
+{
+   typedef ... type; // required if 
+
+   static const bool apply_config = true;
+
+   // why do this instead of just having a nested template struct that's templated on options?
+   // It reduces template explosion as unused parts of options do not become part of the type of the type passed to the algorithms
+   template <typename Config>
+   struct make_real_annotation {
+      typedef ... type;
+   }
+
+};
+
+make_real_annotation::type => for-algo annotation
 
 =================
+Terminology
 
 Annotation is ambiguious - it could be an object that holds an annotation value, or the struct that defines the operations
 An annotation list is always a list of objects
@@ -62,7 +109,19 @@ annotated_node_traits - traits relating the annotations to the node, c.f. value 
 annotation_list_traits - traits relating to the list of annotations
 
 
+===================
+Supporting function-of-value monoids
 
+Function-of-value monoids work by using the apply_config / make_real_annotation mechanism outlined above.
+The make_real_annotation class pulls value_traits out of the config, and instantiates its actual annotation class with it as a parameter.
+ This means that the annotation class used by the annotated_node_algorithms can convert a node to a value.
+ However, this would mean that the type that the algos get for an annotation differs from the type supplied to the hook. To
+  get around this problem, the "configured"/for-algos annotation type defines a "explicit_annotation_hook_type = true;" member,
+  which tells the algos to use the "annotation_hook" typedef in the for-algos annotation when accessing the value in the hook.
+  "annotation_hook" will be a typedef to the original for-trees/for-hooks annotation class which had 'make_real_annotation' in it.
+ Of course, this gives annotated_node_algorithms a type dependency on value_traits, which means using function-value monoids will
+  increase template explosion.
+ 
 
 
 
