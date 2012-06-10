@@ -102,6 +102,8 @@
  */
 
 
+#include "limits.h"
+
 #include "jam.h"
 #include "option.h"
 #include "patchlevel.h"
@@ -134,9 +136,36 @@
 #endif
 
 /* And UNIX for this. */
-#ifdef unix
+#if defined(unix) || defined(__unix)
     #include <sys/utsname.h>
+    #include <sys/wait.h>
     #include <signal.h>
+
+     #include <sys/utsname.h>
+     #include <signal.h>
+
+     sigset_t empty_sigmask;
+     volatile sig_atomic_t child_events = 0;
+     struct terminated_child terminated_children[MAXJOBS] = {{ 0 }};
+
+     void child_sig_handler(int x) {
+         pid_t pid;
+         int i, status;
+         pid = waitpid(-1, &status, WNOHANG);
+         if (0 < pid) {
+           /* save terminated child pid and status */
+           for (i=0; i<MAXJOBS; ++i) {
+             /* find first available slot */
+             if (terminated_children[i].pid == 0) {
+                 terminated_children[i].pid = pid;
+                 terminated_children[i].status = status;
+                 break;
+             }
+           }
+         }
+         ++child_events;
+         signal(SIGCHLD, child_sig_handler);
+     }
 #endif
 
 struct globs globs =
@@ -152,7 +181,9 @@ struct globs globs =
     { 0, 1 },   /* debug ... */
 #endif
     0,          /* output commands, not run them */
-    0           /* action timeout */
+    0,          /* action timeout */
+    0,          
+    INT_MAX     /* default is to accept all action output */
 };
 
 /* Symbols to be defined as true for use in Jambase. */
@@ -230,6 +261,20 @@ int main( int argc, char * * argv, char * * arg_environ )
     char            const * progname = argv[0];
     module_t              * environ_module;
 
+#if defined(unix) || defined(__unix)
+    sigset_t sigmask;
+    struct sigaction sa;
+
+    sigemptyset(&sigmask);
+    sigaddset(&sigmask, SIGCHLD);
+    sigprocmask(SIG_BLOCK, &sigmask, NULL);
+    sa.sa_flags = 0;
+    sa.sa_handler = child_sig_handler;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGCHLD, &sa, NULL);
+    sigemptyset(&empty_sigmask);
+#endif
+
     saved_argv0 = argv[0];
 
     BJAM_MEM_INIT();
@@ -241,7 +286,7 @@ int main( int argc, char * * argv, char * * arg_environ )
     --argc;
     ++argv;
 
-    if ( getoptions( argc, argv, "-:l:d:j:p:f:gs:t:ano:qv", optv ) < 0 )
+    if ( getoptions( argc, argv, "-:l:m:d:j:p:f:gs:t:ano:qv", optv ) < 0 )
     {
         printf( "\nusage: %s [ options ] targets...\n\n", progname );
 
@@ -251,6 +296,7 @@ int main( int argc, char * * argv, char * * arg_environ )
         /* printf( "-g      Build from newest sources first.\n" ); */
         printf( "-jx     Run up to x shell commands concurrently.\n" );
         printf( "-lx     Limit actions to x number of seconds after which they are stopped.\n" );
+        printf( "-mx     Limit action output buffer to x kb's of data, after which action output is read and ignored.\n" );
         printf( "-n      Don't actually execute the updating actions.\n" );
         printf( "-ox     Write the updating actions to file x.\n" );
         printf( "-px     x=0, pipes action stdout and stderr merged into action output.\n" );
@@ -317,6 +363,9 @@ int main( int argc, char * * argv, char * * arg_environ )
 
     if ( ( s = getoptval( optv, 'l', 0 ) ) )
         globs.timeout = atoi( s );
+
+    if ( ( s = getoptval( optv, 'm', 0 ) ) )
+        globs.maxbuf = atoi( s ) * 1024;
 
     /* Turn on/off debugging */
     for ( n = 0; ( s = getoptval( optv, 'd', n ) ); ++n )
@@ -385,29 +434,29 @@ int main( int argc, char * * argv, char * * arg_environ )
 #endif
 
         /* Set JAMDATE. */
-        var_set( root_module(), constant_JAMDATE, list_new( L0, outf_time(time(0)) ), VAR_SET );
+        var_set( root_module(), constant_JAMDATE, list_new( outf_time(time(0)) ), VAR_SET );
 
         /* Set JAM_VERSION. */
         var_set( root_module(), constant_JAM_VERSION,
-                 list_new( list_new( list_new( L0,
+                 list_push_back( list_push_back( list_new(
                    object_new( VERSION_MAJOR_SYM ) ),
                    object_new( VERSION_MINOR_SYM ) ),
                    object_new( VERSION_PATCH_SYM ) ),
                    VAR_SET );
 
         /* Set JAMUNAME. */
-#ifdef unix
+#if defined(unix) || defined(__unix)
         {
             struct utsname u;
 
             if ( uname( &u ) >= 0 )
             {
                 var_set( root_module(), constant_JAMUNAME,
-                         list_new(
-                             list_new(
-                                 list_new(
-                                     list_new(
-                                         list_new( L0,
+                         list_push_back(
+                             list_push_back(
+                                 list_push_back(
+                                     list_push_back(
+                                         list_new(
                                             object_new( u.sysname ) ),
                                          object_new( u.nodename ) ),
                                      object_new( u.release ) ),
@@ -449,7 +498,7 @@ int main( int argc, char * * argv, char * * arg_environ )
          */
         for ( n = 0; n < arg_c; ++n )
         {
-            var_set( root_module(), constant_ARGV, list_new( L0, object_new( arg_v[n] ) ), VAR_APPEND );
+            var_set( root_module(), constant_ARGV, list_new( object_new( arg_v[n] ) ), VAR_APPEND );
         }
 
         /* Initialize built-in rules. */
@@ -472,7 +521,7 @@ int main( int argc, char * * argv, char * * arg_environ )
             }
         }
 
-        if (!targets_to_update())
+        if ( list_empty( targets_to_update() ) )
         {
             mark_target_for_updating( constant_all );
         }
@@ -520,12 +569,12 @@ int main( int argc, char * * argv, char * * arg_environ )
         {
             LIST *p = L0;
             p = var_get ( root_module(), constant_PARALLELISM );
-            if ( p )
+            if ( !list_empty( p ) )
             {
-                int j = atoi( object_str( p->value ) );
+                int j = atoi( object_str( list_front( p ) ) );
                 if ( j == -1 )
                 {
-                    printf( "Invalid value of PARALLELISM: %s\n", object_str( p->value ) );
+                    printf( "Invalid value of PARALLELISM: %s\n", object_str( list_front( p ) ) );
                 }
                 else
                 {
@@ -538,9 +587,9 @@ int main( int argc, char * * argv, char * * arg_environ )
         {
             LIST *p = L0;
             p = var_get( root_module(), constant_KEEP_GOING );
-            if ( p )
+            if ( !list_empty( p ) )
             {
-                int v = atoi( object_str( p->value ) );
+                int v = atoi( object_str( list_front( p ) ) );
                 if ( v == 0 )
                     globs.quitquick = 1;
                 else
@@ -553,16 +602,9 @@ int main( int argc, char * * argv, char * * arg_environ )
             PROFILE_ENTER( MAIN_MAKE );
 
             LIST * targets = targets_to_update();
-            if (targets)
+            if ( !list_empty( targets ) )
             {
-                int targets_count = list_length( targets );
-                OBJECT * * targets2 = (OBJECT * *)
-                    BJAM_MALLOC( targets_count * sizeof( OBJECT * ) );
-                int n = 0;
-                for ( ; targets; targets = list_next( targets ) )
-                    targets2[ n++ ] = targets->value;
-                status |= make( targets_count, targets2, anyhow );
-                BJAM_FREE( (void *)targets2 );
+                status |= make( targets, anyhow );
             }
             else
             {

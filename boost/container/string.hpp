@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////////
 //
-// (C) Copyright Ion Gaztanaga 2005-2011. Distributed under the Boost
+// (C) Copyright Ion Gaztanaga 2005-2012. Distributed under the Boost
 // Software License, Version 1.0. (See accompanying file
 // LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
@@ -43,7 +43,7 @@
 #include <boost/container/detail/algorithms.hpp>
 #include <boost/container/detail/version_type.hpp>
 #include <boost/container/detail/allocation_type.hpp>
-#include <boost/container/allocator/allocator_traits.hpp>
+#include <boost/container/allocator_traits.hpp>
 #include <boost/container/detail/mpl.hpp>
 #include <boost/move/move.hpp>
 #include <boost/static_assert.hpp>
@@ -127,7 +127,10 @@ class basic_string_base
    {  
       if(!this->is_short()){
          this->deallocate_block(); 
-         static_cast<long_t*>(static_cast<void*>(&this->members_.m_repr.r))->~long_t();
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , static_cast<long_t*>(static_cast<void*>(&this->members_.m_repr.r))
+            );
       }
    }
 
@@ -240,10 +243,16 @@ class basic_string_base
    void is_short(bool yes)
    {  
       if(yes && !this->is_short()){
-         static_cast<long_t*>(static_cast<void*>(&this->members_.m_repr.r))->~long_t();
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , static_cast<long_t*>(static_cast<void*>(&this->members_.m_repr.r))
+            );
       }
       else{
-         new(static_cast<void*>(&this->members_.m_repr.r))long_t();
+         allocator_traits_type::construct
+            ( this->alloc()
+            , static_cast<long_t*>(static_cast<void*>(&this->members_.m_repr.r))
+            );
       }
       this->members_.m_repr.s.h.is_short = yes;
    }
@@ -314,16 +323,31 @@ class basic_string_base
    }
 
    void construct(pointer p, const value_type &value = value_type())
-   {  new((void*)container_detail::to_raw_pointer(p)) value_type(value);   }
+   {
+      allocator_traits_type::construct
+         ( this->alloc()
+         , container_detail::to_raw_pointer(p)
+         , value
+         );
+   }
 
    void destroy(pointer p, size_type n)
    {
-      for(; n--; ++p)
-         container_detail::to_raw_pointer(p)->~value_type();
+      for(; n--; ++p){
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , container_detail::to_raw_pointer(p)
+            );
+      }
    }
 
    void destroy(pointer p)
-   {  container_detail::to_raw_pointer(p)->~value_type(); }
+   {
+      allocator_traits_type::destroy
+         ( this->alloc()
+         , container_detail::to_raw_pointer(p)
+         );
+   }
 
    void allocate_initial_block(size_type n)
    {
@@ -596,12 +620,12 @@ class basic_string
    //!
    //! <b>Postcondition</b>: x == *this.
    //! 
-   //! <b>Throws</b>: If allocator_type's default constructor or copy constructor throws.
+   //! <b>Throws</b>: If allocator_type's default constructor throws.
    basic_string(const basic_string& s) 
       :  base_t(allocator_traits_type::select_on_container_copy_construction(s.alloc()))
    { this->priv_range_initialize(s.begin(), s.end()); }
 
-   //! <b>Effects</b>: Move constructor. Moves mx's resources to *this.
+   //! <b>Effects</b>: Move constructor. Moves s's resources to *this.
    //!
    //! <b>Throws</b>: If allocator_type's copy constructor throws.
    //! 
@@ -609,6 +633,32 @@ class basic_string
    basic_string(BOOST_RV_REF(basic_string) s) 
       : base_t(boost::move((base_t&)s))
    {}
+
+   //! <b>Effects</b>: Copy constructs a basic_string using the specified allocator.
+   //!
+   //! <b>Postcondition</b>: x == *this.
+   //! 
+   //! <b>Throws</b>: If allocation throws.
+   basic_string(const basic_string& s, const allocator_type &a) 
+      :  base_t(a)
+   { this->priv_range_initialize(s.begin(), s.end()); }
+
+   //! <b>Effects</b>: Move constructor using the specified allocator.
+   //!                 Moves s's resources to *this.
+   //!
+   //! <b>Throws</b>: If allocation throws.
+   //! 
+   //! <b>Complexity</b>: Constant if a == s.get_allocator(), linear otherwise.
+   basic_string(BOOST_RV_REF(basic_string) s, const allocator_type &a) 
+      : base_t(a)
+   {
+      if(a == this->alloc()){
+         this->swap_data(s);
+      }
+      else{
+         this->priv_range_initialize(s.begin(), s.end());
+      }
+   }
 
    //! <b>Effects</b>: Constructs a basic_string taking the allocator as parameter,
    //!   and is initialized by a specific number of characters of the s string. 
@@ -997,7 +1047,7 @@ class basic_string
    bool empty() const
    { return !this->priv_size(); }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a reference to the nth element 
    //!   from the beginning of the container.
@@ -1008,7 +1058,7 @@ class basic_string
    reference operator[](size_type n)
       { return *(this->priv_addr() + n); }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a const reference to the nth element 
    //!   from the beginning of the container.
@@ -1019,7 +1069,7 @@ class basic_string
    const_reference operator[](size_type n) const
       { return *(this->priv_addr() + n); }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a reference to the nth element 
    //!   from the beginning of the container.
@@ -1033,7 +1083,7 @@ class basic_string
       return *(this->priv_addr() + n);
    }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a const reference to the nth element 
    //!   from the beginning of the container.
@@ -2021,7 +2071,7 @@ class basic_string
    //!
    //! <b>Returns</b>: basic_string(*this, pos, n1).compare(basic_string(s, n2)).
    int compare(size_type pos1, size_type n1,
-               const CharT* s, size_type n2 = npos) const 
+               const CharT* s, size_type n2) const 
    {
       if (pos1 > size())
          this->throw_out_of_range();

@@ -62,6 +62,10 @@ struct make_binomial_heap_base
         {}
 
 #ifdef BOOST_HAS_RVALUE_REFS
+        type(type const & rhs):
+            base_type(rhs), allocator_type(rhs)
+        {}
+
         type(type && rhs):
             base_type(std::move(static_cast<base_type&>(rhs))),
             allocator_type(std::move(static_cast<allocator_type&>(rhs)))
@@ -145,6 +149,7 @@ private:
 
         typedef typename base_maker::compare_argument value_compare;
         typedef typename base_maker::allocator_type allocator_type;
+        typedef typename base_maker::node_type node;
 
         typedef typename allocator_type::pointer node_pointer;
         typedef typename allocator_type::const_pointer const_node_pointer;
@@ -389,7 +394,7 @@ public:
 
         if (element->child_count()) {
             size_type sz = (1 << element->child_count()) - 1;
-            binomial_heap children(element->children, sz);
+            binomial_heap children(value_comp(), element->children, sz);
             if (trees.empty())
                 swap(children);
             else
@@ -569,7 +574,8 @@ public:
     /// \copydoc boost::heap::d_ary_heap_mutable::s_handle_from_iterator
     static handle_type s_handle_from_iterator(iterator const & it)
     {
-        return handle_type(&*it);
+        node_type * ptr = const_cast<node_type *>(it.get_node());
+        return handle_type(ptr);
     }
 
     /// \copydoc boost::heap::priority_queue::value_comp
@@ -807,7 +813,7 @@ private:
         if (it != trees.end())
             BOOST_HEAP_ASSERT(static_cast<node_pointer>(&*it)->child_count() >= n->child_count());
 
-        for (;;) {
+        while(true) {
             BOOST_HEAP_ASSERT(!n->is_linked());
             if (it == trees.end())
                 break;
@@ -827,8 +833,8 @@ private:
     }
 
     // private constructor, just used in pop()
-    explicit binomial_heap(node_list_type & child_list, size_type size):
-        super_t(value_compare())
+    explicit binomial_heap(value_compare const & cmp, node_list_type & child_list, size_type size):
+        super_t(cmp)
     {
         size_holder::set_size(size);
         if (size)

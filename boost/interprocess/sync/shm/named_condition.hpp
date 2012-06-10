@@ -28,7 +28,7 @@
 #include <boost/interprocess/sync/shm/named_creation_functor.hpp>
 #include <boost/interprocess/sync/named_mutex.hpp>
 #include <boost/interprocess/permissions.hpp>
-#if defined BOOST_INTERPROCESS_NAMED_MUTEX_USES_POSIX_SEMAPHORES
+#if defined (BOOST_INTERPROCESS_NAMED_MUTEX_USES_POSIX_SEMAPHORES)
 #include <boost/interprocess/sync/interprocess_mutex.hpp>
 #include <boost/interprocess/sync/scoped_lock.hpp>
 #endif
@@ -42,7 +42,7 @@ namespace interprocess {
 namespace ipcdetail {
 
 /// @cond
-namespace ipcdetail{ class interprocess_tester; }
+class interprocess_tester;
 /// @endcond
 
 //! A global condition variable that can be created by name.
@@ -147,44 +147,73 @@ class shm_named_condition
       void unlock()  {   l_.lock();     }
    };
 
+   //If named mutex uses POSIX semaphores, then the shm based condition variable
+   //must use it's internal lock to wait, as sem_t does not store a pthread_mutex_t
+   //instance needed by pthread_mutex_cond_t
    #if defined (BOOST_INTERPROCESS_NAMED_MUTEX_USES_POSIX_SEMAPHORES)
-   interprocess_mutex *mutex() const
-   {  return &static_cast<condition_holder*>(m_shmem.get_user_address())->mutex_; }
+      interprocess_mutex *mutex() const
+      {  return &static_cast<condition_holder*>(m_shmem.get_user_address())->mutex_; }
 
-   template <class Lock>
-   void do_wait(Lock& lock)
-   {
-      //shm_named_condition only works with named_mutex
-      BOOST_STATIC_ASSERT((is_convertible<typename Lock::mutex_type&, named_mutex&>::value == true));
-      
-      //lock internal before unlocking external to avoid race with a notifier
-      scoped_lock<interprocess_mutex>     internal_lock(*this->mutex());
-      lock_inverter<Lock> inverted_lock(lock);
-      scoped_lock<lock_inverter<Lock> >   external_unlock(inverted_lock);
+      template <class Lock>
+      void do_wait(Lock& lock)
+      {
+         //shm_named_condition only works with named_mutex
+         BOOST_STATIC_ASSERT((is_convertible<typename Lock::mutex_type&, named_mutex&>::value == true));
+         
+         //lock internal before unlocking external to avoid race with a notifier
+         scoped_lock<interprocess_mutex>     internal_lock(*this->mutex());
+         lock_inverter<Lock> inverted_lock(lock);
+         scoped_lock<lock_inverter<Lock> >   external_unlock(inverted_lock);
 
-      //unlock internal first to avoid deadlock with near simultaneous waits
-      scoped_lock<interprocess_mutex>     internal_unlock;
-      internal_lock.swap(internal_unlock);
-      this->condition()->wait(internal_unlock);
-   }
+         //unlock internal first to avoid deadlock with near simultaneous waits
+         scoped_lock<interprocess_mutex>     internal_unlock;
+         internal_lock.swap(internal_unlock);
+         this->condition()->wait(internal_unlock);
+      }
 
-   template <class Lock>
-   bool do_timed_wait(Lock& lock, const boost::posix_time::ptime &abs_time)
-   {
-      //shm_named_condition only works with named_mutex
-      BOOST_STATIC_ASSERT((is_convertible<typename Lock::mutex_type&, named_mutex&>::value == true));
-      //lock internal before unlocking external to avoid race with a notifier  
-      scoped_lock<interprocess_mutex>     internal_lock(*this->mutex(), abs_time);  
-      if(!internal_lock) return false;
-      lock_inverter<Lock> inverted_lock(lock);  
-      scoped_lock<lock_inverter<Lock> >   external_unlock(inverted_lock);  
+      template <class Lock>
+      bool do_timed_wait(Lock& lock, const boost::posix_time::ptime &abs_time)
+      {
+         //shm_named_condition only works with named_mutex
+         BOOST_STATIC_ASSERT((is_convertible<typename Lock::mutex_type&, named_mutex&>::value == true));
+         //lock internal before unlocking external to avoid race with a notifier  
+         scoped_lock<interprocess_mutex>     internal_lock(*this->mutex(), abs_time);  
+         if(!internal_lock) return false;
+         lock_inverter<Lock> inverted_lock(lock);  
+         scoped_lock<lock_inverter<Lock> >   external_unlock(inverted_lock);  
 
-      //unlock internal first to avoid deadlock with near simultaneous waits  
-      scoped_lock<interprocess_mutex>     internal_unlock;  
-      internal_lock.swap(internal_unlock);  
-      return this->condition()->timed_wait(internal_unlock, abs_time);  
-   }
-   #endif
+         //unlock internal first to avoid deadlock with near simultaneous waits  
+         scoped_lock<interprocess_mutex>     internal_unlock;  
+         internal_lock.swap(internal_unlock);  
+         return this->condition()->timed_wait(internal_unlock, abs_time);  
+      }
+   #else //defined (BOOST_INTERPROCESS_NAMED_MUTEX_USES_POSIX_SEMAPHORES)
+      template<class Lock>
+      class lock_wrapper
+      {
+         typedef void (lock_wrapper::*unspecified_bool_type)();
+         public:
+
+         typedef interprocess_mutex mutex_type;
+
+         lock_wrapper(Lock &l)
+            : l_(l)
+         {}
+
+         mutex_type* mutex() const
+         {  return l_.mutex()->mutex();  }
+
+         void lock()    { l_.lock(); }
+
+         void unlock()  { l_.unlock(); }
+
+         operator unspecified_bool_type() const
+         {  return l_ ? &lock_wrapper::lock : 0;  }
+
+         private:
+         Lock &l_;
+      };
+   #endif   //defined (BOOST_INTERPROCESS_NAMED_MUTEX_USES_POSIX_SEMAPHORES)
 
    friend class boost::interprocess::ipcdetail::interprocess_tester;
    void dont_close_on_destruction();
@@ -309,21 +338,33 @@ inline void shm_named_condition::notify_all()
 
 template <typename L>
 inline void shm_named_condition::wait(L& lock)
-{  this->condition()->wait(lock);  }
+{
+   lock_wrapper<L> newlock(lock);
+   this->condition()->wait(newlock);
+}
 
 template <typename L, typename Pr>
 inline void shm_named_condition::wait(L& lock, Pr pred)
-{  this->condition()->wait(lock, pred);  }
+{
+   lock_wrapper<L> newlock(lock);
+   this->condition()->wait(newlock, pred);
+}
 
 template <typename L>
 inline bool shm_named_condition::timed_wait
    (L& lock, const boost::posix_time::ptime &abs_time)
-{  return this->condition()->timed_wait(lock, abs_time);  }
+{
+   lock_wrapper<L> newlock(lock);
+   return this->condition()->timed_wait(newlock, abs_time);
+}
 
 template <typename L, typename Pr>
 inline bool shm_named_condition::timed_wait
    (L& lock, const boost::posix_time::ptime &abs_time, Pr pred)
-{  return this->condition()->timed_wait(lock, abs_time, pred);  }
+{
+   lock_wrapper<L> newlock(lock);
+   return this->condition()->timed_wait(newlock, abs_time, pred);
+}
 
 #endif
 

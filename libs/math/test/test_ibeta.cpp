@@ -3,7 +3,7 @@
 //  Boost Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <pch.hpp>
+#include <pch_light.hpp>
 #include "test_ibeta.hpp"
 
 #if !defined(TEST_FLOAT) && !defined(TEST_DOUBLE) && !defined(TEST_LDOUBLE) && !defined(TEST_REAL_CONCEPT)
@@ -182,16 +182,23 @@ void expected_results()
    // MinGW:
    //
    add_expected_result(
-      "[^|]*mingw[^|]*",                          // compiler
+      "GNU[^|]*",                          // compiler
       "[^|]*",                          // stdlib
-      ".*",                          // platform
+      "Win32[^|]*",                          // platform
+      "real_concept",                   // test type(s)
+      "(?i).*medium.*",                     // test data group
+      ".*", 400, 50);  // test function
+   add_expected_result(
+      "GNU.*",                          // compiler
+      ".*",                          // stdlib
+      "Win32.*",                          // platform
       "double",                     // test type(s)
       "(?i).*large.*",                      // test data group
       ".*", 20, 10);                 // test function
    add_expected_result(
-      "[^|]*mingw[^|]*",                          // compiler
-      "[^|]*",                          // stdlib
-      ".*",                          // platform
+      "GNU.*",                          // compiler
+      ".*",                          // stdlib
+      "Win32.*",                          // platform
       largest_type,                     // test type(s)
       "(?i).*large.*",                      // test data group
       ".*", 200000, 10000);                 // test function

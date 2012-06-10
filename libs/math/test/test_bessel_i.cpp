@@ -3,7 +3,7 @@
 //  Boost Software License, Version 1.0. (See accompanying file
 //  LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#include <pch.hpp>
+#include <pch_light.hpp>
 #include "test_bessel_i.hpp"
 
 //
@@ -74,6 +74,13 @@ void expected_results()
       ".*Random.*",                    // test data group
       ".*", 400, 200);               // test function
 
+   add_expected_result(
+      "GNU.*",                          // compiler
+      ".*",                          // stdlib
+      "Win32.*",                          // platform
+      largest_type,                  // test type(s)
+      ".*",                          // test data group
+      ".*", 30, 10);                 // test function
    add_expected_result(
       ".*",                          // compiler
       ".*",                          // stdlib

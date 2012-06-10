@@ -45,7 +45,7 @@
  */
 
 static void set_rule_actions( RULE *, rule_actions * );
-static void set_rule_body   ( RULE *, argument_list *, FUNCTION * procedure );
+static void set_rule_body   ( RULE *, FUNCTION * procedure );
 
 static struct hash * targethash = 0;
 
@@ -76,23 +76,18 @@ void target_include( TARGET * including, TARGET * included )
 
 static RULE * enter_rule( OBJECT * rulename, module_t * target_module )
 {
-    RULE rule;
-    RULE * r = &rule;
+    int found;
+    RULE * r;
 
-    r->name = rulename;
-
-    if ( hashenter( demand_rules( target_module ), (HASHDATA * *)&r ) )
+    r = (RULE *)hash_insert( demand_rules(target_module), rulename, &found );
+    if ( !found )
     {
         r->name = object_copy( rulename );
         r->procedure = 0;
         r->module = 0;
         r->actions = 0;
-        r->arguments = 0;
         r->exported = 0;
         r->module = target_module;
-#ifdef HAVE_PYTHON
-        r->python_function = 0;
-#endif
     }
     return r;
 }
@@ -114,7 +109,7 @@ static RULE * define_rule
     RULE * r = enter_rule( rulename, target_module );
     if ( r->module != src_module ) /* if the rule was imported from elsewhere, clear it now */
     {
-        set_rule_body( r, 0, 0 );
+        set_rule_body( r, 0 );
         set_rule_actions( r, 0 );
         r->module = src_module; /* r will be executed in the source module */
     }
@@ -129,17 +124,9 @@ void rule_free( RULE * r )
     if ( r->procedure )
         function_free( r->procedure );
     r->procedure = 0;
-    if ( r->arguments )
-        args_free( r->arguments );
-    r->arguments = 0;
     if ( r->actions )
         actions_free( r->actions );
     r->actions = 0;
-#ifdef HAVE_PYTHON
-    if ( r->python_function )
-        Py_DECREF( r->python_function );
-    r->python_function = 0;
-#endif
 }
 
 
@@ -149,15 +136,14 @@ void rule_free( RULE * r )
 
 TARGET * bindtarget( OBJECT * target_name )
 {
-    TARGET target;
-    TARGET * t = &target;
+    int found;
+    TARGET * t;
 
     if ( !targethash )
         targethash = hashinit( sizeof( TARGET ), "targets" );
 
-    t->name = target_name;
-
-    if ( hashenter( targethash, (HASHDATA * *)&t ) )
+    t = (TARGET *)hash_insert( targethash, target_name, &found );
+    if ( !found )
     {
         memset( (char *)t, '\0', sizeof( *t ) );
         t->name = object_copy( target_name );
@@ -228,6 +214,26 @@ void touch_target( OBJECT * t )
     bindtarget( t )->flags |= T_FLAG_TOUCHED;
 }
 
+/*
+ * target_scc() - returns the root of the strongly
+ *                connected component that this target
+ *                is a part of.
+ */
+TARGET * target_scc( TARGET * t )
+{
+    TARGET * result = t;
+    TARGET * tmp;
+    while ( result->scc_root )
+        result = result->scc_root;
+    while ( t->scc_root )
+    {
+        tmp = t->scc_root;
+        t->scc_root = result;
+        t = tmp;
+    }
+    return result;
+}
+
 
 /*
  * targetlist() - turn list of target names into a TARGET chain.
@@ -239,8 +245,9 @@ void touch_target( OBJECT * t )
 
 TARGETS * targetlist( TARGETS * chain, LIST * target_names )
 {
-    for ( ; target_names; target_names = list_next( target_names ) )
-        chain = targetentry( chain, bindtarget( target_names->value ) );
+    LISTITER iter = list_begin( target_names ), end = list_end( target_names );
+    for ( ; iter != end; iter = list_next( iter ) )
+        chain = targetentry( chain, bindtarget( list_item( iter ) ) );
     return chain;
 }
 
@@ -356,7 +363,6 @@ SETTINGS * addsettings( SETTINGS * head, int flag, OBJECT * symbol, LIST * value
         v->symbol = object_copy( symbol );
         v->value = value;
         v->next = head;
-        v->multiple = 0;
         head = v;
     }
     else if ( flag == VAR_APPEND )
@@ -406,7 +412,7 @@ SETTINGS * copysettings( SETTINGS * head )
     SETTINGS * copy = 0;
     SETTINGS * v;
     for ( v = head; v; v = v->next )
-        copy = addsettings( copy, VAR_SET, v->symbol, list_copy( 0, v->value ) );
+        copy = addsettings( copy, VAR_SET, v->symbol, list_copy( v->value ) );
     return copy;
 }
 
@@ -485,50 +491,16 @@ static void freetarget( void * xt, void * data )
 
 void rules_done()
 {
-    hashenumerate( targethash, freetarget, 0 );
-    hashdone( targethash );
+    if ( targethash )
+    {
+        hashenumerate( targethash, freetarget, 0 );
+        hashdone( targethash );
+    }
     while ( settings_freelist )
     {
         SETTINGS * n = settings_freelist->next;
         BJAM_FREE( settings_freelist );
         settings_freelist = n;
-    }
-}
-
-
-/*
- * args_new() - make a new reference-counted argument list.
- */
-
-argument_list * args_new()
-{
-    argument_list * r = (argument_list *)BJAM_MALLOC( sizeof(argument_list) );
-    r->reference_count = 0;
-    lol_init( r->data );
-    return r;
-}
-
-
-/*
- * args_refer() - add a new reference to the given argument list.
- */
-
-void args_refer( argument_list * a )
-{
-    ++a->reference_count;
-}
-
-
-/*
- * args_free() - release a reference to the given argument list.
- */
-
-void args_free( argument_list * a )
-{
-    if ( --a->reference_count <= 0 )
-    {
-        lol_free( a->data );
-        BJAM_FREE( a );
     }
 }
 
@@ -557,19 +529,12 @@ void actions_free( rule_actions * a )
     }
 }
 
-
 /*
  * set_rule_body() - set the argument list and procedure of the given rule.
  */
 
-static void set_rule_body( RULE * rule, argument_list * args, FUNCTION * procedure )
+static void set_rule_body( RULE * rule, FUNCTION * procedure )
 {
-    if ( args )
-        args_refer( args );
-    if ( rule->arguments )
-        args_free( rule->arguments );
-    rule->arguments = args;
-
     if ( procedure )
         function_refer( procedure );
     if ( rule->procedure )
@@ -626,11 +591,11 @@ static RULE * global_rule( RULE * r )
  * exported to the global module as modulename.rulename.
  */
 
-RULE * new_rule_body( module_t * m, OBJECT * rulename, argument_list * args, FUNCTION * procedure, int exported )
+RULE * new_rule_body( module_t * m, OBJECT * rulename, FUNCTION * procedure, int exported )
 {
     RULE * local = define_rule( m, rulename, m );
     local->exported = exported;
-    set_rule_body( local, args, procedure );
+    set_rule_body( local, procedure );
 
     /* Mark the procedure with the global rule name, regardless of whether the
      * rule is exported. That gives us something reasonably identifiable that we
@@ -685,35 +650,31 @@ RULE * new_rule_actions( module_t * m, OBJECT * rulename, FUNCTION * command, LI
 
 RULE * lookup_rule( OBJECT * rulename, module_t * m, int local_only )
 {
-    RULE       rule;
-    RULE     * r = &rule;
+    RULE     * r;
     RULE     * result = 0;
     module_t * original_module = m;
-
-    r->name = rulename;
 
     if ( m->class_module )
         m = m->class_module;
 
-    if ( m->rules && hashcheck( m->rules, (HASHDATA * *)&r ) )
+    if ( m->rules && ( r = (RULE *)hash_find( m->rules, rulename ) ) )
         result = r;
     else if ( !local_only && m->imported_modules )
     {
         /* Try splitting the name into module and rule. */
-        char *p = strchr( object_str( r->name ), '.' ) ;
+        char *p = strchr( object_str( rulename ), '.' ) ;
         if ( p )
         {
             string buf[1];
             OBJECT * module_part;
             OBJECT * rule_part;
             string_new( buf );
-            string_append_range( buf, object_str( r->name ), p );
+            string_append_range( buf, object_str( rulename ), p );
             module_part = object_new( buf->value );
             rule_part = object_new( p + 1 );
-            r->name = module_part;
             /* Now, r->name keeps the module name, and p+1 keeps the rule name.
              */
-            if ( hashcheck( m->imported_modules, (HASHDATA * *)&r ) )
+            if ( hash_find( m->imported_modules, module_part ) )
                 result = lookup_rule( rule_part, bindmodule( module_part ), 1 );
             object_free( rule_part );
             object_free( module_part );
@@ -763,7 +724,21 @@ RULE * bindrule( OBJECT * rulename, module_t * m )
 RULE * import_rule( RULE * source, module_t * m, OBJECT * name )
 {
     RULE * dest = define_rule( source->module, name, m );
-    set_rule_body( dest, source->arguments, source->procedure );
+    set_rule_body( dest, source->procedure );
     set_rule_actions( dest, source->actions );
     return dest;
 }
+
+
+void rule_localize( RULE * rule, module_t * m )
+{
+    rule->module = m;
+    if ( rule->procedure )
+    {
+        FUNCTION * procedure = function_unbind_variables( rule->procedure );
+        function_refer( procedure );
+        function_free( rule->procedure );
+        rule->procedure = procedure;
+    }
+}
+

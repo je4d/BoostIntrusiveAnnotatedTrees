@@ -69,13 +69,42 @@ struct LowPriorityConversion
       static const bool value = (1 == sizeof(test<T>(0, 0)));              \
                                                                            \
       typedef typename                                                     \
-         ::boost::intrusive::detail::if_c<value, T, DefaultWrap>::type::TNAME type;      \
-    }                                                                      \
+         ::boost::intrusive::detail::if_c                                  \
+            <value, T, DefaultWrap>::type::TNAME type;                     \
+   };                                                                      \
+                                                                           \
+   template <typename T, typename DefaultType>                             \
+   struct boost_intrusive_eval_default_type_ ## TNAME                      \
+   {                                                                       \
+      template <typename X>                                                \
+      static char test(int, typename X::TNAME*);                           \
+                                                                           \
+      template <typename X>                                                \
+      static int test(boost::intrusive::detail::                           \
+         LowPriorityConversion<int>, void*);                               \
+                                                                           \
+      struct DefaultWrap                                                   \
+      { typedef typename DefaultType::type TNAME; };                       \
+                                                                           \
+      static const bool value = (1 == sizeof(test<T>(0, 0)));              \
+                                                                           \
+      typedef typename                                                     \
+         ::boost::intrusive::detail::eval_if_c                             \
+            < value                                                        \
+            , ::boost::intrusive::detail::identity<T>                      \
+            , ::boost::intrusive::detail::identity<DefaultWrap>            \
+            >::type::TNAME type;                                           \
+   };                                                                      \
 //
 
-#define BOOST_INTRUSIVE_OBTAIN_TYPE_WITH_DEFAULT(INSTANTIATION_NS_PREFIX, T, TNAME, TIMPL) \
-      typename INSTANTIATION_NS_PREFIX                            \
-         boost_intrusive_default_type_ ## TNAME<T, TIMPL>::type   \
+#define BOOST_INTRUSIVE_OBTAIN_TYPE_WITH_DEFAULT(INSTANTIATION_NS_PREFIX, T, TNAME, TIMPL)   \
+      typename INSTANTIATION_NS_PREFIX                                                       \
+         boost_intrusive_default_type_ ## TNAME< T, TIMPL >::type                            \
+//
+
+#define BOOST_INTRUSIVE_OBTAIN_TYPE_WITH_EVAL_DEFAULT(INSTANTIATION_NS_PREFIX, T, TNAME, TIMPL) \
+      typename INSTANTIATION_NS_PREFIX                                                          \
+         boost_intrusive_eval_default_type_ ## TNAME< T, TIMPL >::type                          \
 //
 
 }}}   //namespace boost::intrusive::detail
@@ -110,8 +139,8 @@ namespace boost {
 namespace intrusive {
 namespace detail {
 
-BOOST_INTRUSIVE_INSTANTIATE_DEFAULT_TYPE_TMPLT(element_type);
-BOOST_INTRUSIVE_INSTANTIATE_DEFAULT_TYPE_TMPLT(difference_type);
+BOOST_INTRUSIVE_INSTANTIATE_DEFAULT_TYPE_TMPLT(element_type)
+BOOST_INTRUSIVE_INSTANTIATE_DEFAULT_TYPE_TMPLT(difference_type)
 
 //////////////////////
 //struct first_param
@@ -220,6 +249,13 @@ template <template <class, class...> class Ptr, typename T, class... Tn, class U
 struct type_rebinder<Ptr<T, Tn...>, U, 0u >
 {
    typedef Ptr<U, Tn...> type;
+};
+
+//Needed for non-conforming compilers like GCC 4.3
+template <template <class> class Ptr, typename T, class U>
+struct type_rebinder<Ptr<T>, U, 0u >
+{
+   typedef Ptr<U> type;
 };
 
 #else //C++03 compilers

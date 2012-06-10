@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////////
 //
-// (C) Copyright Ion Gaztanaga 2005-2011. Distributed under the Boost
+// (C) Copyright Ion Gaztanaga 2005-2012. Distributed under the Boost
 // Software License, Version 1.0. (See accompanying file
 // LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
@@ -158,7 +158,7 @@ class map
       : m_tree(first, last, comp, a, true) 
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Constructs an empty map using the specified comparison object and 
@@ -175,29 +175,52 @@ class map
       : m_tree(ordered_range, first, last, comp, a) 
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Copy constructs a map.
    //! 
    //! <b>Complexity</b>: Linear in x.size().
-   map(const map<Key,T,Pred,A>& x) 
+   map(const map& x) 
       : m_tree(x.m_tree)
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Move constructs a map. Constructs *this using x's resources.
    //! 
-   //! <b>Complexity</b>: Construct.
+   //! <b>Complexity</b>: Constant.
    //! 
    //! <b>Postcondition</b>: x is emptied.
    map(BOOST_RV_REF(map) x) 
       : m_tree(boost::move(x.m_tree))
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
+   }
+
+   //! <b>Effects</b>: Copy constructs a map using the specified allocator.
+   //! 
+   //! <b>Complexity</b>: Linear in x.size().
+   map(const map& x, const allocator_type &a) 
+      : m_tree(x.m_tree, a)
+   {
+      //Allocator type must be std::pair<CONST Key, T>
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
+   }
+
+   //! <b>Effects</b>: Move constructs a map using the specified allocator.
+   //!                 Constructs *this using x's resources.
+   //!
+   //! <b>Complexity</b>: Constant if x == x.get_allocator(), linear otherwise.
+   //! 
+   //! <b>Postcondition</b>: x is emptied.
+   map(BOOST_RV_REF(map) x, const allocator_type &a) 
+      : m_tree(boost::move(x.m_tree), a)
+   {
+      //Allocator type must be std::pair<CONST Key, T>
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Makes *this a copy of x.
@@ -253,6 +276,14 @@ class map
    //! 
    //! <b>Complexity</b>: Constant.
    const_iterator begin() const 
+   { return this->cbegin(); }
+
+   //! <b>Effects</b>: Returns a const_iterator to the first element contained in the container.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_iterator cbegin() const 
    { return m_tree.begin(); }
 
    //! <b>Effects</b>: Returns an iterator to the end of the container.
@@ -269,6 +300,14 @@ class map
    //! 
    //! <b>Complexity</b>: Constant.
    const_iterator end() const 
+   { return this->cend(); }
+
+   //! <b>Effects</b>: Returns a const_iterator to the end of the container.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_iterator cend() const 
    { return m_tree.end(); }
 
    //! <b>Effects</b>: Returns a reverse_iterator pointing to the beginning 
@@ -287,6 +326,15 @@ class map
    //! 
    //! <b>Complexity</b>: Constant.
    const_reverse_iterator rbegin() const 
+   { return this->crbegin(); }
+
+   //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the beginning 
+   //! of the reversed container. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_reverse_iterator crbegin() const 
    { return m_tree.rbegin(); }
 
    //! <b>Effects</b>: Returns a reverse_iterator pointing to the end
@@ -305,6 +353,15 @@ class map
    //! 
    //! <b>Complexity</b>: Constant.
    const_reverse_iterator rend() const 
+   { return this->crend(); }
+
+   //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the end
+   //! of the reversed container. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_reverse_iterator crend() const 
    { return m_tree.rend(); }
 
    //! <b>Effects</b>: Returns true if the container contains no elements.
@@ -376,7 +433,6 @@ class map
    }
 
    //! <b>Effects</b>: Swaps the contents of *this and x.
-   //!   If this->allocator_type() != x.allocator_type() allocators are also swapped.
    //!
    //! <b>Throws</b>: Nothing.
    //!
@@ -505,18 +561,19 @@ class map
 
    #if defined(BOOST_CONTAINER_PERFECT_FORWARDING) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
 
-   //! <b>Effects</b>: Inserts an object of type T constructed with
+   //! <b>Effects</b>: Inserts an object x of type T constructed with
    //!   std::forward<Args>(args)... in the container if and only if there is 
    //!   no element in the container with an equivalent key.
    //!   p is a hint pointing to where the insert should start to search.
    //!
-   //! <b>Returns</b>: An iterator pointing to the element with key equivalent
-   //!   to the key of x.
+   //! <b>Returns</b>: The bool component of the returned pair is true if and only 
+   //!   if the insertion takes place, and the iterator component of the pair
+   //!   points to the element with key equivalent to the key of x.
    //!
    //! <b>Complexity</b>: Logarithmic in general, but amortized constant if t
    //!   is inserted right before p.
    template <class... Args>
-   iterator emplace(Args&&... args)
+   std::pair<iterator,bool> emplace(Args&&... args)
    {  return m_tree.emplace_unique(boost::forward<Args>(args)...); }
 
    //! <b>Effects</b>: Inserts an object of type T constructed with
@@ -537,14 +594,14 @@ class map
 
    #define BOOST_PP_LOCAL_MACRO(n)                                                                 \
    BOOST_PP_EXPR_IF(n, template<) BOOST_PP_ENUM_PARAMS(n, class P) BOOST_PP_EXPR_IF(n, >)          \
-   iterator emplace(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_LIST, _))                           \
-   {  return m_tree.emplace_unique(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _)); }      \
+   std::pair<iterator,bool> emplace(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_LIST, _))            \
+   {  return m_tree.emplace_unique(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _)); }       \
                                                                                                    \
    BOOST_PP_EXPR_IF(n, template<) BOOST_PP_ENUM_PARAMS(n, class P) BOOST_PP_EXPR_IF(n, >)          \
    iterator emplace_hint(const_iterator hint                                                       \
-                         BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_LIST, _))             \
+                         BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_LIST, _))              \
    {  return m_tree.emplace_hint_unique(hint                                                       \
-                               BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _));}  \
+                               BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _));}   \
    //!
    #define BOOST_PP_LOCAL_LIMITS (0, BOOST_CONTAINER_MAX_CONSTRUCTOR_PARAMETERS)
    #include BOOST_PP_LOCAL_ITERATE()
@@ -833,7 +890,7 @@ class multimap
       : m_tree(comp, a)
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Constructs an empty multimap using the specified comparison object
@@ -848,7 +905,7 @@ class multimap
       : m_tree(first, last, comp, a, false) 
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Constructs an empty multimap using the specified comparison object and 
@@ -864,27 +921,48 @@ class multimap
       : m_tree(ordered_range, first, last, comp, a) 
    {}
 
-
    //! <b>Effects</b>: Copy constructs a multimap.
    //! 
    //! <b>Complexity</b>: Linear in x.size().
-   multimap(const multimap<Key,T,Pred,A>& x) 
+   multimap(const multimap& x) 
       : m_tree(x.m_tree)
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Move constructs a multimap. Constructs *this using x's resources.
    //! 
-   //! <b>Complexity</b>: Construct.
+   //! <b>Complexity</b>: Constant.
    //! 
    //! <b>Postcondition</b>: x is emptied.
    multimap(BOOST_RV_REF(multimap) x) 
       : m_tree(boost::move(x.m_tree))
    {
       //Allocator type must be std::pair<CONST Key, T>
-      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename     A::value_type>::value));
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
+   }
+
+   //! <b>Effects</b>: Copy constructs a multimap.
+   //! 
+   //! <b>Complexity</b>: Linear in x.size().
+   multimap(const multimap& x, const allocator_type &a) 
+      : m_tree(x.m_tree, a)
+   {
+      //Allocator type must be std::pair<CONST Key, T>
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
+   }
+
+   //! <b>Effects</b>: Move constructs a multimap using the specified allocator.
+   //!                 Constructs *this using x's resources.
+   //! <b>Complexity</b>: Constant if a == x.get_allocator(), linear otherwise.
+   //! 
+   //! <b>Postcondition</b>: x is emptied.
+   multimap(BOOST_RV_REF(multimap) x, const allocator_type &a)
+      : m_tree(boost::move(x.m_tree), a)
+   {
+      //Allocator type must be std::pair<CONST Key, T>
+      BOOST_STATIC_ASSERT((container_detail::is_same<std::pair<const Key, T>, typename A::value_type>::value));
    }
 
    //! <b>Effects</b>: Makes *this a copy of x.
@@ -940,6 +1018,14 @@ class multimap
    //! 
    //! <b>Complexity</b>: Constant.
    const_iterator begin() const 
+   { return this->cbegin(); }
+
+   //! <b>Effects</b>: Returns a const_iterator to the first element contained in the container.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_iterator cbegin() const 
    { return m_tree.begin(); }
 
    //! <b>Effects</b>: Returns an iterator to the end of the container.
@@ -956,6 +1042,14 @@ class multimap
    //! 
    //! <b>Complexity</b>: Constant.
    const_iterator end() const 
+   { return this->cend(); }
+
+   //! <b>Effects</b>: Returns a const_iterator to the end of the container.
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_iterator cend() const 
    { return m_tree.end(); }
 
    //! <b>Effects</b>: Returns a reverse_iterator pointing to the beginning 
@@ -974,6 +1068,15 @@ class multimap
    //! 
    //! <b>Complexity</b>: Constant.
    const_reverse_iterator rbegin() const 
+   { return this->crbegin(); }
+
+   //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the beginning 
+   //! of the reversed container. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_reverse_iterator crbegin() const 
    { return m_tree.rbegin(); }
 
    //! <b>Effects</b>: Returns a reverse_iterator pointing to the end
@@ -992,6 +1095,15 @@ class multimap
    //! 
    //! <b>Complexity</b>: Constant.
    const_reverse_iterator rend() const 
+   { return this->crend(); }
+
+   //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the end
+   //! of the reversed container. 
+   //! 
+   //! <b>Throws</b>: Nothing.
+   //! 
+   //! <b>Complexity</b>: Constant.
+   const_reverse_iterator crend() const 
    { return m_tree.rend(); }
 
    //! <b>Effects</b>: Returns true if the container contains no elements.
@@ -1019,7 +1131,6 @@ class multimap
    { return m_tree.max_size(); }
 
    //! <b>Effects</b>: Swaps the contents of *this and x.
-   //!   If this->allocator_type() != x.allocator_type() allocators are also swapped.
    //!
    //! <b>Throws</b>: Nothing.
    //!
@@ -1140,14 +1251,14 @@ class multimap
 
    #define BOOST_PP_LOCAL_MACRO(n)                                                                 \
    BOOST_PP_EXPR_IF(n, template<) BOOST_PP_ENUM_PARAMS(n, class P) BOOST_PP_EXPR_IF(n, >)          \
-   iterator emplace(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_LIST, _))                           \
-   {  return m_tree.emplace_equal(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _)); }       \
+   iterator emplace(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_LIST, _))                            \
+   {  return m_tree.emplace_equal(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _)); }        \
                                                                                                    \
    BOOST_PP_EXPR_IF(n, template<) BOOST_PP_ENUM_PARAMS(n, class P) BOOST_PP_EXPR_IF(n, >)          \
    iterator emplace_hint(const_iterator hint                                                       \
-                         BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_LIST, _))             \
+                         BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_LIST, _))              \
    {  return m_tree.emplace_hint_equal(hint                                                        \
-                               BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _));}  \
+                               BOOST_PP_ENUM_TRAILING(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _));}   \
    //!
    #define BOOST_PP_LOCAL_LIMITS (0, BOOST_CONTAINER_MAX_CONSTRUCTOR_PARAMETERS)
    #include BOOST_PP_LOCAL_ITERATE()

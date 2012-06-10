@@ -74,6 +74,8 @@ static CMD      * make1cmds    ( TARGET * );
 static LIST     * make1list    ( LIST *, TARGETS *, int flags );
 static SETTINGS * make1settings( struct module_t * module, LIST * vars );
 static void       make1bind    ( TARGET * );
+static TARGET   * make1findcycle( TARGET * t );
+static void       make1breakcycle( TARGET * t, TARGET * cycle_root );
 
 /* Ugly static - it is too hard to carry it through the callbacks. */
 
@@ -263,37 +265,50 @@ int make1( TARGET * t )
 
 static void make1a( state * pState )
 {
+
     TARGET * t = pState->t;
+    TARGET * scc_root = target_scc( t );
     TARGETS * c;
+
+    if ( pState->parent == NULL || target_scc( pState->parent ) != scc_root )
+        pState->t = t = scc_root;
 
     /* If the parent is the first to try to build this target or this target is
      * in the make1c() quagmire, arrange for the parent to be notified when this
      * target is built.
      */
     if ( pState->parent )
-        switch ( pState->t->progress )
+    {
+        switch ( t->progress )
         {
-            case T_MAKE_INIT:
+            case T_MAKE_ONSTACK:
             case T_MAKE_ACTIVE:
+            case T_MAKE_INIT:
             case T_MAKE_RUNNING:
-                pState->t->parents = targetentry( pState->t->parents,
-                    pState->parent );
-                ++pState->parent->asynccnt;
+                {
+                    TARGET * parent_scc = target_scc( pState->parent );
+                    if( t != parent_scc )
+                    {
+                        t->parents = targetentry( t->parents, parent_scc );
+                        ++parent_scc->asynccnt;
+                    }
+                }
         }
+    }
 
     /*
      * If the target has been previously updated with -n in
      * effect, and we're ignoring -n, update it for real.
      */
-    if ( !globs.noexec && pState->t->progress == T_MAKE_NOEXEC_DONE )
+    if ( !globs.noexec && t->progress == T_MAKE_NOEXEC_DONE )
     {
-        pState->t->progress = T_MAKE_INIT;
+        t->progress = T_MAKE_INIT;
     }
 
     /* If this target is already being processed then do nothing. There is no
      * need to start processing the same target all over again.
      */
-    if ( pState->t->progress != T_MAKE_INIT )
+    if ( t->progress != T_MAKE_INIT )
     {
         pop_state( &state_stack );
         return;
@@ -307,24 +322,15 @@ static void make1a( state * pState )
      * processing all of our other dependencies our build might be triggerred
      * prematurely.
      */
-    pState->t->asynccnt = 1;
-
-    /* Add header nodes created during the building process. */
-    {
-        TARGETS * inc = 0;
-        for ( c = t->depends; c; c = c->next )
-            if ( c->target->rescanned && c->target->includes )
-                inc = targetentry( inc, c->target->includes );
-        t->depends = targetchain( t->depends, inc );
-    }
+    t->asynccnt = 1;
 
     /* Guard against circular dependencies. */
-    pState->t->progress = T_MAKE_ONSTACK;
+    t->progress = T_MAKE_ONSTACK;
 
     {
         stack temp_stack = { NULL };
         for ( c = t->depends; c && !intr; c = c->next )
-            push_state( &temp_stack, c->target, pState->t, T_STATE_MAKE1A );
+            push_state( &temp_stack, c->target, t, T_STATE_MAKE1A );
 
         /* Using stacks reverses the order of execution. Reverse it back. */
         push_stack_on_stack( &state_stack, &temp_stack );
@@ -532,7 +538,7 @@ static void make1c( state * pState )
             ( !( cmd->rule->actions->flags & RULE_QUIETLY ) && DEBUG_MAKE ) )
         {
             rule_name = object_str( cmd->rule->name );
-            target = object_str( lol_get( &cmd->args, 0 )->value );
+            target = object_str( list_front( lol_get( &cmd->args, 0 ) ) );
             if ( globs.noexec )
                 out_action( rule_name, target, cmd->buf->value, "", "", EXIT_OK );
         }
@@ -585,34 +591,25 @@ static void make1c( state * pState )
             /* Target has been updated so rescan it for dependencies. */
             if ( ( t->fate >= T_FATE_MISSING ) &&
                 ( t->status == EXEC_CMD_OK ) &&
-                !t->rescanned )
+                !( t->flags & T_FLAG_INTERNAL ) )
             {
                 TARGET * saved_includes;
-                TARGET * target_to_rescan = t;
                 SETTINGS * s;
 
-                target_to_rescan->rescanned = 1;
-
-                if ( target_to_rescan->flags & T_FLAG_INTERNAL )
-                    target_to_rescan = t->original_target;
+                t->rescanned = 1;
 
                 /* Clean current includes. */
-                saved_includes = target_to_rescan->includes;
-                target_to_rescan->includes = 0;
+                saved_includes = t->includes;
+                t->includes = 0;
 
-                s = copysettings( target_to_rescan->settings );
+                s = copysettings( t->settings );
                 pushsettings( root_module(), s );
-                headers( target_to_rescan );
+                headers( t );
                 popsettings( root_module(), s );
                 freesettings( s );
 
-                if ( target_to_rescan->includes )
+                if ( t->includes )
                 {
-                    /* Link the old includes on to make sure that it gets
-                     * cleaned up correctly.
-                     */
-                    target_to_rescan->includes->includes = saved_includes;
-                    target_to_rescan->includes->rescanned = 1;
                     /* Tricky. The parents have already been processed, but they
                      * have not seen the internal node, because it was just
                      * created. We need to make the calls to make1a() that would
@@ -623,16 +620,20 @@ static void make1c( state * pState )
                      * target is built, otherwise the parent would be considered
                      * built before this make1a() processing has even started.
                      */
-                    make0( target_to_rescan->includes, target_to_rescan->parents->target, 0, 0, 0 );
-                    for ( c = target_to_rescan->parents; c; c = c->next )
+                    make0( t->includes, t->parents->target, 0, 0, 0, t->includes );
+                    /* Link the old includes on to make sure that it gets
+                     * cleaned up correctly.
+                     */
+                    t->includes->includes = saved_includes;
+                    for ( c = t->dependants; c; c = c->next )
                         c->target->depends = targetentry( c->target->depends,
-                                                          target_to_rescan->includes );
+                                                          t->includes );
                     /* Will be processed below. */
-                    additional_includes = target_to_rescan->includes;
+                    additional_includes = t->includes;
                 }
                 else
                 {
-                    target_to_rescan->includes = saved_includes;
+                    t->includes = saved_includes;
                 }
             }
 
@@ -640,8 +641,23 @@ static void make1c( state * pState )
                 for ( c = t->parents; c; c = c->next )
                     push_state( &temp_stack, additional_includes, c->target, T_STATE_MAKE1A );
 
-            for ( c = t->parents; c; c = c->next )
-                push_state( &temp_stack, c->target, NULL, T_STATE_MAKE1B );
+            if ( t->scc_root )
+            {
+                TARGET * scc_root = target_scc( t );
+                assert( scc_root->progress < T_MAKE_DONE );
+                for ( c = t->parents; c; c = c->next )
+                {
+                    if ( target_scc( c->target ) == scc_root )
+                        push_state( &temp_stack, c->target, NULL, T_STATE_MAKE1B );
+                    else
+                        scc_root->parents = targetentry( scc_root->parents, c->target );
+                }
+            }
+            else
+            {
+                for ( c = t->parents; c; c = c->next )
+                    push_state( &temp_stack, c->target, NULL, T_STATE_MAKE1B );
+            }
 
 #ifdef OPT_SEMAPHORE
             /* If there is a semaphore, it is now free. */
@@ -696,7 +712,7 @@ static void call_timing_rule( TARGET * target, timing_info * time )
     timing_rule = var_get( root_module(), constant_TIMING_RULE );
     popsettings( root_module(), target->settings );
 
-    if ( timing_rule )
+    if ( !list_empty( timing_rule ) )
     {
         /* rule timing-rule ( args * : target : start end user system ) */
 
@@ -705,20 +721,20 @@ static void call_timing_rule( TARGET * target, timing_info * time )
         frame_init( frame );
 
         /* args * :: $(__TIMING_RULE__[2-]) */
-        lol_add( frame->args, list_copy( L0, timing_rule->next ) );
+        lol_add( frame->args, list_copy_range( timing_rule, list_next( list_begin( timing_rule ) ), list_end( timing_rule ) ) );
 
         /* target :: the name of the target */
-        lol_add( frame->args, list_new( L0, object_copy( target->name ) ) );
+        lol_add( frame->args, list_new( object_copy( target->name ) ) );
 
         /* start end user system :: info about the action command */
-        lol_add( frame->args, list_new( list_new( list_new( list_new( L0,
+        lol_add( frame->args, list_push_back( list_push_back( list_push_back( list_new(
             outf_time  ( time->start  ) ),
             outf_time  ( time->end    ) ),
             outf_double( time->user   ) ),
             outf_double( time->system ) ) );
 
         /* Call the rule. */
-        evaluate_rule( timing_rule->value, frame );
+        evaluate_rule( list_front( timing_rule ), frame );
 
         /* Clean up. */
         frame_free( frame );
@@ -747,7 +763,7 @@ static void call_action_rule
     action_rule = var_get( root_module(), constant_ACTION_RULE );
     popsettings( root_module(), target->settings );
 
-    if ( action_rule )
+    if ( !list_empty( action_rule ) )
     {
         /* rule action-rule (
             args * :
@@ -760,14 +776,14 @@ static void call_action_rule
         frame_init( frame );
 
         /* args * :: $(__ACTION_RULE__[2-]) */
-        lol_add( frame->args, list_copy( L0, action_rule->next ) );
+        lol_add( frame->args, list_copy_range( action_rule, list_next( list_begin( action_rule ) ), list_end( action_rule ) ) );
 
         /* target :: the name of the target */
-        lol_add( frame->args, list_new( L0, object_copy( target->name ) ) );
+        lol_add( frame->args, list_new( object_copy( target->name ) ) );
 
         /* command status start end user system :: info about the action command */
         lol_add( frame->args,
-            list_new( list_new( list_new( list_new( list_new( list_new( L0,
+            list_push_back( list_push_back( list_push_back( list_push_back( list_push_back( list_new(
                 object_new( executed_command ) ),
                 outf_int( status ) ),
                 outf_time( time->start ) ),
@@ -777,12 +793,12 @@ static void call_action_rule
 
         /* output ? :: the output of the action command */
         if ( command_output )
-            lol_add( frame->args, list_new( L0, object_new( command_output ) ) );
+            lol_add( frame->args, list_new( object_new( command_output ) ) );
         else
             lol_add( frame->args, L0 );
 
         /* Call the rule. */
-        evaluate_rule( action_rule->value, frame );
+        evaluate_rule( list_front( action_rule ), frame );
 
         /* Clean up. */
         frame_free( frame );
@@ -872,16 +888,17 @@ static void make1d( state * pState )
     if (status != EXEC_CMD_OK) 
     {
         LIST * targets = lol_get( &cmd->args, 0 );
-        for ( ; targets; targets = list_next( targets ) )
+        LISTITER iter = list_begin( targets ), end = list_end( targets );
+        for ( ; iter != end; iter = list_next( iter ) )
         {
             int need_unlink = 1;
-            TARGET* t = bindtarget ( targets->value );
+            TARGET* t = bindtarget ( list_item( iter ) );
             if (t->flags & T_FLAG_PRECIOUS)
             {                
                 need_unlink = 0;
             }
-            if (need_unlink && !unlink( object_str( targets->value ) ) )
-                printf( "...removing %s\n", object_str( targets->value ) );
+            if (need_unlink && !unlink( object_str( list_item( iter ) ) ) )
+                printf( "...removing %s\n", object_str( list_item( iter ) ) );
         }
     }
 
@@ -934,7 +951,7 @@ static void swap_settings
 static CMD * make1cmds( TARGET * t )
 {
     CMD      * cmds = 0;
-    LIST     * shell = 0;
+    LIST     * shell = L0;
     module_t * settings_module = 0;
     TARGET   * settings_target = 0;
     ACTIONS  * a0;
@@ -980,14 +997,14 @@ static CMD * make1cmds( TARGET * t )
         /* If doing only updated (or existing) sources, but none have been
          * updated (or exist), skip this action.
          */
-        if ( !ns && ( actions->flags & ( RULE_NEWSRCS | RULE_EXISTING ) ) )
+        if ( list_empty( ns ) && ( actions->flags & ( RULE_NEWSRCS | RULE_EXISTING ) ) )
         {
             list_free( nt );
             continue;
         }
 
         swap_settings( &settings_module, &settings_target, rule->module, t );
-        if ( !shell )
+        if ( list_empty( shell ) )
         {
             shell = var_get( rule->module, constant_JAMSHELL );  /* shell is per-target */
         }
@@ -1019,9 +1036,9 @@ static CMD * make1cmds( TARGET * t )
         {
             /* Build cmd: cmd_new consumes its lists. */
             CMD * cmd = cmd_new( rule,
-                list_copy( L0, nt ),
+                list_copy( nt ),
                 list_sublist( ns, start, chunk ),
-                list_copy( L0, shell ) );
+                list_copy( shell ) );
 
             if ( cmd )
             {
@@ -1043,9 +1060,9 @@ static CMD * make1cmds( TARGET * t )
                     );
 
                 /* Tell the user what didn't fit. */
-                cmd = cmd_new( rule, list_copy( L0, nt ),
+                cmd = cmd_new( rule, list_copy( nt ),
                     list_sublist( ns, start, chunk ),
-                    list_new( L0, object_copy( constant_percent ) ) );
+                    list_new( object_copy( constant_percent ) ) );
                 fputs( cmd->buf->value, stdout );
                 exit( EXITBAD );
             }
@@ -1098,16 +1115,16 @@ static LIST * make1list( LIST * l, TARGETS * targets, int flags )
         /* Prohibit duplicates for RULE_TOGETHER. */
         if ( flags & RULE_TOGETHER )
         {
-            LIST * m;
-            for ( m = l; m; m = m->next )
-                if ( object_equal( m->value, t->boundname ) )
+            LISTITER iter = list_begin( l ), end = list_end( l );
+            for ( ; iter != end; iter = list_next( iter ) )
+                if ( object_equal( list_item( iter ), t->boundname ) )
                     break;
-            if ( m )
+            if ( iter != end )
                 continue;
         }
 
         /* Build new list. */
-        l = list_new( l, object_copy( t->boundname ) );
+        l = list_push_back( l, object_copy( t->boundname ) );
     }
 
     return l;
@@ -1122,25 +1139,27 @@ static SETTINGS * make1settings( struct module_t * module, LIST * vars )
 {
     SETTINGS * settings = 0;
 
-    for ( ; vars; vars = list_next( vars ) )
+    LISTITER vars_iter = list_begin( vars ), vars_end = list_end( vars );
+    for ( ; vars_iter != vars_end; vars_iter = list_next( vars_iter ) )
     {
-        LIST * l = var_get( module, vars->value );
-        LIST * nl = 0;
+        LIST * l = var_get( module, list_item( vars_iter ) );
+        LIST * nl = L0;
+        LISTITER iter = list_begin( l ), end = list_end( l );
 
-        for ( ; l; l = list_next( l ) )
+        for ( ; iter != end; iter = list_next( iter ) )
         {
-            TARGET * t = bindtarget( l->value );
+            TARGET * t = bindtarget( list_item( iter ) );
 
             /* Make sure the target is bound. */
             if ( t->binding == T_BIND_UNBOUND )
                 make1bind( t );
 
             /* Build a new list. */
-            nl = list_new( nl, object_copy( t->boundname ) );
+            nl = list_push_back( nl, object_copy( t->boundname ) );
         }
 
         /* Add to settings chain. */
-        settings = addsettings( settings, VAR_SET, vars->value, nl );
+        settings = addsettings( settings, VAR_SET, list_item( vars_iter ), nl );
     }
 
     return settings;

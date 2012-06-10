@@ -182,7 +182,8 @@
       {  return v;  }
    };
 
-   template<class T> T * addressof( T & v )
+   template<class T>
+   inline T * addressof( T & v )
    {
       return ::boost::move_detail::addressof_impl<T>::f
          ( ::boost::move_detail::addr_impl_ref<T>( v ), 0 );
@@ -224,19 +225,40 @@
 
    namespace boost {
 
+   namespace move_detail {
+      template<class T>
+      struct is_class_or_union
+      {
+         struct twochar { char _[2]; };
+         template <class U>
+         static char is_class_or_union_tester(void(U::*)(void));
+         template <class U>
+         static twochar is_class_or_union_tester(...);
+         static const bool value = sizeof(is_class_or_union_tester<T>(0)) == sizeof(char);
+      };
+      struct empty{};
+   }
+
    //////////////////////////////////////////////////////////////////////////////
    //
    //                            struct rv
    //
    //////////////////////////////////////////////////////////////////////////////
    template <class T>
-   class rv : public T
+   class rv
+      : public BOOST_MOVE_MPL_NS::if_c
+         < ::boost::move_detail::is_class_or_union<T>::value
+         , T
+         , ::boost::move_detail::empty
+         >::type
    {
       rv();
       ~rv();
       rv(rv const&);
       void operator=(rv const&);
    } BOOST_MOVE_ATTRIBUTE_MAY_ALIAS;
+
+
 
    //////////////////////////////////////////////////////////////////////////////
    //
@@ -283,6 +305,10 @@
       : BOOST_MOVE_BOOST_NS::integral_constant<bool, false>
    {};
 
+   template <class T>
+   struct has_move_emulation_enabled_aux 
+     : has_move_emulation_enabled<T> {};
+     
    template <class T> 
    struct has_nothrow_move
       : public BOOST_MOVE_BOOST_NS::integral_constant<bool, false>
@@ -293,20 +319,21 @@
    //                            move()
    //
    //////////////////////////////////////////////////////////////////////////////
+    
    template <class T>
-   typename BOOST_MOVE_BOOST_NS::disable_if<has_move_emulation_enabled<T>, T&>::type move(T& x)
+   inline typename BOOST_MOVE_BOOST_NS::disable_if<has_move_emulation_enabled_aux<T>, T&>::type move(T& x)
    {
       return x;
    }
 
    template <class T>
-   typename BOOST_MOVE_BOOST_NS::enable_if<has_move_emulation_enabled<T>, rv<T>&>::type move(T& x)
+   inline typename BOOST_MOVE_BOOST_NS::enable_if<has_move_emulation_enabled<T>, rv<T>&>::type move(T& x)
    {
       return *static_cast<rv<T>* >(BOOST_MOVE_BOOST_NS::addressof(x));
    }
 
    template <class T>
-   typename BOOST_MOVE_BOOST_NS::enable_if<has_move_emulation_enabled<T>, rv<T>&>::type move(rv<T>& x)
+   inline typename BOOST_MOVE_BOOST_NS::enable_if<has_move_emulation_enabled<T>, rv<T>&>::type move(rv<T>& x)
    {
       return x;
    }
@@ -323,6 +350,15 @@
       ::boost::rv< TYPE<ARG1, ARG2, ARG3> >& \
    //
 
+   #define BOOST_RV_REF_BEG\
+      ::boost::rv<   \
+   //
+
+   #define BOOST_RV_REF_END\
+      >& \
+   //
+
+
 
    #define BOOST_FWD_REF(TYPE)\
       const TYPE & \
@@ -334,6 +370,14 @@
 
    #define BOOST_COPY_ASSIGN_REF(TYPE)\
       const ::boost::rv< TYPE >& \
+   //
+
+   #define BOOST_COPY_ASSIGN_REF_BEG \
+      const ::boost::rv<  \
+   //
+
+   #define BOOST_COPY_ASSIGN_REF_END \
+      >& \
    //
 
    #define BOOST_MOVE_COPY_ASSIGN_REF_2_TEMPL_ARGS(TYPE, ARG1, ARG2)\
@@ -351,14 +395,14 @@
    //////////////////////////////////////////////////////////////////////////////
 
    template <class T>
-   typename BOOST_MOVE_BOOST_NS::enable_if< ::boost::move_detail::is_rv<T>, T &>::type
+   inline typename BOOST_MOVE_BOOST_NS::enable_if< ::boost::move_detail::is_rv<T>, T &>::type
       forward(const typename BOOST_MOVE_MPL_NS::identity<T>::type &x)
    {
       return const_cast<T&>(x);
    }
 
    template <class T>
-   typename BOOST_MOVE_BOOST_NS::disable_if< ::boost::move_detail::is_rv<T>, const T &>::type
+   inline typename BOOST_MOVE_BOOST_NS::disable_if< ::boost::move_detail::is_rv<T>, const T &>::type
       forward(const typename BOOST_MOVE_MPL_NS::identity<T>::type &x)
    {
       return x;
@@ -450,20 +494,20 @@
          //! This function provides a way to convert a reference into a rvalue reference
          //! in compilers with rvalue references. For other compilers converts T & into
          //! <i>::boost::rv<T> &</i> so that move emulation is activated.
-         template <class T> inline 
+         template <class T> 
          rvalue_reference move (input_reference);
 
       #elif defined(BOOST_MOVE_OLD_RVALUE_REF_BINDING_RULES)
 
          //Old move approach, lvalues could bind to rvalue references
-         template <class T> inline
-         typename remove_reference<T>::type && move(T&& t)
+         template <class T>
+         inline typename remove_reference<T>::type && move(T&& t)
          {  return t;   }
 
       #else //Old move
 
-         template <class T> inline
-         typename remove_reference<T>::type && move(T&& t)
+         template <class T>
+         inline typename remove_reference<T>::type && move(T&& t)
          { return static_cast<typename remove_reference<T>::type &&>(t); } 
 
       #endif   //Old move
@@ -487,13 +531,13 @@
          //!   ::boost::rev<T> &
          //!
          //! * Else, input_reference is equal to output_reference is equal to input_reference.
-         template <class T> inline output_reference forward(input_reference);
+         template <class T> output_reference forward(input_reference);
       #elif defined(BOOST_MOVE_OLD_RVALUE_REF_BINDING_RULES)
 
          //Old move approach, lvalues could bind to rvalue references
 
-         template <class T> inline
-         T&& forward (typename BOOST_MOVE_MPL_NS::identity<T>::type&& t)
+         template <class T>
+         inline T&& forward (typename BOOST_MOVE_MPL_NS::identity<T>::type&& t)
          {  return t;   }
 
       #else //Old move
@@ -541,6 +585,25 @@
    #define BOOST_RV_REF(TYPE)\
       TYPE && \
    //
+
+   //!This macro is used to achieve portable syntax in move
+   //!constructors and assignments for template classes marked as
+   //!BOOST_COPYABLE_AND_MOVABLE or BOOST_MOVABLE_BUT_NOT_COPYABLE.
+   //!As macros have problem with comma-separatd template arguments,
+   //!the template argument must be preceded with BOOST_RV_REF_START
+   //!and ended with BOOST_RV_REF_END
+   #define BOOST_RV_REF_BEG\
+         \
+   //
+
+   //!This macro is used to achieve portable syntax in move
+   //!constructors and assignments for template classes marked as
+   //!BOOST_COPYABLE_AND_MOVABLE or BOOST_MOVABLE_BUT_NOT_COPYABLE.
+   //!As macros have problem with comma-separatd template arguments,
+   //!the template argument must be preceded with BOOST_RV_REF_START
+   //!and ended with BOOST_RV_REF_END
+   #define BOOST_RV_REF_END\
+      && \
 
    //!This macro is used to achieve portable syntax in copy
    //!assignment for classes marked as BOOST_COPYABLE_AND_MOVABLE.
@@ -730,7 +793,7 @@ struct is_move_iterator< ::boost::move_iterator<I> >
 //!
 //! <b>Returns</b>: move_iterator<It>(i).
 template<class It>
-move_iterator<It> make_move_iterator(const It &it)
+inline move_iterator<It> make_move_iterator(const It &it)
 {  return move_iterator<It>(it); }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -954,7 +1017,7 @@ namespace move_detail {
 template
 <typename I,   // I models InputIterator
 typename F>   // F models ForwardIterator
-F uninitialized_move_move_iterator(I f, I l, F r
+inline F uninitialized_move_move_iterator(I f, I l, F r
 //                             ,typename BOOST_MOVE_BOOST_NS::enable_if< has_move_emulation_enabled<typename I::value_type> >::type* = 0
 )
 {
@@ -975,7 +1038,7 @@ F uninitialized_move_move_iterator(I f, I l, F r,
 template
 <typename I,   // I models InputIterator
 typename F>   // F models ForwardIterator
-F uninitialized_copy_or_move(I f, I l, F r,
+inline F uninitialized_copy_or_move(I f, I l, F r,
                              typename BOOST_MOVE_BOOST_NS::enable_if< move_detail::is_move_iterator<I> >::type* = 0)
 {
    return ::boost::move_detail::uninitialized_move_move_iterator(f, l, r);
@@ -992,7 +1055,7 @@ namespace move_detail {
 template
 <typename I,   // I models InputIterator
 typename F>   // F models ForwardIterator
-F move_move_iterator(I f, I l, F r
+inline F move_move_iterator(I f, I l, F r
 //                             ,typename BOOST_MOVE_BOOST_NS::enable_if< has_move_emulation_enabled<typename I::value_type> >::type* = 0
 )
 {
@@ -1014,7 +1077,7 @@ F move_move_iterator(I f, I l, F r,
 template
 <typename I,   // I models InputIterator
 typename F>   // F models ForwardIterator
-F copy_or_move(I f, I l, F r,
+inline F copy_or_move(I f, I l, F r,
                              typename BOOST_MOVE_BOOST_NS::enable_if< move_detail::is_move_iterator<I> >::type* = 0)
 {
    return ::boost::move_detail::move_move_iterator(f, l, r);
@@ -1037,7 +1100,7 @@ F copy_or_move(I f, I l, F r,
 template
 <typename I,   // I models InputIterator
 typename F>   // F models ForwardIterator
-F uninitialized_copy_or_move(I f, I l, F r
+inline F uninitialized_copy_or_move(I f, I l, F r
    /// @cond
    ,typename BOOST_MOVE_BOOST_NS::disable_if< move_detail::is_move_iterator<I> >::type* = 0
    /// @endcond
@@ -1060,7 +1123,7 @@ F uninitialized_copy_or_move(I f, I l, F r
 template
 <typename I,   // I models InputIterator
 typename F>   // F models ForwardIterator
-F copy_or_move(I f, I l, F r
+inline F copy_or_move(I f, I l, F r
    /// @cond
    ,typename BOOST_MOVE_BOOST_NS::disable_if< move_detail::is_move_iterator<I> >::type* = 0
    /// @endcond

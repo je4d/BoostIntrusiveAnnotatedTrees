@@ -205,6 +205,7 @@ template<> struct assert_intrinsic_wchar_t<unsigned short> {};
 // http://software.intel.com/en-us/articles/c0x-features-supported-by-intel-c-compiler/
 //
 //#  undef  BOOST_NO_LAMBDAS
+//#  undef  BOOST_NO_LOCAL_CLASS_TEMPLATE_PARAMETERS
 //#  undef  BOOST_NO_DECLTYPE
 //#  undef  BOOST_NO_AUTO_DECLARATIONS
 //#  undef  BOOST_NO_AUTO_MULTIDECLARATIONS
@@ -216,6 +217,7 @@ template<> struct assert_intrinsic_wchar_t<unsigned short> {};
 #  undef  BOOST_NO_DELETED_FUNCTIONS
 #  undef  BOOST_NO_DEFAULTED_FUNCTIONS
 #  undef  BOOST_NO_LAMBDAS
+#  undef  BOOST_NO_LOCAL_CLASS_TEMPLATE_PARAMETERS
 #  undef  BOOST_NO_DECLTYPE
 #  undef  BOOST_NO_AUTO_DECLARATIONS
 #  undef  BOOST_NO_AUTO_MULTIDECLARATIONS
@@ -234,6 +236,17 @@ template<> struct assert_intrinsic_wchar_t<unsigned short> {};
 // http://software.intel.com/en-us/articles/c0x-features-supported-by-intel-c-compiler/
 // continues to list scoped enum support as "Partial" 
 //#  undef  BOOST_NO_SCOPED_ENUMS 
+#endif
+
+#if defined(_MSC_VER) && (_MSC_VER <= 1700)
+//
+// Although the Intel compiler is capable of supporting these, it appears not to in MSVC compatibility mode:
+//
+#  define  BOOST_NO_CXX11_HDR_INITIALIZER_LIST
+#  define  BOOST_NO_VARIADIC_TEMPLATES
+#  define  BOOST_NO_DELETED_FUNCTIONS
+#  define  BOOST_NO_DEFAULTED_FUNCTIONS
+#  define  BOOST_NO_TEMPLATE_ALIASES
 #endif
 
 #if (BOOST_INTEL_CXX_VERSION < 1200)

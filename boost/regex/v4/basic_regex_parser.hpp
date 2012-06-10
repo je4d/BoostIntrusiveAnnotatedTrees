@@ -200,9 +200,9 @@ void basic_regex_parser<charT, traits>::fail(regex_constants::error_type error_c
    if(error_code != regex_constants::error_empty)
    {
       if((start_pos != 0) || (end_pos != (m_end - m_base)))
-         message += "  The error occured while parsing the regular expression fragment: '";
+         message += "  The error occurred while parsing the regular expression fragment: '";
       else
-         message += "  The error occured while parsing the regular expression: '";
+         message += "  The error occurred while parsing the regular expression: '";
       if(start_pos != end_pos)
       {
          message += std::string(m_base + start_pos, m_base + position);
@@ -2492,9 +2492,11 @@ option_group_jump:
       this->m_pdata->m_data.align();
       re_jump* jmp = static_cast<re_jump*>(this->getaddress(jump_offset));
       jmp->alt.i = this->m_pdata->m_data.size() - this->getoffset(jmp);
-      if(this->m_last_state == jmp)
+      if((this->m_last_state == jmp) && (markid != -2))
       {
-         // Oops... we didn't have anything inside the assertion:
+         // Oops... we didn't have anything inside the assertion.
+         // Note we don't get here for negated forward lookahead as (?!)
+         // does have some uses.
          // Rewind to start of (? sequence:
          --m_position;
          while(this->m_traits.syntax_type(*m_position) != regex_constants::syntax_open_mark) --m_position;

@@ -254,6 +254,11 @@ public:
         return !operator!=(rhs);
     }
 
+    const Node * get_node() const
+    {
+        return adaptor_type::base_reference();
+    }
+
 private:
     void increment(void)
     {
@@ -349,7 +354,7 @@ public:
 
             ++next;
 
-            for (;;) {
+            while (true) {
                 if (parent == NULL || next != parent->children.end())
                     break;
 
@@ -372,6 +377,11 @@ public:
     static const Node * get_node(NodeIterator const & it)
     {
         return static_cast<const Node *>(&*it);
+    }
+
+    const Node * get_node() const
+    {
+        return get_node(adaptor_type::base_reference());
     }
 };
 

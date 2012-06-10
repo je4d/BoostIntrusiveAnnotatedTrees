@@ -9,8 +9,7 @@
 #include "id_manager.hpp"
 #include "utils.hpp"
 #include "string_ref.hpp"
-#include "intrusive_base.hpp"
-#include <boost/intrusive_ptr.hpp>
+#include <boost/make_shared.hpp>
 #include <boost/unordered_map.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/range/algorithm.hpp>
@@ -30,6 +29,8 @@ namespace quickbook
 
     struct id_placeholder;
     struct id_data;
+    std::string replace_ids(id_state& state, std::string const& xml,
+            bool use_resolved_ids = true);
     std::string process_ids(id_state&, std::string const&);
 
     static const std::size_t max_size = 32;
@@ -46,6 +47,9 @@ namespace quickbook
         state_enum generation_state;
                                 // Placeholder's position in generation
                                 // process.
+        std::string unresolved_id;
+                                // The id that would be generated without any
+                                // duplicate handling.
         std::string id;         // The id so far.
         id_placeholder* parent; // Placeholder of the parent id.
                                 // Only when generation_state == child
@@ -69,6 +73,7 @@ namespace quickbook
                 id_placeholder* parent_ = 0)
           : index(index),
             generation_state(parent_ ? child : unresolved),
+            unresolved_id(parent_ ? parent_->unresolved_id + '.' + id : id),
             id(id),
             parent(parent_),
             category(category),
@@ -107,7 +112,7 @@ namespace quickbook
 
     struct id_state
     {
-        boost::intrusive_ptr<file_info> current_file;
+        boost::shared_ptr<file_info> current_file;
         std::deque<id_placeholder> placeholders;
 
         // Placeholder methods
@@ -143,25 +148,25 @@ private:
         id_placeholder* add_id_to_section(
                 std::string const& id,
                 id_category category,
-                boost::intrusive_ptr<section_info> const& section);
+                boost::shared_ptr<section_info> const& section);
         id_placeholder* create_new_section(
                 std::string const& id,
                 id_category category);
 
         void switch_section(id_placeholder*);
-        void reswitch_sections(boost::intrusive_ptr<section_info> const&,
-            boost::intrusive_ptr<section_info> const&);
+        void reswitch_sections(boost::shared_ptr<section_info> const&,
+            boost::shared_ptr<section_info> const&);
         void restore_section();
     };
 
-    struct file_info : intrusive_base<file_info>
+    struct file_info
     {
-        boost::intrusive_ptr<file_info> parent;
-        boost::intrusive_ptr<doc_info> document;
+        boost::shared_ptr<file_info> parent;
+        boost::shared_ptr<doc_info> document;
 
         bool document_root; // !parent || document != parent->document
         unsigned compatibility_version;
-        boost::intrusive_ptr<section_info> switched_section;
+        boost::shared_ptr<section_info> switched_section;
         id_placeholder* original_placeholder;
 
         // The 1.1-1.5 document id would actually change per file due to
@@ -169,15 +174,15 @@ private:
         // document title instead of the id.
         std::string doc_id_1_1;
 
-        file_info(boost::intrusive_ptr<file_info> const& parent,
+        file_info(boost::shared_ptr<file_info> const& parent,
                 unsigned compatibility_version) :
             parent(parent), document(parent->document), document_root(false),
             compatibility_version(compatibility_version),
             switched_section(), original_placeholder()
         {}
 
-        file_info(boost::intrusive_ptr<file_info> const& parent,
-                boost::intrusive_ptr<doc_info> const& document,
+        file_info(boost::shared_ptr<file_info> const& parent,
+                boost::shared_ptr<doc_info> const& document,
                 unsigned compatibility_version) :
             parent(parent), document(document), document_root(true),
             compatibility_version(compatibility_version),
@@ -185,9 +190,9 @@ private:
         {}
     };
 
-    struct doc_info : intrusive_base<doc_info>
+    struct doc_info
     {
-        boost::intrusive_ptr<section_info> current_section;
+        boost::shared_ptr<section_info> current_section;
         std::string last_title_1_1;
         std::string section_id_1_1;
 
@@ -196,15 +201,15 @@ private:
         {}
     };
 
-    struct section_info : intrusive_base<section_info>
+    struct section_info
     {
-        boost::intrusive_ptr<section_info> parent;
+        boost::shared_ptr<section_info> parent;
         unsigned compatibility_version;
         unsigned level;
         std::string id_1_1;
         id_placeholder* placeholder_1_6;
 
-        section_info(boost::intrusive_ptr<section_info> const& parent,
+        section_info(boost::shared_ptr<section_info> const& parent,
                 unsigned compatibility_version, std::string const& id) :
             parent(parent), compatibility_version(compatibility_version),
             level(parent ? parent->level + 1 : 1),
@@ -283,6 +288,12 @@ private:
     std::string id_manager::add_anchor(std::string const& id, id_category category)
     {
         return state->add_placeholder(id, category)->to_string();
+    }
+
+    std::string id_manager::replace_placeholders_with_unresolved_ids(
+            std::string const& xml) const
+    {
+        return replace_ids(*state, xml, false);
     }
 
     std::string id_manager::replace_placeholders(std::string const& xml) const
@@ -382,11 +393,11 @@ private:
     }
 
     void id_state::reswitch_sections(
-        boost::intrusive_ptr<section_info> const& popped_section,
-        boost::intrusive_ptr<section_info> const& parent_section)
+        boost::shared_ptr<section_info> const& popped_section,
+        boost::shared_ptr<section_info> const& parent_section)
     {
-        boost::intrusive_ptr<file_info> file = current_file;
-        boost::intrusive_ptr<file_info> first_switched_file;
+        boost::shared_ptr<file_info> file = current_file;
+        boost::shared_ptr<file_info> first_switched_file;
 
         for (;;) {
             if (file->switched_section == popped_section)
@@ -424,15 +435,16 @@ private:
     {
         // Create new file
 
-        boost::intrusive_ptr<file_info> parent = current_file;
+        boost::shared_ptr<file_info> parent = current_file;
 
         if (document_root) {
-            current_file = new file_info(parent, new doc_info(),
+            current_file = boost::make_shared<file_info>(parent,
+                    boost::make_shared<doc_info>(),
                     compatibility_version);
         }
         else {
             current_file =
-                new file_info(parent, compatibility_version);
+                boost::make_shared<file_info>(parent, compatibility_version);
         }
 
         // Choose specified id to use. Prefer 'include_doc_id' (the id
@@ -493,7 +505,7 @@ private:
             if (compatibility_version >= 106u && !initial_doc_id.empty()) {
                 switch_section(add_id_to_section(initial_doc_id,
                     id_category::explicit_section_id,
-                    boost::intrusive_ptr<section_info>()));
+                    boost::shared_ptr<section_info>()));
             }
 
             return 0;
@@ -517,7 +529,7 @@ private:
     id_placeholder* id_state::add_id_to_section(
             std::string const& id,
             id_category category,
-            boost::intrusive_ptr<section_info> const& section)
+            boost::shared_ptr<section_info> const& section)
     {
         std::string id_part = id;
 
@@ -571,11 +583,12 @@ private:
             std::string const& id,
             id_category category)
     {
-        boost::intrusive_ptr<section_info> parent =
+        boost::shared_ptr<section_info> parent =
             current_file->document->current_section;
 
-        boost::intrusive_ptr<section_info> new_section =
-            new section_info(parent, current_file->compatibility_version, id);
+        boost::shared_ptr<section_info> new_section =
+            boost::make_shared<section_info>(parent,
+                current_file->compatibility_version, id);
 
         id_placeholder* p;
 
@@ -618,7 +631,7 @@ private:
 
     void id_state::end_section()
     {
-        boost::intrusive_ptr<section_info> popped_section =
+        boost::shared_ptr<section_info> popped_section =
             current_file->document->current_section;
         current_file->document->current_section = popped_section->parent;
 
@@ -798,7 +811,7 @@ private:
     // Data used for generating placeholders that have duplicates.
     //
 
-    struct id_generation_data : intrusive_base<id_generation_data>
+    struct id_generation_data
     {
         id_generation_data(std::string const& src_id)
           : child_start(src_id.rfind('.') + 1),
@@ -853,7 +866,7 @@ private:
         id_category category;   // The highest priority category of the
                                 // placeholders that want to use this id.
         bool used;              // Whether this id has been used.
-        boost::intrusive_ptr<id_generation_data> generation_data;
+        boost::shared_ptr<id_generation_data> generation_data;
                                 // If a duplicates are found, this is
                                 // created to generate new ids.
                                 //
@@ -868,7 +881,6 @@ private:
     placeholder_index index_placeholders(id_state&, std::string const& xml);
     void resolve_id(id_placeholder&, allocated_ids&);
     void generate_id(id_placeholder&, allocated_ids&);
-    std::string replace_ids(id_state& state, std::string const& xml);
 
     std::string process_ids(id_state& state, std::string const& xml)
     {
@@ -1025,7 +1037,8 @@ private:
 
         if (!p.data->generation_data)
         {
-            p.data->generation_data.reset(new id_generation_data(p.id));
+            p.data->generation_data =
+                boost::make_shared<id_generation_data>(p.id);
             register_generation_data(p, ids);
         }
 
@@ -1081,11 +1094,13 @@ private:
     struct replace_ids_callback : xml_processor::callback
     {
         id_state& state;
+        bool use_resolved_ids;
         std::string::const_iterator source_pos;
         std::string result;
 
-        replace_ids_callback(id_state& state)
+        replace_ids_callback(id_state& state, bool resolved)
           : state(state),
+            use_resolved_ids(resolved),
             source_pos(),
             result()
         {}
@@ -1099,10 +1114,13 @@ private:
         {
             if (id_placeholder* p = state.get_placeholder(value))
             {
-                assert(p->check_state(id_placeholder::generated));
+                assert(!use_resolved_ids ||
+                    p->check_state(id_placeholder::generated));
+                std::string const& id = use_resolved_ids ?
+                    p->id : p->unresolved_id;
 
                 result.append(source_pos, value.begin());
-                result.append(p->id.begin(), p->id.end());
+                result.append(id.begin(), id.end());
                 source_pos = value.end();
             }
         }
@@ -1114,10 +1132,11 @@ private:
         }
     };
 
-    std::string replace_ids(id_state& state, std::string const& xml)
+    std::string replace_ids(id_state& state, std::string const& xml,
+            bool use_unresolved_ids)
     {
         xml_processor processor;
-        replace_ids_callback callback(state);
+        replace_ids_callback callback(state, use_unresolved_ids);
         processor.parse(xml, callback);
         return callback.result;
     }

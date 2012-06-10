@@ -1,6 +1,7 @@
 #ifndef BOOST_THREAD_WIN32_MUTEX_HPP
 #define BOOST_THREAD_WIN32_MUTEX_HPP
 // (C) Copyright 2005-7 Anthony Williams
+// (C) Copyright 2011-2012 Vicente J. Botet Escriba
 // Distributed under the Boost Software License, Version 1.0. (See
 // accompanying file LICENSE_1_0.txt or copy at
 // http://www.boost.org/LICENSE_1_0.txt)
@@ -22,10 +23,8 @@ namespace boost
     class mutex:
         public ::boost::detail::underlying_mutex
     {
-    private:
-        mutex(mutex const&);
-        mutex& operator=(mutex const&);
     public:
+        BOOST_THREAD_NO_COPYABLE(mutex)
         mutex()
         {
             initialize();
@@ -44,10 +43,8 @@ namespace boost
     class timed_mutex:
         public ::boost::detail::basic_timed_mutex
     {
-    private:
-        timed_mutex(timed_mutex const&);
-        timed_mutex& operator=(timed_mutex const&);
     public:
+        BOOST_THREAD_NO_COPYABLE(timed_mutex)
         timed_mutex()
         {
             initialize();

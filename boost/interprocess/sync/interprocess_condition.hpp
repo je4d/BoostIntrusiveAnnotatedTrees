@@ -30,10 +30,10 @@
    #include <boost/interprocess/sync/posix/condition.hpp>
    #define BOOST_INTERPROCESS_USE_POSIX
 //Experimental...
-//#elif !defined(BOOST_INTERPROCESS_FORCE_GENERIC_EMULATION) && defined (BOOST_INTERPROCESS_WINDOWS)
-//   #include <boost/interprocess/sync/windows/condition.hpp>
-//   #define BOOST_INTERPROCESS_USE_WINDOWS
-#else
+#elif !defined(BOOST_INTERPROCESS_FORCE_GENERIC_EMULATION) && defined (BOOST_INTERPROCESS_WINDOWS)
+   #include <boost/interprocess/sync/windows/condition.hpp>
+   #define BOOST_INTERPROCESS_USE_WINDOWS
+#elif !defined(BOOST_INTERPROCESS_DOXYGEN_INVOKED)
    #include <boost/interprocess/sync/spin/condition.hpp>
    #define BOOST_INTERPROCESS_USE_GENERIC_EMULATION
 #endif

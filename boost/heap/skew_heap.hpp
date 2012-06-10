@@ -205,6 +205,11 @@ struct make_skew_heap_base
             allocator_type(std::move(static_cast<allocator_type&>(rhs)))
         {}
 
+        type(type const & rhs):
+            base_type(rhs),
+            allocator_type(rhs)
+        {}
+
         type & operator=(type && rhs)
         {
             base_type::operator=(std::move(static_cast<base_type&>(rhs)));
@@ -418,14 +423,14 @@ public:
         return push_helper::push(this, v);
     }
 
-#ifdef BOOST_HAS_RVALUE_REFS
+#if defined(BOOST_HAS_RVALUE_REFS) && !defined(BOOST_NO_VARIADIC_TEMPLATES)
     /**
      * \b Effects: Adds a new element to the priority queue. The element is directly constructed in-place.
      *
      * \b Complexity: Logarithmic (amortized).
      *
      * */
-    template <class... Args>
+    template <typename... Args>
     typename mpl::if_c<is_mutable, handle_type, void>::type emplace(Args&&... args)
     {
         typedef typename mpl::if_c<is_mutable, push_handle, push_void>::type push_helper;
@@ -616,7 +621,8 @@ public:
     /// \copydoc boost::heap::d_ary_heap::s_handle_from_iterator
     static handle_type s_handle_from_iterator(iterator const & it)
     {
-        return handle_type(&*it);
+        node * ptr = const_cast<node *>(it.get_node());
+        return handle_type(ptr);
     }
 
     /**
@@ -756,7 +762,7 @@ private:
             self->push_internal(v);
         }
 
-#ifdef BOOST_HAS_RVALUE_REFS
+#if defined(BOOST_HAS_RVALUE_REFS) && !defined(BOOST_NO_VARIADIC_TEMPLATES)
         template <class... Args>
         static void emplace(skew_heap * self, Args&&... args)
         {
@@ -772,7 +778,7 @@ private:
             return handle_type(self->push_internal(v));
         }
 
-#ifdef BOOST_HAS_RVALUE_REFS
+#if defined(BOOST_HAS_RVALUE_REFS) && !defined(BOOST_NO_VARIADIC_TEMPLATES)
         template <class... Args>
         static handle_type emplace(skew_heap * self, Args&&... args)
         {

@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////////
 //
-// (C) Copyright Ion Gaztanaga 2004-2011. Distributed under the Boost
+// (C) Copyright Ion Gaztanaga 2004-2012. Distributed under the Boost
 // Software License, Version 1.0. (See accompanying file
 // LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
@@ -65,31 +65,11 @@ template <class T, class VoidPointer>
 struct slist_node
    :  public slist_hook<VoidPointer>::type
 {
+   private:
+   slist_node();
 
-   slist_node()
-      : m_data()
-   {}
-
-   #if defined(BOOST_CONTAINER_PERFECT_FORWARDING) || defined(BOOST_CONTAINER_DOXYGEN_INVOKED)
-
-   template<class ...Args>
-   slist_node(Args &&...args)
-      : m_data(boost::forward<Args>(args)...)
-   {}
-
-   #else //#ifdef BOOST_CONTAINER_PERFECT_FORWARDING
-
-   #define BOOST_PP_LOCAL_MACRO(n)                                      \
-   template<BOOST_PP_ENUM_PARAMS(n, class P)>                           \
-   slist_node(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_LIST, _))       \
-      : m_data(BOOST_PP_ENUM(n, BOOST_CONTAINER_PP_PARAM_FORWARD, _))   \
-   {}                                                                   \
-   //!
-   #define BOOST_PP_LOCAL_LIMITS (1, BOOST_CONTAINER_MAX_CONSTRUCTOR_PARAMETERS)
-   #include BOOST_PP_LOCAL_ITERATE()
-
-   #endif//#ifdef BOOST_CONTAINER_PERFECT_FORWARDING
-
+   public:
+   typedef typename slist_hook<VoidPointer>::type hook_type;
    T m_data;
 };
 
@@ -391,6 +371,34 @@ class slist
       : AllocHolder(boost::move(static_cast<AllocHolder&>(x)))
    {}
 
+   //! <b>Effects</b>: Copy constructs a list using the specified allocator.
+   //!
+   //! <b>Postcondition</b>: x == *this.
+   //! 
+   //! <b>Throws</b>: If allocator_type's default constructor or copy constructor throws.
+   //! 
+   //! <b>Complexity</b>: Linear to the elements x contains.
+   slist(const slist& x, const allocator_type &a) 
+      : AllocHolder(a)
+   { this->insert_after(this->before_begin(), x.begin(), x.end()); }
+
+   //! <b>Effects</b>: Move constructor using the specified allocator.
+   //!                 Moves x's resources to *this.
+   //!
+   //! <b>Throws</b>: If allocation or value_type's copy constructor throws.
+   //! 
+   //! <b>Complexity</b>: Constant if a == x.get_allocator(), linear otherwise.
+   slist(BOOST_RV_REF(slist) x, const allocator_type &a)
+      : AllocHolder(a)
+   {
+      if(this->node_alloc() == x.node_alloc()){
+         this->icont().swap(x.icont());
+      }
+      else{
+         this->insert(this->cbegin(), x.begin(), x.end());
+      }
+   }
+
    //! <b>Effects</b>: Makes *this contain the same elements as x.
    //!
    //! <b>Postcondition</b>: this->size() == x.size(). *this contains a copy 
@@ -596,8 +604,6 @@ class slist
    {  return !this->size();   }
 
    //! <b>Effects</b>: Swaps the contents of *this and x.
-   //!   If this->allocator_type() != x.allocator_type()
-   //!   allocators are also swapped.
    //!
    //! <b>Throws</b>: Nothing.
    //!
@@ -640,7 +646,8 @@ class slist
    void push_front(T &x) { push_front(const_cast<const T &>(x)); }
 
    template<class U>
-   void push_front(const U &u, typename container_detail::enable_if_c<container_detail::is_same<T, U>::value && !::boost::has_move_emulation_enabled<U>::value >::type* =0)
+   void push_front(const U &u
+      , typename container_detail::enable_if_c<container_detail::is_same<T, U>::value && !::boost::has_move_emulation_enabled<U>::value >::type* =0)
    {  return priv_push_front(u); }
    #endif
 
@@ -702,7 +709,8 @@ class slist
    { return this->insert_after(position, const_cast<const T &>(x)); }
 
    template<class U>
-   iterator insert_after(const_iterator position, const U &u, typename container_detail::enable_if_c<container_detail::is_same<T, U>::value && !::boost::has_move_emulation_enabled<U>::value >::type* =0)
+   iterator insert_after( const_iterator position, const U &u
+                        , typename container_detail::enable_if_c<container_detail::is_same<T, U>::value && !::boost::has_move_emulation_enabled<U>::value >::type* =0)
    {  return this->priv_insert_after(position, u); }
    #endif
 
@@ -770,7 +778,8 @@ class slist
    { return this->insert(position, const_cast<const T &>(x)); }
 
    template<class U>
-   iterator insert(const_iterator position, const U &u, typename container_detail::enable_if_c<container_detail::is_same<T, U>::value && !::boost::has_move_emulation_enabled<U>::value >::type* =0)
+   iterator insert( const_iterator position, const U &u
+                  , typename container_detail::enable_if_c<container_detail::is_same<T, U>::value && !::boost::has_move_emulation_enabled<U>::value >::type* =0)
    {  return this->priv_insert(position, u); }
    #endif
 

@@ -58,10 +58,13 @@
 typedef struct _list LIST;
 
 struct _list {
-    LIST    *next;
-    LIST    *tail;      /* only valid in head node */
-    OBJECT  *value;    /* private copy */
+    union {
+        int size;
+        OBJECT *align;
+    } impl;
 };
+
+typedef OBJECT * * LISTITER;
 
 /*
  * LOL - list of LISTs
@@ -76,10 +79,12 @@ struct _lol {
     LIST    *list[ LOL_MAX ];
 };
 
+LIST *  list_new( OBJECT * value );
 LIST *  list_append( LIST *l, LIST *nl );
-LIST *  list_copy( LIST *l, LIST  *nl );
+LIST *  list_copy( LIST  *l );
+LIST *  list_copy_range( LIST *l, LISTITER first, LISTITER last );
 void    list_free( LIST *head );
-LIST *  list_new( LIST *head, OBJECT *string );
+LIST *  list_push_back( LIST *head, OBJECT *string );
 void    list_print( LIST *l );
 int list_length( LIST *l );
 LIST *  list_sublist( LIST *l, int start, int count );
@@ -92,7 +97,12 @@ int     list_cmp( LIST * lhs, LIST * rhs );
 int     list_is_sublist( LIST * sub, LIST * l );
 void    list_done();
 
-# define list_next( l ) ((l)->next)
+LISTITER list_begin( LIST * );
+LISTITER list_end( LIST * );
+# define list_next( it ) ((it) + 1)
+# define list_item( it ) (*(it))
+# define list_empty( l ) ( (l) == L0 )
+# define list_front( l ) list_item( list_begin( l ) )
 
 # define L0 ((LIST *)0)
 

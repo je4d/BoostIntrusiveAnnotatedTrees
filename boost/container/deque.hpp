@@ -1,6 +1,6 @@
 //////////////////////////////////////////////////////////////////////////////
 //
-// (C) Copyright Ion Gaztanaga 2005-2011. Distributed under the Boost
+// (C) Copyright Ion Gaztanaga 2005-2012. Distributed under the Boost
 // Software License, Version 1.0. (See accompanying file
 // LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 //
@@ -44,7 +44,7 @@
 #include <boost/container/detail/iterators.hpp>
 #include <boost/container/detail/algorithms.hpp>
 #include <boost/container/detail/mpl.hpp>
-#include <boost/container/allocator/allocator_traits.hpp>
+#include <boost/container/allocator_traits.hpp>
 #include <boost/container/container_fwd.hpp>
 #include <cstddef>
 #include <iterator>
@@ -379,7 +379,7 @@ class deque_base
       :  members_(a)
    { this->priv_initialize_map(num_elements); }
 
-   deque_base(const allocator_type& a) 
+   explicit deque_base(const allocator_type& a) 
       :  members_(a)
    {}
 
@@ -715,7 +715,7 @@ class deque : protected deque_base<T, A>
    const_reverse_iterator crend() const BOOST_CONTAINER_NOEXCEPT
       { return const_reverse_iterator(this->members_.m_start); }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a reference to the nth element 
    //!   from the beginning of the container.
@@ -726,7 +726,7 @@ class deque : protected deque_base<T, A>
    reference operator[](size_type n) BOOST_CONTAINER_NOEXCEPT
       { return this->members_.m_start[difference_type(n)]; }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a const reference to the nth element 
    //!   from the beginning of the container.
@@ -737,7 +737,7 @@ class deque : protected deque_base<T, A>
    const_reference operator[](size_type n) const BOOST_CONTAINER_NOEXCEPT
       { return this->members_.m_start[difference_type(n)]; }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a reference to the nth element 
    //!   from the beginning of the container.
@@ -748,7 +748,7 @@ class deque : protected deque_base<T, A>
    reference at(size_type n)
       { this->priv_range_check(n); return (*this)[n]; }
 
-   //! <b>Requires</b>: size() < n.
+   //! <b>Requires</b>: size() > n.
    //!
    //! <b>Effects</b>: Returns a const reference to the nth element 
    //!   from the beginning of the container.
@@ -896,6 +896,46 @@ class deque : protected deque_base<T, A>
       :  Base(boost::move(static_cast<Base&>(x)))
    {  this->swap_members(x);   }
 
+   //! <b>Effects</b>: Copy constructs a vector using the specified allocator.
+   //!
+   //! <b>Postcondition</b>: x == *this.
+   //! 
+   //! <b>Throws</b>: If allocation
+   //!   throws or T's copy constructor throws.
+   //! 
+   //! <b>Complexity</b>: Linear to the elements x contains.
+   deque(const deque& x, const allocator_type &a)
+      :  Base(a)
+   {
+      if(x.size()){
+         this->priv_initialize_map(x.size());
+         boost::container::uninitialized_copy_alloc
+            (this->alloc(), x.begin(), x.end(), this->members_.m_start);
+      }
+   }
+
+   //! <b>Effects</b>: Move constructor using the specified allocator.
+   //!                 Moves mx's resources to *this if a == allocator_type().
+   //!                 Otherwise copies values from x to *this.
+   //!
+   //! <b>Throws</b>: If allocation or T's copy constructor throws.
+   //! 
+   //! <b>Complexity</b>: Constant if a == mx.get_allocator(), linear otherwise.
+   deque(BOOST_RV_REF(deque) mx, const allocator_type &a) 
+      :  Base(a)
+   {
+      if(mx.alloc() == a){
+         this->swap_members(mx);
+      }
+      else{
+         if(mx.size()){
+            this->priv_initialize_map(mx.size());
+            boost::container::uninitialized_copy_alloc
+               (this->alloc(), mx.begin(), mx.end(), this->members_.m_start);
+         }
+      }
+   }
+
    //! <b>Effects</b>: Constructs a deque that will use a copy of allocator a
    //!   and inserts a copy of the range [first, last) in the deque.
    //!
@@ -985,8 +1025,6 @@ class deque : protected deque_base<T, A>
    }
 
    //! <b>Effects</b>: Swaps the contents of *this and x.
-   //!   If this->allocator_type() != x.allocator_type()
-   //!   allocators are also swapped.
    //!
    //! <b>Throws</b>: Nothing.
    //!
@@ -1071,7 +1109,10 @@ class deque : protected deque_base<T, A>
    {
       if (this->members_.m_finish.m_cur != this->members_.m_finish.m_first) {
          --this->members_.m_finish.m_cur;
-         container_detail::to_raw_pointer(this->members_.m_finish.m_cur)->~value_type();
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , container_detail::to_raw_pointer(this->members_.m_finish.m_cur)
+            );
       }
       else
          this->priv_pop_back_aux();
@@ -1085,7 +1126,10 @@ class deque : protected deque_base<T, A>
    void pop_front() BOOST_CONTAINER_NOEXCEPT
    {
       if (this->members_.m_start.m_cur != this->members_.m_start.m_last - 1) {
-         container_detail::to_raw_pointer(this->members_.m_start.m_cur)->~value_type();
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , container_detail::to_raw_pointer(this->members_.m_start.m_cur)
+            );
          ++this->members_.m_start.m_cur;
       }
       else 
@@ -1600,14 +1644,22 @@ class deque : protected deque_base<T, A>
 
    void priv_destroy_range(iterator p, iterator p2)
    {
-      for(;p != p2; ++p)
-         container_detail::to_raw_pointer(&*p)->~value_type();
+      for(;p != p2; ++p){
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , container_detail::to_raw_pointer(&*p)
+            );
+      }
    }
 
    void priv_destroy_range(pointer p, pointer p2)
    {
-      for(;p != p2; ++p)
-         container_detail::to_raw_pointer(&*p)->~value_type();
+      for(;p != p2; ++p){
+         allocator_traits_type::destroy
+            ( this->alloc()
+            , container_detail::to_raw_pointer(&*p)
+            );
+      }
    }
 
    template <class Integer>
@@ -1829,7 +1881,10 @@ class deque : protected deque_base<T, A>
       this->priv_deallocate_node(this->members_.m_finish.m_first);
       this->members_.m_finish.priv_set_node(this->members_.m_finish.m_node - 1);
       this->members_.m_finish.m_cur = this->members_.m_finish.m_last - 1;
-      container_detail::to_raw_pointer(this->members_.m_finish.m_cur)->~value_type();
+      allocator_traits_type::destroy
+         ( this->alloc()
+         , container_detail::to_raw_pointer(this->members_.m_finish.m_cur)
+         );
    }
 
    // Called only if this->members_.m_start.m_cur == this->members_.m_start.m_last - 1.  Note that 
@@ -1838,7 +1893,10 @@ class deque : protected deque_base<T, A>
    // must have at least two nodes.
    void priv_pop_front_aux()
    {
-      container_detail::to_raw_pointer(this->members_.m_start.m_cur)->~value_type();
+      allocator_traits_type::destroy
+         ( this->alloc()
+         , container_detail::to_raw_pointer(this->members_.m_start.m_cur)
+         );
       this->priv_deallocate_node(this->members_.m_start.m_first);
       this->members_.m_start.priv_set_node(this->members_.m_start.m_node + 1);
       this->members_.m_start.m_cur = this->members_.m_start.m_first;
