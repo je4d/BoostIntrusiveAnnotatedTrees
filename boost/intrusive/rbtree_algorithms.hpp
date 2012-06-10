@@ -59,6 +59,7 @@
 #include <boost/intrusive/detail/annotated_tree_algorithms.hpp>
 #include <boost/intrusive/detail/annotation_algorithms.hpp>
 #include <boost/intrusive/trivial_annotated_node_traits.hpp>
+#include <boost/intrusive/pointer_traits.hpp>
 
 namespace boost {
 namespace intrusive {
@@ -130,10 +131,10 @@ class node_rbtree_algorithms {
    /// @endcond
 
    public:
-   static node_ptr begin_node(const_node_ptr header)
+   static node_ptr begin_node(const const_node_ptr & header)
    {  return tree_algorithms::begin_node(header);   }
 
-   static node_ptr end_node(const_node_ptr header)
+   static node_ptr end_node(const const_node_ptr & header)
    {  return tree_algorithms::end_node(header);   }
 
    //! This type is the information that will be
@@ -149,7 +150,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Constant. 
    //! 
    //! <b>Throws</b>: Nothing.
-   static void swap_tree(node_ptr header1, node_ptr header2)
+   static void swap_tree(const node_ptr & header1, const node_ptr & header2)
    {  return tree_algorithms::swap_tree(header1, header2);  }
 
    //! <b>Requires</b>: node1 and node2 can't be header nodes
@@ -167,7 +168,7 @@ class node_rbtree_algorithms {
    //!   node1 and node2 are not equivalent according to the ordering rules.
    //!
    //!Experimental function
-   static void swap_nodes(node_ptr node1, node_ptr node2)
+   static void swap_nodes(const node_ptr & node1, const node_ptr & node2)
    {
       if(node1 == node2)
          return;
@@ -191,7 +192,7 @@ class node_rbtree_algorithms {
    //!   node1 and node2 are not equivalent according to the ordering rules.
    //!
    //!Experimental function
-   static void swap_nodes(node_ptr node1, node_ptr header1, node_ptr node2, node_ptr header2)
+   static void swap_nodes(const node_ptr & node1, const node_ptr & header1, const node_ptr & node2, const node_ptr & header2)
    {
       if(node1 == node2)   return;
 
@@ -218,7 +219,7 @@ class node_rbtree_algorithms {
    //!   the node, since no rebalancing and comparison is needed.
    //!
    //!Experimental function
-   static void replace_node(node_ptr node_to_be_replaced, node_ptr new_node)
+   static void replace_node(const node_ptr & node_to_be_replaced, const node_ptr & new_node)
    {
       if(node_to_be_replaced == new_node)
          return;
@@ -241,7 +242,7 @@ class node_rbtree_algorithms {
    //!   the node, since no rebalancing or comparison is needed.
    //!
    //!Experimental function
-   static void replace_node(node_ptr node_to_be_replaced, node_ptr header, node_ptr new_node)
+   static void replace_node(const node_ptr & node_to_be_replaced, const node_ptr & header, const node_ptr & new_node)
    {
       tree_algorithms::replace_node(node_to_be_replaced, header, new_node);
       NodeTraits::set_color(new_node, NodeTraits::get_color(node_to_be_replaced)); 
@@ -260,7 +261,7 @@ class node_rbtree_algorithms {
    //!   only be used for more unlink_leftmost_without_rebalance calls.
    //!   This function is normally used to achieve a step by step
    //!   controlled destruction of the tree.
-   static node_ptr unlink_leftmost_without_rebalance(node_ptr header)
+   static node_ptr unlink_leftmost_without_rebalance(const node_ptr & header)
    {  return tree_algorithms::unlink_leftmost_without_rebalance(header);   }
 
    //! <b>Requires</b>: node is a node of the tree or an node initialized
@@ -271,7 +272,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Constant time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static bool unique(const_node_ptr node)
+   static bool unique(const const_node_ptr & node)
    {  return tree_algorithms::unique(node);  }
 
    //! <b>Requires</b>: node is a node of the tree but it's not the header.
@@ -281,7 +282,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Linear time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static std::size_t count(const_node_ptr node)
+   static std::size_t count(const const_node_ptr & node)
    {  return tree_algorithms::count(node);   }
 
    //! <b>Requires</b>: header is the header node of the tree.
@@ -291,7 +292,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Linear time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static std::size_t size(const_node_ptr header)
+   static std::size_t size(const const_node_ptr & header)
    {  return tree_algorithms::size(header);   }
 
    //! <b>Requires</b>: p is a node from the tree except the header.
@@ -301,7 +302,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Average constant time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static node_ptr next_node(node_ptr p)
+   static node_ptr next_node(const node_ptr & p)
    {  return tree_algorithms::next_node(p); }
 
    //! <b>Requires</b>: p is a node from the tree except the leftmost node.
@@ -311,7 +312,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Average constant time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static node_ptr prev_node(node_ptr p)
+   static node_ptr prev_node(const node_ptr & p)
    {  return tree_algorithms::prev_node(p); }
 
    //! <b>Requires</b>: node must not be part of any tree.
@@ -323,7 +324,7 @@ class node_rbtree_algorithms {
    //! <b>Throws</b>: Nothing.
    //!
    //! <b>Nodes</b>: If node is inserted in a tree, this function corrupts the tree.
-   static void init(node_ptr node)
+   static void init(const node_ptr & node)
    {  tree_algorithms::init(node);  }
 
    //! <b>Requires</b>: node must not be part of any tree.
@@ -336,7 +337,7 @@ class node_rbtree_algorithms {
    //! <b>Throws</b>: Nothing.
    //!
    //! <b>Nodes</b>: If node is inserted in a tree, this function corrupts the tree.
-   static void init_header(node_ptr header)
+   static void init_header(const node_ptr & header)
    {
       tree_algorithms::init_header(header);
       NodeTraits::set_color(header, NodeTraits::red()); 
@@ -346,7 +347,7 @@ class node_rbtree_algorithms {
    //!   taking a node_ptr parameter and shouldn't throw.
    //!
    //! <b>Effects</b>: Empties the target tree calling 
-   //!   <tt>void disposer::operator()(node_ptr)</tt> for every node of the tree
+   //!   <tt>void disposer::operator()(const node_ptr &)</tt> for every node of the tree
    //!    except the header.
    //! 
    //! <b>Complexity</b>: Linear to the number of element of the source tree plus the.
@@ -354,7 +355,7 @@ class node_rbtree_algorithms {
    //! 
    //! <b>Throws</b>: If cloner functor throws. If this happens target nodes are disposed.
    template<class Disposer>
-   static void clear_and_dispose(node_ptr header, Disposer disposer)
+   static void clear_and_dispose(const node_ptr & header, Disposer disposer)
    {  tree_algorithms::clear_and_dispose(header, disposer); }
 
    //! <b>Requires</b>: "header" must be the header node of a tree.
@@ -371,7 +372,7 @@ class node_rbtree_algorithms {
    //! <b>Throws</b>: If "comp" throws.
    template<class KeyType, class KeyNodePtrCompare>
    static node_ptr lower_bound
-      (const_node_ptr header, const KeyType &key, KeyNodePtrCompare comp)
+      (const const_node_ptr & header, const KeyType &key, KeyNodePtrCompare comp)
    {  return tree_algorithms::lower_bound(header, key, comp);  }
 
    //! <b>Requires</b>: "header" must be the header node of a tree.
@@ -387,7 +388,7 @@ class node_rbtree_algorithms {
    //! <b>Throws</b>: If "comp" throws.
    template<class KeyType, class KeyNodePtrCompare>
    static node_ptr upper_bound
-      (const_node_ptr header, const KeyType &key, KeyNodePtrCompare comp)
+      (const const_node_ptr & header, const KeyType &key, KeyNodePtrCompare comp)
    {  return tree_algorithms::upper_bound(header, key, comp);  }
 
    //! <b>Requires</b>: "header" must be the header node of a tree.
@@ -403,7 +404,7 @@ class node_rbtree_algorithms {
    //! <b>Throws</b>: If "comp" throws.
    template<class KeyType, class KeyNodePtrCompare>
    static node_ptr find
-      (const_node_ptr header, const KeyType &key, KeyNodePtrCompare comp)
+      (const const_node_ptr & header, const KeyType &key, KeyNodePtrCompare comp)
    {  return tree_algorithms::find(header, key, comp);  }
 
    //! <b>Requires</b>: "header" must be the header node of a tree.
@@ -421,7 +422,7 @@ class node_rbtree_algorithms {
    //! <b>Throws</b>: If "comp" throws.
    template<class KeyType, class KeyNodePtrCompare>
    static std::pair<node_ptr, node_ptr> equal_range
-      (const_node_ptr header, const KeyType &key, KeyNodePtrCompare comp)
+      (const const_node_ptr & header, const KeyType &key, KeyNodePtrCompare comp)
    {  return tree_algorithms::equal_range(header, key, comp);  }
 
    //! <b>Requires</b>: "header" must be the header node of a tree.
@@ -460,7 +461,7 @@ class node_rbtree_algorithms {
    //!   if no more objects are inserted or erased from the set.
    template<class KeyType, class KeyNodePtrCompare>
    static std::pair<node_ptr, bool> insert_unique_check
-      (const_node_ptr header,  const KeyType &key
+      (const const_node_ptr & header,  const KeyType &key
       ,KeyNodePtrCompare comp, insert_commit_data &commit_data)
    {  return tree_algorithms::insert_unique_check(header, key, comp, commit_data);  }
 
@@ -505,7 +506,7 @@ class node_rbtree_algorithms {
    //!   if no more objects are inserted or erased from the set.
    template<class KeyType, class KeyNodePtrCompare>
    static std::pair<node_ptr, bool> insert_unique_check
-      (const_node_ptr header,  node_ptr hint, const KeyType &key
+      (const const_node_ptr & header, const node_ptr &hint, const KeyType &key
       ,KeyNodePtrCompare comp, insert_commit_data &commit_data)
    {  return tree_algorithms::insert_unique_check(header, hint, key, comp, commit_data);  }
 
@@ -516,7 +517,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Logarithmic.
    //! 
    //! <b>Throws</b>: Nothing.
-   static node_ptr get_header(node_ptr n)
+   static node_ptr get_header(const node_ptr & n)
    {  return tree_algorithms::get_header(n);   }
 
    /// @cond
@@ -529,7 +530,7 @@ class node_rbtree_algorithms {
    //! <b>Complexity</b>: Constant.
    //! 
    //! <b>Throws</b>: Nothing.
-   static bool is_header(const_node_ptr p)
+   static bool is_header(const const_node_ptr & p)
    {
       return NodeTraits::get_color(p) == NodeTraits::red() &&
             tree_algorithms::is_header(p);
@@ -573,8 +574,8 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
       rbtree_node_cloner(F f)
          :  base_t(f)
       {}
-
-      node_ptr operator()(node_ptr p)
+      
+      node_ptr operator()(const node_ptr & p)
       {
          node_ptr n = base_t::get()(p);
          node_traits::set_color(n, node_traits::get_color(p));
@@ -584,7 +585,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
 
    struct rbtree_erase_fixup
    {
-      void operator()(node_ptr to_erase, node_ptr successor)
+      void operator()(const node_ptr & to_erase, const node_ptr & successor)
       {
          //Swap color of y and z
          color tmp(node_traits::get_color(successor));
@@ -592,6 +593,10 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
          node_traits::set_color(to_erase, tmp);
       }
    };
+
+   static node_ptr uncast(const const_node_ptr & ptr)
+   {  return pointer_traits<node_ptr>::const_cast_from(ptr);  }
+   /// @endcond
 
    public:
    //! <b>Requires</b>: node1 and node2 can't be header nodes
@@ -696,7 +701,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Complexity</b>: Average complexity is constant time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static void unlink(node_ptr node)
+   static void unlink(const node_ptr & node)
    {
       node_ptr x = node_traits::get_parent(node);
       if(x){
@@ -714,7 +719,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Complexity</b>: Amortized constant time.
    //! 
    //! <b>Throws</b>: Nothing.
-   static node_ptr erase(node_ptr header, node_ptr z)
+   static node_ptr erase(const node_ptr & header, const node_ptr & z)
    {
       typename annotated_tree_algorithms::data_for_rebalance info;
       node_tree_algorithms::erase(header, z, rbtree_erase_fixup(), info);
@@ -735,13 +740,13 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //!   take a node_ptr and shouldn't throw.
    //!
    //! <b>Effects</b>: First empties target tree calling 
-   //!   <tt>void disposer::operator()(node_ptr)</tt> for every node of the tree
+   //!   <tt>void disposer::operator()(const node_ptr &)</tt> for every node of the tree
    //!    except the header.
    //!    
    //!   Then, duplicates the entire tree pointed by "source_header" cloning each
-   //!   source node with <tt>node_ptr Cloner::operator()(node_ptr)</tt> to obtain 
+   //!   source node with <tt>node_ptr Cloner::operator()(const node_ptr &)</tt> to obtain 
    //!   the nodes of the target tree. If "cloner" throws, the cloned target nodes
-   //!   are disposed using <tt>void disposer(node_ptr)</tt>.
+   //!   are disposed using <tt>void disposer(const node_ptr &)</tt>.
    //! 
    //! <b>Complexity</b>: Linear to the number of element of the source tree plus the.
    //!   number of elements of tree target tree when calling this function.
@@ -749,7 +754,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Throws</b>: If cloner functor throws. If this happens target nodes are disposed.
    template <class Cloner, class Disposer>
    static void clone
-      (const_node_ptr source_header, node_ptr target_header, Cloner cloner, Disposer disposer)
+      (const const_node_ptr & source_header, const node_ptr & target_header, Cloner cloner, Disposer disposer)
    {
       typename base_rbtree_algorithms::template rbtree_node_cloner<Cloner> new_cloner(cloner);
       annotated_tree_algorithms::clone(source_header, target_header, new_cloner, disposer);
@@ -769,7 +774,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Throws</b>: If "comp" throws.
    template<class NodePtrCompare>
    static node_ptr insert_equal_upper_bound
-      (node_ptr h, node_ptr new_node, NodePtrCompare comp)
+      (const node_ptr & h, const node_ptr & new_node, NodePtrCompare comp)
    {
       annotated_tree_algorithms::insert_equal_upper_bound(h, new_node, comp);
       rebalance_after_insertion(h, new_node);
@@ -790,7 +795,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Throws</b>: If "comp" throws.
    template<class NodePtrCompare>
    static node_ptr insert_equal_lower_bound
-      (node_ptr h, node_ptr new_node, NodePtrCompare comp)
+      (const node_ptr & h, const node_ptr & new_node, NodePtrCompare comp)
    {
       annotated_tree_algorithms::insert_equal_lower_bound(h, new_node, comp);
       rebalance_after_insertion(h, new_node);
@@ -813,7 +818,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Throws</b>: If "comp" throws.
    template<class NodePtrCompare>
    static node_ptr insert_equal
-      (node_ptr header, node_ptr hint, node_ptr new_node, NodePtrCompare comp)
+      (const node_ptr & header, const node_ptr & hint, const node_ptr & new_node, NodePtrCompare comp)
    {
       annotated_tree_algorithms::insert_equal(header, hint, new_node, comp);
       rebalance_after_insertion(header, new_node);
@@ -835,7 +840,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Note</b>: If "pos" is not the successor of the newly inserted "new_node"
    //! tree invariants might be broken.
    static node_ptr insert_before
-      (node_ptr header, node_ptr pos, node_ptr new_node)
+      (const node_ptr & header, const node_ptr & pos, const node_ptr & new_node)
    {
       annotated_tree_algorithms::insert_before(header, pos, new_node);
       rebalance_after_insertion(header, new_node);
@@ -855,7 +860,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Note</b>: If "new_node" is less than the greatest inserted key
    //! tree invariants are broken. This function is slightly faster than
    //! using "insert_before".
-   static void push_back(node_ptr header, node_ptr new_node)
+   static void push_back(const node_ptr & header, const node_ptr & new_node)
    {
       annotated_tree_algorithms::push_back(header, new_node);
       rebalance_after_insertion(header, new_node);
@@ -874,7 +879,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //! <b>Note</b>: If "new_node" is greater than the lowest inserted key
    //! tree invariants are broken. This function is slightly faster than
    //! using "insert_before".
-   static void push_front(node_ptr header, node_ptr new_node)
+   static void push_front(const node_ptr & header, const node_ptr & new_node)
    {
       annotated_tree_algorithms::push_front(header, new_node);
       rebalance_after_insertion(header, new_node);
@@ -898,7 +903,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    //!   previously executed to fill "commit_data". No value should be inserted or
    //!   erased between the "insert_check" and "insert_commit" calls.
    static void insert_unique_commit
-      (node_ptr header, node_ptr new_value, const insert_commit_data &commit_data)
+      (const node_ptr & header, const node_ptr & new_value, const insert_commit_data &commit_data)
    {
       node_tree_algorithms::insert_unique_commit(header, new_value, commit_data);
       rebalance_after_insertion(header, new_value);
@@ -922,9 +927,10 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
       //       node_traits::get_parent(node_traits::get_parent(p)) == p;
    }
 
-   static void rebalance_after_erasure(node_ptr header, node_ptr x, node_ptr x_parent)
+   static void rebalance_after_erasure(const node_ptr & header, const node_ptr &xnode, const node_ptr &xnode_parent)
    {
-      while(x != node_traits::get_parent(header) && (x == 0 || node_traits::get_color(x) == node_traits::black())){
+      node_ptr x(xnode), x_parent(xnode_parent);
+      while(x != node_traits::get_parent(header) && (x == node_ptr() || node_traits::get_color(x) == node_traits::black())){
          if(x == node_traits::get_left(x_parent)){
             node_ptr w = node_traits::get_right(x_parent);
             if(node_traits::get_color(w) == node_traits::red()){
@@ -933,15 +939,15 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
                node_tree_algorithms::rotate_left(x_parent, header);
                w = node_traits::get_right(x_parent);
             }
-            if((node_traits::get_left(w) == 0 || node_traits::get_color(node_traits::get_left(w))  == node_traits::black()) &&
-               (node_traits::get_right(w) == 0 || node_traits::get_color(node_traits::get_right(w)) == node_traits::black())){
+            if((node_traits::get_left(w) == node_ptr() || node_traits::get_color(node_traits::get_left(w))  == node_traits::black()) &&
+               (node_traits::get_right(w) == node_ptr() || node_traits::get_color(node_traits::get_right(w)) == node_traits::black())){
                node_traits::set_color(w, node_traits::red());
                x = x_parent;
                annotation_algorithms::update(x_parent);
                x_parent = node_traits::get_parent(x_parent);
             } 
             else {
-               if(node_traits::get_right(w) == 0 || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()){
+               if(node_traits::get_right(w) == node_ptr() || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()){
                   node_traits::set_color(node_traits::get_left(w), node_traits::black());
                   node_traits::set_color(w, node_traits::red());
                   node_tree_algorithms::rotate_right(w, header);
@@ -965,15 +971,15 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
                node_tree_algorithms::rotate_right(x_parent, header);
                w = node_traits::get_left(x_parent);
             }
-            if((node_traits::get_right(w) == 0 || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()) &&
-               (node_traits::get_left(w) == 0 || node_traits::get_color(node_traits::get_left(w)) == node_traits::black())){
+            if((node_traits::get_right(w) == node_ptr() || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()) &&
+               (node_traits::get_left(w) == node_ptr() || node_traits::get_color(node_traits::get_left(w)) == node_traits::black())){
                node_traits::set_color(w, node_traits::red());
                x = x_parent;
                annotation_algorithms::update(x_parent);
                x_parent = node_traits::get_parent(x_parent);
             }
             else {
-               if(node_traits::get_left(w) == 0 || node_traits::get_color(node_traits::get_left(w)) == node_traits::black()){
+               if(node_traits::get_left(w) == node_ptr() || node_traits::get_color(node_traits::get_left(w)) == node_traits::black()){
                   node_traits::set_color(node_traits::get_right(w), node_traits::black());
                   node_traits::set_color(w, node_traits::red());
                   node_tree_algorithms::rotate_left(w, header);
@@ -994,8 +1000,9 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
       annotation_algorithms::update_to_top(x_parent);
    }
 
-   static void rebalance_after_insertion(node_ptr header, node_ptr p)
+   static void rebalance_after_insertion(const node_ptr & header, const node_ptr &pnode)
    {
+      node_ptr p(pnode);
       node_traits::set_color(p, node_traits::red());
       while(p != node_traits::get_parent(header) && node_traits::get_color(node_traits::get_parent(p)) == node_traits::red()){
          node_ptr p_parent(node_traits::get_parent(p));

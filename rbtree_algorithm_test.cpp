@@ -86,13 +86,14 @@ void test_algo()
 	std::cout << std::endl;
 	Value::a = 0;
 	for (int i = 0; i < 50; ++i) {
-		ralgo::erase(&header, my_annotated_node_traits::node_traits::get_left(&header));
+		// XXX the explicit temporary pointer is a workaround for bug #6978
+		ralgo::erase(&header, my_annotated_node_traits::node_ptr(my_annotated_node_traits::node_traits::get_left(&header)));
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_left(&header)));
 		std::cout << i << " ";
 	}
 	std::cout << std::endl;
 	for (int i = 0; i < 50; ++i) {
-		ralgo::erase(&header, my_annotated_node_traits::node_traits::get_right(&header));
+		ralgo::erase(&header, my_annotated_node_traits::node_ptr(my_annotated_node_traits::node_traits::get_right(&header)));
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_right(&header)));
 		std::cout << i << " ";
 	}
@@ -151,13 +152,13 @@ void test_hook()
 	std::cout << std::endl;
 	ValueUsingHook::a = 0;
 	for (int i = 0; i < 50; ++i) {
-		ralgo::erase(&header, node_traits::get_left(&header));
+		ralgo::erase(&header, my_annotated_node_traits::node_ptr(node_traits::get_left(&header)));
 		check_hook(&header, static_cast<my_hook*>(node_traits::get_left(&header)));
 		std::cout << i << " ";
 	}
 	std::cout << std::endl;
 	for (int i = 0; i < 50; ++i) {
-		ralgo::erase(&header, node_traits::get_right(&header));
+		ralgo::erase(&header, my_annotated_node_traits::node_ptr(node_traits::get_right(&header)));
 		check_hook(&header, static_cast<my_hook*>(node_traits::get_right(&header)));
 		std::cout << i << " ";
 	}

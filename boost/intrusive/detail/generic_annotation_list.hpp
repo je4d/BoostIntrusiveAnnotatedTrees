@@ -50,13 +50,13 @@ struct generic_annotation_list_traits_impl
    static typename Annotation::type get_annotation_value(const_annotation_list_ptr n)
    { BOOST_STATIC_ASSERT_MSG((is_convertible<annotation_list*, annotation_holder<Annotation>*>::value),
          "get_annotation_value used for an unsupported annotation");
-     return get_annotation_value_helper<Annotation>(::boost::intrusive::detail::boost_intrusive_get_pointer(n)); }
+     return get_annotation_value_helper<Annotation>(::boost::intrusive::detail::to_raw_pointer(n)); }
 
    template <class Annotation>
    static void set_annotation_value(annotation_list_ptr n, typename Annotation::type value)
    { BOOST_STATIC_ASSERT_MSG((is_convertible<annotation_list*, annotation_holder<Annotation>*>::value),
          "get_annotation_value used for an unsupported annotation");
-     set_annotation_value_helper<Annotation>(::boost::intrusive::detail::boost_intrusive_get_pointer(n), value); }
+     set_annotation_value_helper<Annotation>(::boost::intrusive::detail::to_raw_pointer(n), value); }
 };
 
 template <class VoidPointer, class Annotations>

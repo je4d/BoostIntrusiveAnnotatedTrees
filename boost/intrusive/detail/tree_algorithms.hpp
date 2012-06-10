@@ -18,7 +18,6 @@
 #include <boost/intrusive/intrusive_fwd.hpp>
 #include <cstddef>
 #include <boost/intrusive/detail/utilities.hpp>
-//iG pending #include <boost/pointer_cast.hpp>
 #include <boost/intrusive/annotated_tree_algorithms.hpp>
 #include <boost/intrusive/trivial_annotated_node_traits.hpp>
 

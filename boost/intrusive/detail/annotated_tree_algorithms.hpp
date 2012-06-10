@@ -94,7 +94,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
 
    template<class NodePtrCompare>
    static node_ptr insert_equal
-      (node_ptr h, node_ptr hint, node_ptr new_node, NodePtrCompare comp, std::size_t *pdepth = 0)
+      (const node_ptr & h, const node_ptr & hint, const node_ptr & new_node, NodePtrCompare comp, std::size_t *pdepth = 0)
    {
       insert_commit_data commit_data;
       base_type::insert_equal_check(h, hint, new_node, comp, commit_data, pdepth);
@@ -104,7 +104,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
 
    template<class NodePtrCompare>
    static node_ptr insert_equal_upper_bound
-      (node_ptr h, node_ptr new_node, NodePtrCompare comp, std::size_t *pdepth = 0)
+      (const node_ptr & h, const node_ptr & new_node, NodePtrCompare comp, std::size_t *pdepth = 0)
    {
       insert_commit_data commit_data;
       base_type::insert_equal_upper_bound_check(h, new_node, comp, commit_data, pdepth);
@@ -114,7 +114,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
 
    template<class NodePtrCompare>
    static node_ptr insert_equal_lower_bound
-      (node_ptr h, node_ptr new_node, NodePtrCompare comp, std::size_t *pdepth = 0)
+      (const node_ptr & h, const node_ptr & new_node, NodePtrCompare comp, std::size_t *pdepth = 0)
    {
       insert_commit_data commit_data;
       base_type::insert_equal_lower_bound_check(h, new_node, comp, commit_data, pdepth);
@@ -123,7 +123,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    }
 
    static node_ptr insert_before
-      (node_ptr header, node_ptr pos, node_ptr new_node, std::size_t *pdepth = 0)
+      (const node_ptr & header, const node_ptr & pos, const node_ptr & new_node, std::size_t *pdepth = 0)
    {
       insert_commit_data commit_data;
       base_type::insert_before_check(header, pos, commit_data, pdepth);
@@ -132,7 +132,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    }
 
    static void push_back
-      (node_ptr header, node_ptr new_node, std::size_t *pdepth = 0)
+      (const node_ptr & header, const node_ptr & new_node, std::size_t *pdepth = 0)
    {
       insert_commit_data commit_data;
       base_type::push_back_check(header, commit_data, pdepth);
@@ -140,7 +140,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    }
 
    static void push_front
-      (node_ptr header, node_ptr new_node, std::size_t *pdepth = 0)
+      (const node_ptr & header, const node_ptr & new_node, std::size_t *pdepth = 0)
    {
       insert_commit_data commit_data;
       base_type::push_front_check(header, commit_data, pdepth);
@@ -214,20 +214,20 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
       replace_own_impl(p, x, header, p_old_parent, p_was_left);
    }
 
-   static void erase(node_ptr header, node_ptr z)
+   static void erase(const node_ptr & header, const node_ptr & z)
    {
       data_for_rebalance ignored;
       erase(header, z, nop_erase_fixup(), ignored);
    }
 
    template<class F>
-   static void erase(node_ptr header, node_ptr z, F z_and_successor_fixup, data_for_rebalance &info)
+   static void erase(const node_ptr & header, const node_ptr & z, F z_and_successor_fixup, data_for_rebalance &info)
    {
       base_type::erase(header, z, z_and_successor_fixup, info);
       annotation_algorithms::update_to_top(header, info.x_parent);
    }
 
-   static void unlink(node_ptr node)
+   static void unlink(const node_ptr & node)
    {
       node_ptr x = node_traits::get_parent(node);
       if(x){

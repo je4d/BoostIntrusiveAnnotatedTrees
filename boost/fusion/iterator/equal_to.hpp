@@ -1,5 +1,5 @@
 /*=============================================================================
-    Copyright (c) 2001-2006 Joel de Guzman
+    Copyright (c) 2001-2011 Joel de Guzman
 
     Distributed under the Boost Software License, Version 1.0. (See accompanying
     file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
@@ -74,7 +74,7 @@ namespace boost { namespace fusion
     {
         template <typename Iter1, typename Iter2>
         inline typename
-        enable_if<
+        boost::enable_if<
             mpl::and_<is_fusion_iterator<Iter1>, is_fusion_iterator<Iter2> >
             , bool
             >::type
@@ -85,7 +85,7 @@ namespace boost { namespace fusion
 
         template <typename Iter1, typename Iter2>
         inline typename
-        enable_if<
+        boost::enable_if<
             mpl::and_<is_fusion_iterator<Iter1>, is_fusion_iterator<Iter2> >
             , bool
             >::type

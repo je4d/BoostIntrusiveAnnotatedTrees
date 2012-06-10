@@ -42,7 +42,7 @@ struct generic_annotated_node_traits
       return node_ptr(
             static_cast<node*>(
                static_cast<annotated_node*>(
-                  ::boost::intrusive::detail::boost_intrusive_get_pointer(an))));
+                  ::boost::intrusive::detail::to_raw_pointer(an))));
    }
 
    static const_node_ptr to_node_ptr(const_annotation_list_ptr an)
@@ -50,7 +50,7 @@ struct generic_annotated_node_traits
       return const_node_ptr(
             static_cast<const node*>(
                static_cast<const annotated_node*>(
-                  ::boost::intrusive::detail::boost_intrusive_get_pointer(an))));
+                  ::boost::intrusive::detail::to_raw_pointer(an))));
    }
 
    static annotation_list_ptr to_annotation_list_ptr (node_ptr n)
@@ -58,7 +58,7 @@ struct generic_annotated_node_traits
       return annotation_list_ptr(
             static_cast<annotation_list*>(
                static_cast<annotated_node*>(
-                  ::boost::intrusive::detail::boost_intrusive_get_pointer(n))));
+                  ::boost::intrusive::detail::to_raw_pointer(n))));
    }
 
    static const_annotation_list_ptr  to_annotation_list_ptr (const_node_ptr n)
@@ -66,7 +66,7 @@ struct generic_annotated_node_traits
       return const_annotation_list_ptr(
             static_cast<const annotation_list*>(
                static_cast<const annotated_node*>(
-                  ::boost::intrusive::detail::boost_intrusive_get_pointer(n))));
+                  ::boost::intrusive::detail::to_raw_pointer(n))));
    }
 };
 

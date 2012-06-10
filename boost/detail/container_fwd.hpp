@@ -16,6 +16,13 @@
 #include <boost/config.hpp>
 #include <boost/detail/workaround.hpp>
 
+////////////////////////////////////////////////////////////////////////////////
+//                                                                            //
+// Define BOOST_DETAIL_NO_CONTAINER_FWD if you don't want this header to      //
+// forward declare standard containers.                                       //
+//                                                                            //
+////////////////////////////////////////////////////////////////////////////////
+
 #if !defined(BOOST_DETAIL_NO_CONTAINER_FWD)
 #  if defined(__SGI_STL_PORT) || defined(_STLPORT_VERSION)
      // STLport
@@ -31,13 +38,19 @@
 #    define BOOST_DETAIL_NO_CONTAINER_FWD
 #  elif defined(__GLIBCPP__) || defined(__GLIBCXX__)
      // GNU libstdc++ 3
-#    if defined(_GLIBCXX_DEBUG) || defined(_GLIBCXX_PARALLEL)
+#    if defined(_GLIBCXX_DEBUG) \
+        || defined(_GLIBCXX_PARALLEL) \
+        || defined(_GLIBCXX_PROFILE)
 #      define BOOST_DETAIL_NO_CONTAINER_FWD
+#    else
+#      if defined(__GLIBCXX__) && __GLIBCXX__ >= 20040530
+#        define BOOST_CONTAINER_FWD_COMPLEX_STRUCT
+#      endif
 #    endif
 #  elif defined(__STL_CONFIG_H)
      // generic SGI STL
      //
-     // Forward declaration seems to be okay, but it has a copule of odd
+     // Forward declaration seems to be okay, but it has a couple of odd
      // implementations.
 #    define BOOST_CONTAINER_FWD_BAD_BITSET
 #    if !defined(__STL_NON_TYPE_TMPL_PARAM_BUG)
@@ -54,8 +67,6 @@
 #  elif (defined(_YVALS) && !defined(__IBMCPP__)) || defined(_CPPLIB_VER)
      // Dinkumware Library (this has to appear after any possible replacement
      // libraries)
-     //
-     // Works fine.
 #  else
 #    define BOOST_DETAIL_NO_CONTAINER_FWD
 #  endif
@@ -108,11 +119,11 @@ namespace std
     template <class charT> struct char_traits;
 #endif
 
-    #if BOOST_CLANG
-        template <class T> struct complex;
-    #else
-        template <class T> class complex;
-    #endif
+#if defined(BOOST_CONTAINER_FWD_COMPLEX_STRUCT)
+    template <class T> struct complex;
+#else
+    template <class T> class complex;
+#endif
 
 #if !defined(BOOST_CONTAINER_FWD_BAD_DEQUE)
     template <class T, class Allocator> class deque;

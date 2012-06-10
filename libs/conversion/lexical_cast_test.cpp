@@ -110,7 +110,7 @@ void test_char32_conversions();
 
 unit_test::test_suite *init_unit_test_suite(int, char *[])
 {
-    unit_test_framework::test_suite *suite =
+    unit_test::test_suite *suite =
         BOOST_TEST_SUITE("lexical_cast unit test");
     suite->add(BOOST_TEST_CASE(test_conversion_to_char));
     suite->add(BOOST_TEST_CASE(test_conversion_to_int));
@@ -755,6 +755,16 @@ void test_conversion_from_to_integral()
     wchar_t const wzero = L'0';
     test_conversion_from_integral_to_char<T>(wzero);
     test_conversion_from_char_to_integral<T>(wzero);
+#endif
+#ifndef BOOST_NO_CHAR16_T
+    char16_t const u16zero = u'0';
+    test_conversion_from_integral_to_char<T>(u16zero);
+    test_conversion_from_char_to_integral<T>(u16zero);
+#endif
+#ifndef BOOST_NO_CHAR32_T
+    char32_t const u32zero = u'0';
+    test_conversion_from_integral_to_char<T>(u32zero);
+    test_conversion_from_char_to_integral<T>(u32zero);
 #endif
 
     BOOST_CHECK(lexical_cast<T>("-1") == static_cast<T>(-1));
