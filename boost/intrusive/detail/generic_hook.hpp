@@ -167,14 +167,14 @@ class generic_hook
       }
    }
 
-   generic_hook(const generic_hook& ) 
+   generic_hook(const generic_hook& )
    {
       if(boost_intrusive_tags::safemode_or_autounlink){
          node_algorithms::init(this->this_ptr());
       }
    }
 
-   generic_hook& operator=(const generic_hook& ) 
+   generic_hook& operator=(const generic_hook& )
    {  return *this;  }
 
    ~generic_hook()
@@ -183,13 +183,13 @@ class generic_hook
          (*this, detail::link_dispatch<boost_intrusive_tags::link_mode>());
    }
 
-   void swap_nodes(generic_hook &other) 
+   void swap_nodes(generic_hook &other)
    {
       node_algorithms::swap_nodes
          (this->this_ptr(), other.this_ptr());
    }
 
-   bool is_linked() const 
+   bool is_linked() const
    {
       //is_linked() can be only used in safe-mode or auto-unlink
       BOOST_STATIC_ASSERT(( boost_intrusive_tags::safemode_or_autounlink ));
@@ -212,8 +212,8 @@ class generic_hook
 };
 
 } //namespace detail
-} //namespace intrusive 
-} //namespace boost 
+} //namespace intrusive
+} //namespace boost
 
 #include <boost/intrusive/detail/config_end.hpp>
 

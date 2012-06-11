@@ -31,8 +31,8 @@ class tree_algorithms : public annotated_tree_algorithms<::boost::intrusive::tri
 };
 
 }  //namespace detail {
-}  //namespace intrusive 
-}  //namespace boost 
+}  //namespace intrusive
+}  //namespace boost
 
 #include <boost/intrusive/detail/config_end.hpp>
 

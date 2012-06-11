@@ -66,8 +66,8 @@ struct set_defaults
 /// @endcond
 
 //! The class template rbtree is an intrusive red-black tree container, that
-//! is used to construct intrusive set and multiset containers. The no-throw 
-//! guarantee holds only, if the value_compare object 
+//! is used to construct intrusive set and multiset containers. The no-throw
+//! guarantee holds only, if the value_compare object
 //! doesn't throw.
 //!
 //! The template parameter \c T is the type to be managed by the container.
@@ -158,7 +158,7 @@ class rbtree_impl
    //noncopyable
    BOOST_MOVABLE_BUT_NOT_COPYABLE(rbtree_impl)
 
-   enum { safemode_or_autounlink  = 
+   enum { safemode_or_autounlink  =
             (int)real_value_traits::link_mode == (int)auto_unlink   ||
             (int)real_value_traits::link_mode == (int)safe_link     };
 
@@ -249,18 +249,18 @@ class rbtree_impl
 
    typedef typename node_algorithms::insert_commit_data insert_commit_data;
 
-   //! <b>Effects</b>: Constructs an empty tree. 
-   //!   
-   //! <b>Complexity</b>: Constant. 
-   //! 
+   //! <b>Effects</b>: Constructs an empty tree.
+   //!  
+   //! <b>Complexity</b>: Constant.
+   //!
    //! <b>Throws</b>: If value_traits::node_traits::node
    //!   constructor throws (this does not happen with predefined Boost.Intrusive hooks)
    //!   or the copy constructorof the value_compare object throws. Basic guarantee.
    rbtree_impl( const value_compare &cmp = value_compare()
-              , const value_traits &v_traits = value_traits()) 
+              , const value_traits &v_traits = value_traits())
       :  data_(cmp, v_traits)
-   {  
-      annotated_node_algorithms::init_header(this->priv_header_ptr());  
+   { 
+      annotated_node_algorithms::init_header(this->priv_header_ptr()); 
       this->priv_size_traits().set_size(size_type(0));
    }
 
@@ -272,7 +272,7 @@ class rbtree_impl
    //!
    //! <b>Complexity</b>: Linear in N if [b, e) is already sorted using
    //!   comp and otherwise N * log N, where N is the distance between first and last.
-   //! 
+   //!
    //! <b>Throws</b>: If value_traits::node_traits::node
    //!   constructor throws (this does not happen with predefined Boost.Intrusive hooks)
    //!   or the copy constructor/operator() of the value_compare object throws. Basic guarantee.
@@ -291,58 +291,58 @@ class rbtree_impl
    }
 
    //! <b>Effects</b>: to-do
-   //!   
+   //!  
    rbtree_impl(BOOST_RV_REF(rbtree_impl) x)
       : data_(::boost::move(x.priv_comp()), ::boost::move(x.priv_value_traits()))
    {
-      annotated_node_algorithms::init_header(this->priv_header_ptr());  
+      annotated_node_algorithms::init_header(this->priv_header_ptr()); 
       this->priv_size_traits().set_size(size_type(0));
       this->swap(x);
    }
 
    //! <b>Effects</b>: to-do
-   //!   
-   rbtree_impl& operator=(BOOST_RV_REF(rbtree_impl) x) 
+   //!  
+   rbtree_impl& operator=(BOOST_RV_REF(rbtree_impl) x)
    {  this->swap(x); return *this;  }
 
-   //! <b>Effects</b>: Detaches all elements from this. The objects in the set 
-   //!   are not deleted (i.e. no destructors are called), but the nodes according to 
-   //!   the value_traits template parameter are reinitialized and thus can be reused. 
-   //! 
-   //! <b>Complexity</b>: Linear to elements contained in *this. 
-   //! 
+   //! <b>Effects</b>: Detaches all elements from this. The objects in the set
+   //!   are not deleted (i.e. no destructors are called), but the nodes according to
+   //!   the value_traits template parameter are reinitialized and thus can be reused.
+   //!
+   //! <b>Complexity</b>: Linear to elements contained in *this.
+   //!
    //! <b>Throws</b>: Nothing.
-   ~rbtree_impl() 
+   ~rbtree_impl()
    {}
 
    //! <b>Effects</b>: Returns an iterator pointing to the beginning of the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    iterator begin()
    {  return iterator (node_traits::get_left(this->priv_header_ptr()), this);   }
 
    //! <b>Effects</b>: Returns a const_iterator pointing to the beginning of the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator begin() const
    {  return cbegin();   }
 
    //! <b>Effects</b>: Returns a const_iterator pointing to the beginning of the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator cbegin() const
    {  return const_iterator (node_traits::get_left(this->priv_header_ptr()), this);   }
 
    //! <b>Effects</b>: Returns an iterator pointing to the end of the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    iterator end()
    {  return iterator (this->priv_header_ptr(), this);  }
@@ -350,138 +350,138 @@ class rbtree_impl
    //! <b>Effects</b>: Returns a const_iterator pointing to the end of the tree.
    //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator end() const
    {  return cend();  }
 
    //! <b>Effects</b>: Returns a const_iterator pointing to the end of the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator cend() const
    {  return const_iterator (uncast(this->priv_header_ptr()), this);  }
 
    //! <b>Effects</b>: Returns a reverse_iterator pointing to the beginning of the
    //!    reversed tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    reverse_iterator rbegin()
    {  return reverse_iterator(end());  }
 
    //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the beginning
    //!    of the reversed tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_reverse_iterator rbegin() const
    {  return const_reverse_iterator(end());  }
 
    //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the beginning
    //!    of the reversed tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_reverse_iterator crbegin() const
    {  return const_reverse_iterator(end());  }
 
    //! <b>Effects</b>: Returns a reverse_iterator pointing to the end
    //!    of the reversed tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    reverse_iterator rend()
    {  return reverse_iterator(begin());   }
 
    //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the end
    //!    of the reversed tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_reverse_iterator rend() const
    {  return const_reverse_iterator(begin());   }
 
    //! <b>Effects</b>: Returns a const_reverse_iterator pointing to the end
    //!    of the reversed tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_reverse_iterator crend() const
    {  return const_reverse_iterator(begin());   }
 
    //! <b>Precondition</b>: end_iterator must be a valid end iterator
    //!   of rbtree.
-   //! 
+   //!
    //! <b>Effects</b>: Returns a const reference to the rbtree associated to the end iterator
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
    static rbtree_impl &container_from_end_iterator(iterator end_iterator)
    {  return priv_container_from_end_iterator(end_iterator);   }
 
    //! <b>Precondition</b>: end_iterator must be a valid end const_iterator
    //!   of rbtree.
-   //! 
+   //!
    //! <b>Effects</b>: Returns a const reference to the rbtree associated to the iterator
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
    static const rbtree_impl &container_from_end_iterator(const_iterator end_iterator)
    {  return priv_container_from_end_iterator(end_iterator);   }
 
    //! <b>Precondition</b>: it must be a valid iterator
    //!   of rbtree.
-   //! 
+   //!
    //! <b>Effects</b>: Returns a const reference to the tree associated to the iterator
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
    static rbtree_impl &container_from_iterator(iterator it)
    {  return priv_container_from_iterator(it);   }
 
    //! <b>Precondition</b>: it must be a valid end const_iterator
    //!   of rbtree.
-   //! 
+   //!
    //! <b>Effects</b>: Returns a const reference to the tree associated to the end iterator
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
    static const rbtree_impl &container_from_iterator(const_iterator it)
    {  return priv_container_from_iterator(it);   }
 
    //! <b>Effects</b>: Returns the value_compare object used by the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: If value_compare copy-constructor throws.
    value_compare value_comp() const
    {  return priv_comp();   }
 
    //! <b>Effects</b>: Returns true if the container is empty.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    bool empty() const
    {  return annotated_node_algorithms::unique(this->priv_header_ptr());   }
 
    //! <b>Effects</b>: Returns the number of elements stored in the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Linear to elements contained in *this
    //!   if constant-time size option is disabled. Constant time otherwise.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    size_type size() const
    {
@@ -493,9 +493,9 @@ class rbtree_impl
    }
 
    //! <b>Effects</b>: Swaps the contents of two rbtrees.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: If the comparison functor's swap call throws.
    void swap(rbtree_impl& other)
    {
@@ -512,14 +512,14 @@ class rbtree_impl
    }
 
    //! <b>Requires</b>: value must be an lvalue
-   //! 
+   //!
    //! <b>Effects</b>: Inserts value into the tree before the upper bound.
-   //! 
+   //!
    //! <b>Complexity</b>: Average complexity for insert element is at
    //!   most logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: If the internal value_compare ordering function throws. Strong guarantee.
-   //! 
+   //!
    //! <b>Note</b>: Does not affect the validity of iterators and references.
    //!   No copy-constructors are called.
    iterator insert_equal(reference value)
@@ -537,16 +537,16 @@ class rbtree_impl
 
    //! <b>Requires</b>: value must be an lvalue, and "hint" must be
    //!   a valid iterator.
-   //! 
+   //!
    //! <b>Effects</b>: Inserts x into the tree, using "hint" as a hint to
    //!   where it will be inserted. If "hint" is the upper_bound
    //!   the insertion takes constant time (two comparisons in the worst case)
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic in general, but it is amortized
    //!   constant time if t is inserted immediately before hint.
-   //! 
+   //!
    //! <b>Throws</b>: If the internal value_compare ordering function throws. Strong guarantee.
-   //! 
+   //!
    //! <b>Note</b>: Does not affect the validity of iterators and references.
    //!   No copy-constructors are called.
    iterator insert_equal(const_iterator hint, reference value)
@@ -562,18 +562,18 @@ class rbtree_impl
       return ret;
    }
 
-   //! <b>Requires</b>: Dereferencing iterator must yield an lvalue 
+   //! <b>Requires</b>: Dereferencing iterator must yield an lvalue
    //!   of type value_type.
-   //! 
+   //!
    //! <b>Effects</b>: Inserts a each element of a range into the tree
    //!   before the upper bound of the key of each element.
-   //! 
+   //!
    //! <b>Complexity</b>: Insert range is in general O(N * log(N)), where N is the
    //!   size of the range. However, it is linear in N if the range is already sorted
    //!   by value_comp().
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Does not affect the validity of iterators and references.
    //!   No copy-constructors are called.
    template<class Iterator>
@@ -585,15 +585,15 @@ class rbtree_impl
    }
 
    //! <b>Requires</b>: value must be an lvalue
-   //! 
+   //!
    //! <b>Effects</b>: Inserts value into the tree if the value
    //!   is not already present.
-   //! 
+   //!
    //! <b>Complexity</b>: Average complexity for insert element is at
    //!   most logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Does not affect the validity of iterators and references.
    //!   No copy-constructors are called.
    std::pair<iterator, bool> insert_unique(reference value)
@@ -607,16 +607,16 @@ class rbtree_impl
 
    //! <b>Requires</b>: value must be an lvalue, and "hint" must be
    //!   a valid iterator
-   //! 
+   //!
    //! <b>Effects</b>: Tries to insert x into the tree, using "hint" as a hint
    //!   to where it will be inserted.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic in general, but it is amortized
    //!   constant time (two comparisons in the worst case)
    //!   if t is inserted immediately before hint.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Does not affect the validity of iterators and references.
    //!   No copy-constructors are called.
    iterator insert_unique(const_iterator hint, reference value)
@@ -628,17 +628,17 @@ class rbtree_impl
       return insert_unique_commit(value, commit_data);
    }
 
-   //! <b>Requires</b>: Dereferencing iterator must yield an lvalue 
+   //! <b>Requires</b>: Dereferencing iterator must yield an lvalue
    //!   of type value_type.
-   //! 
+   //!
    //! <b>Effects</b>: Tries to insert each element of a range into the tree.
-   //! 
-   //! <b>Complexity</b>: Insert range is in general O(N * log(N)), where N is the 
-   //!   size of the range. However, it is linear in N if the range is already sorted 
+   //!
+   //! <b>Complexity</b>: Insert range is in general O(N * log(N)), where N is the
+   //!   size of the range. However, it is linear in N if the range is already sorted
    //!   by value_comp().
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Does not affect the validity of iterators and references.
    //!   No copy-constructors are called.
    template<class Iterator>
@@ -655,10 +655,10 @@ class rbtree_impl
       }
    }
 
-   //! <b>Requires</b>: key_value_comp must be a comparison function that induces 
+   //! <b>Requires</b>: key_value_comp must be a comparison function that induces
    //!   the same strict weak ordering as value_compare. The difference is that
    //!   key_value_comp compares an arbitrary key with the contained values.
-   //! 
+   //!
    //! <b>Effects</b>: Checks if a value can be inserted in the container, using
    //!   a user provided key instead of the value itself.
    //!
@@ -667,16 +667,16 @@ class rbtree_impl
    //!   and false. If the value can be inserted returns true in the returned
    //!   pair boolean and fills "commit_data" that is meant to be used with
    //!   the "insert_commit" function.
-   //! 
+   //!
    //! <b>Complexity</b>: Average complexity is at most logarithmic.
    //!
    //! <b>Throws</b>: If the key_value_comp ordering function throws. Strong guarantee.
-   //! 
+   //!
    //! <b>Notes</b>: This function is used to improve performance when constructing
    //!   a value_type is expensive: if there is an equivalent value
    //!   the constructed object must be discarded. Many times, the part of the
    //!   node that is used to impose the order is much cheaper to construct
-   //!   than the value_type and this function offers the possibility to use that 
+   //!   than the value_type and this function offers the possibility to use that
    //!   part to check if the insertion will be successful.
    //!
    //!   If the check is successful, the user can construct the value_type and use
@@ -691,18 +691,18 @@ class rbtree_impl
    {
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          comp(key_value_comp, this);
-      std::pair<node_ptr, bool> ret = 
+      std::pair<node_ptr, bool> ret =
          (annotated_node_algorithms::insert_unique_check
             (this->priv_header_ptr(), key, comp, commit_data));
       return std::pair<iterator, bool>(iterator(ret.first, this), ret.second);
    }
 
-   //! <b>Requires</b>: key_value_comp must be a comparison function that induces 
+   //! <b>Requires</b>: key_value_comp must be a comparison function that induces
    //!   the same strict weak ordering as value_compare. The difference is that
    //!   key_value_comp compares an arbitrary key with the contained values.
-   //! 
+   //!
    //! <b>Effects</b>: Checks if a value can be inserted in the container, using
-   //!   a user provided key instead of the value itself, using "hint" 
+   //!   a user provided key instead of the value itself, using "hint"
    //!   as a hint to where it will be inserted.
    //!
    //! <b>Returns</b>: If there is an equivalent value
@@ -710,23 +710,23 @@ class rbtree_impl
    //!   and false. If the value can be inserted returns true in the returned
    //!   pair boolean and fills "commit_data" that is meant to be used with
    //!   the "insert_commit" function.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic in general, but it's amortized
    //!   constant time if t is inserted immediately before hint.
    //!
    //! <b>Throws</b>: If the key_value_comp ordering function throws. Strong guarantee.
-   //! 
+   //!
    //! <b>Notes</b>: This function is used to improve performance when constructing
    //!   a value_type is expensive: if there is an equivalent value
    //!   the constructed object must be discarded. Many times, the part of the
    //!   constructing that is used to impose the order is much cheaper to construct
-   //!   than the value_type and this function offers the possibility to use that key 
+   //!   than the value_type and this function offers the possibility to use that key
    //!   to check if the insertion will be successful.
    //!
    //!   If the check is successful, the user can construct the value_type and use
    //!   "insert_commit" to insert the object in constant-time. This can give a total
    //!   constant-time complexity to the insertion: check(O(1)) + commit(O(1)).
-   //!   
+   //!  
    //!   "commit_data" remains valid for a subsequent "insert_commit" only if no more
    //!   objects are inserted or erased from the container.
    template<class KeyType, class KeyValueCompare>
@@ -736,7 +736,7 @@ class rbtree_impl
    {
       detail::key_nodeptr_comp<KeyValueCompare, rbtree_impl>
          comp(key_value_comp, this);
-      std::pair<node_ptr, bool> ret = 
+      std::pair<node_ptr, bool> ret =
          (annotated_node_algorithms::insert_unique_check
             (this->priv_header_ptr(), hint.pointed_node(), key, comp, commit_data));
       return std::pair<iterator, bool>(iterator(ret.first, this), ret.second);
@@ -746,16 +746,16 @@ class rbtree_impl
    //!   must have been obtained from a previous call to "insert_check".
    //!   No objects should have been inserted or erased from the container between
    //!   the "insert_check" that filled "commit_data" and the call to "insert_commit".
-   //! 
+   //!
    //! <b>Effects</b>: Inserts the value in the avl_set using the information obtained
    //!   from the "commit_data" that a previous "insert_check" filled.
    //!
    //! <b>Returns</b>: An iterator to the newly inserted object.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant time.
    //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Notes</b>: This function has only sense if a "insert_check" has been
    //!   previously executed to fill "commit_data". No value should be inserted or
    //!   erased between the "insert_check" and "insert_commit" calls.
@@ -775,11 +775,11 @@ class rbtree_impl
    //!   once inserted according to the predicate
    //!
    //! <b>Effects</b>: Inserts x into the tree before "pos".
-   //! 
+   //!
    //! <b>Complexity</b>: Constant time.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: This function does not check preconditions so if "pos" is not
    //! the successor of "value" tree ordering invariant will be broken.
    //! This is a low-level function to be used only for performance reasons
@@ -798,11 +798,11 @@ class rbtree_impl
    //!   than the greatest inserted key
    //!
    //! <b>Effects</b>: Inserts x into the tree in the last position.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant time.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: This function does not check preconditions so if value is
    //!   less than the greatest inserted key tree ordering invariant will be broken.
    //!   This function is slightly more efficient than using "insert_before".
@@ -821,11 +821,11 @@ class rbtree_impl
    //!   than the minimum inserted key
    //!
    //! <b>Effects</b>: Inserts x into the tree in the first position.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant time.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: This function does not check preconditions so if value is
    //!   greater than the minimum inserted key tree ordering invariant will be broken.
    //!   This function is slightly more efficient than using "insert_before".
@@ -840,12 +840,12 @@ class rbtree_impl
       annotated_node_algorithms::push_front(this->priv_header_ptr(), to_insert);
    }
 
-   //! <b>Effects</b>: Erases the element pointed to by pos. 
-   //! 
-   //! <b>Complexity</b>: Average complexity for erase element is constant time. 
-   //! 
+   //! <b>Effects</b>: Erases the element pointed to by pos.
+   //!
+   //! <b>Complexity</b>: Average complexity for erase element is constant time.
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. No destructors are called.
    iterator erase(const_iterator i)
@@ -862,26 +862,26 @@ class rbtree_impl
       return ret.unconst();
    }
 
-   //! <b>Effects</b>: Erases the range pointed to by b end e. 
-   //! 
-   //! <b>Complexity</b>: Average complexity for erase range is at most 
+   //! <b>Effects</b>: Erases the range pointed to by b end e.
+   //!
+   //! <b>Complexity</b>: Average complexity for erase range is at most
    //!   O(log(size() + N)), where N is the number of elements in the range.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. No destructors are called.
    iterator erase(const_iterator b, const_iterator e)
    {  size_type n;   return private_erase(b, e, n);   }
 
    //! <b>Effects</b>: Erases all the elements with the given value.
-   //! 
+   //!
    //! <b>Returns</b>: The number of erased elements.
-   //! 
+   //!
    //! <b>Complexity</b>: O(log(size() + N).
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. No destructors are called.
    size_type erase(const_reference value)
@@ -891,11 +891,11 @@ class rbtree_impl
    //!   according to the comparison functor "comp".
    //!
    //! <b>Returns</b>: The number of erased elements.
-   //! 
+   //!
    //! <b>Complexity</b>: O(log(size() + N).
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. No destructors are called.
    template<class KeyType, class KeyValueCompare>
@@ -913,14 +913,14 @@ class rbtree_impl
 
    //! <b>Requires</b>: Disposer::operator()(pointer) shouldn't throw.
    //!
-   //! <b>Effects</b>: Erases the element pointed to by pos. 
+   //! <b>Effects</b>: Erases the element pointed to by pos.
    //!   Disposer::operator()(pointer) is called for the removed element.
-   //! 
-   //! <b>Complexity</b>: Average complexity for erase element is constant time. 
-   //! 
+   //!
+   //! <b>Complexity</b>: Average complexity for erase element is constant time.
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
-   //! <b>Note</b>: Invalidates the iterators 
+   //!
+   //! <b>Note</b>: Invalidates the iterators
    //!    to the erased elements.
    template<class Disposer>
    iterator erase_and_dispose(const_iterator i, Disposer disposer)
@@ -941,13 +941,13 @@ class rbtree_impl
    //!
    //! <b>Effects</b>: Erases all the elements with the given value.
    //!   Disposer::operator()(pointer) is called for the removed elements.
-   //! 
+   //!
    //! <b>Returns</b>: The number of erased elements.
-   //! 
+   //!
    //! <b>Complexity</b>: O(log(size() + N).
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. No destructors are called.
    template<class Disposer>
@@ -963,12 +963,12 @@ class rbtree_impl
    //!
    //! <b>Effects</b>: Erases the range pointed to by b end e.
    //!   Disposer::operator()(pointer) is called for the removed elements.
-   //! 
-   //! <b>Complexity</b>: Average complexity for erase range is at most 
+   //!
+   //! <b>Complexity</b>: Average complexity for erase range is at most
    //!   O(log(size() + N)), where N is the number of elements in the range.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators
    //!    to the erased elements.
    template<class Disposer>
@@ -982,11 +982,11 @@ class rbtree_impl
    //!   Disposer::operator()(pointer) is called for the removed elements.
    //!
    //! <b>Returns</b>: The number of erased elements.
-   //! 
+   //!
    //! <b>Complexity</b>: O(log(size() + N).
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators
    //!    to the erased elements.
    template<class KeyType, class KeyValueCompare, class Disposer>
@@ -1002,13 +1002,13 @@ class rbtree_impl
       return n;
    }
 
-   //! <b>Effects</b>: Erases all of the elements. 
-   //! 
+   //! <b>Effects</b>: Erases all of the elements.
+   //!
    //! <b>Complexity</b>: Linear to the number of elements on the container.
    //!   if it's a safe-mode or auto-unlink value_type. Constant time otherwise.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. No destructors are called.
    void clear()
@@ -1026,9 +1026,9 @@ class rbtree_impl
    //!   each node to be erased.
    //! <b>Complexity</b>: Average complexity for is at most O(log(size() + N)),
    //!   where N is the number of elements in the container.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: Invalidates the iterators (but not the references)
    //!    to the erased elements. Calls N times to disposer functor.
    template<class Disposer>
@@ -1041,19 +1041,19 @@ class rbtree_impl
    }
 
    //! <b>Effects</b>: Returns the number of contained elements with the given value
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic to the number of elements contained plus lineal
    //!   to number of objects with the given value.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    size_type count(const_reference value) const
    {  return this->count(value, priv_comp());   }
 
    //! <b>Effects</b>: Returns the number of contained elements with the given key
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic to the number of elements contained plus lineal
    //!   to number of objects with the given key.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    size_type count(const KeyType &key, KeyValueCompare comp) const
@@ -1064,27 +1064,27 @@ class rbtree_impl
 
    //! <b>Effects</b>: Returns an iterator to the first element whose
    //!   key is not less than k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    iterator lower_bound(const_reference value)
    {  return this->lower_bound(value, priv_comp());   }
 
    //! <b>Effects</b>: Returns an iterator to the first element whose
    //!   key is not less than k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator lower_bound(const_reference value) const
    {  return this->lower_bound(value, priv_comp());   }
 
    //! <b>Effects</b>: Returns an iterator to the first element whose
    //!   key is not less than k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    iterator lower_bound(const KeyType &key, KeyValueCompare comp)
@@ -1097,9 +1097,9 @@ class rbtree_impl
 
    //! <b>Effects</b>: Returns a const iterator to the first element whose
    //!   key is not less than k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    const_iterator lower_bound(const KeyType &key, KeyValueCompare comp) const
@@ -1112,9 +1112,9 @@ class rbtree_impl
 
    //! <b>Effects</b>: Returns an iterator to the first element whose
    //!   key is greater than k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    iterator upper_bound(const_reference value)
    {  return this->upper_bound(value, priv_comp());   }
@@ -1124,7 +1124,7 @@ class rbtree_impl
    //!   does not exist.
    //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    iterator upper_bound(const KeyType &key, KeyValueCompare comp)
@@ -1137,9 +1137,9 @@ class rbtree_impl
 
    //! <b>Effects</b>: Returns an iterator to the first element whose
    //!   key is greater than k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator upper_bound(const_reference value) const
    {  return this->upper_bound(value, priv_comp());   }
@@ -1149,7 +1149,7 @@ class rbtree_impl
    //!   does not exist.
    //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    const_iterator upper_bound(const KeyType &key, KeyValueCompare comp) const
@@ -1160,20 +1160,20 @@ class rbtree_impl
          (this->priv_header_ptr(), key, key_node_comp), this);
    }
 
-   //! <b>Effects</b>: Finds an iterator to the first element whose key is 
+   //! <b>Effects</b>: Finds an iterator to the first element whose key is
    //!   k or end() if that element does not exist.
    //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    iterator find(const_reference value)
    {  return this->find(value, priv_comp()); }
 
-   //! <b>Effects</b>: Finds an iterator to the first element whose key is 
+   //! <b>Effects</b>: Finds an iterator to the first element whose key is
    //!   k or end() if that element does not exist.
    //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    iterator find(const KeyType &key, KeyValueCompare comp)
@@ -1184,20 +1184,20 @@ class rbtree_impl
          (annotated_node_algorithms::find(this->priv_header_ptr(), key, key_node_comp), this);
    }
 
-   //! <b>Effects</b>: Finds a const_iterator to the first element whose key is 
+   //! <b>Effects</b>: Finds a const_iterator to the first element whose key is
    //!   k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator find(const_reference value) const
    {  return this->find(value, priv_comp()); }
 
-   //! <b>Effects</b>: Finds a const_iterator to the first element whose key is 
+   //! <b>Effects</b>: Finds a const_iterator to the first element whose key is
    //!   k or end() if that element does not exist.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    const_iterator find(const KeyType &key, KeyValueCompare comp) const
@@ -1211,9 +1211,9 @@ class rbtree_impl
    //! <b>Effects</b>: Finds a range containing all elements whose key is k or
    //!   an empty range that indicates the position where those elements would be
    //!   if they there is no elements with key k.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    std::pair<iterator,iterator> equal_range(const_reference value)
    {  return this->equal_range(value, priv_comp());   }
@@ -1221,9 +1221,9 @@ class rbtree_impl
    //! <b>Effects</b>: Finds a range containing all elements whose key is k or
    //!   an empty range that indicates the position where those elements would be
    //!   if they there is no elements with key k.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    std::pair<iterator,iterator> equal_range(const KeyType &key, KeyValueCompare comp)
@@ -1238,9 +1238,9 @@ class rbtree_impl
    //! <b>Effects</b>: Finds a range containing all elements whose key is k or
    //!   an empty range that indicates the position where those elements would be
    //!   if they there is no elements with key k.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    std::pair<const_iterator, const_iterator>
       equal_range(const_reference value) const
@@ -1249,9 +1249,9 @@ class rbtree_impl
    //! <b>Effects</b>: Finds a range containing all elements whose key is k or
    //!   an empty range that indicates the position where those elements would be
    //!   if they there is no elements with key k.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    template<class KeyType, class KeyValueCompare>
    std::pair<const_iterator, const_iterator>
@@ -1268,15 +1268,15 @@ class rbtree_impl
    //!   Cloner should yield to nodes equivalent to the original nodes.
    //!
    //! <b>Effects</b>: Erases all the elements from *this
-   //!   calling Disposer::operator()(pointer), clones all the 
+   //!   calling Disposer::operator()(pointer), clones all the
    //!   elements from src calling Cloner::operator()(const_reference )
    //!   and inserts them on *this. Copies the predicate from the source container.
    //!
    //!   If cloner throws, all cloned elements are unlinked and disposed
    //!   calling Disposer::operator()(pointer).
-   //!   
+   //!  
    //! <b>Complexity</b>: Linear to erased plus inserted elements.
-   //! 
+   //!
    //! <b>Throws</b>: If cloner throws or predicate copy assignment throws. Basic guarantee.
    template <class Cloner, class Disposer>
    void clone_from(const rbtree_impl &src, Cloner cloner, Disposer disposer)
@@ -1297,11 +1297,11 @@ class rbtree_impl
    }
 
    //! <b>Effects</b>: Unlinks the leftmost node from the tree.
-   //! 
+   //!
    //! <b>Complexity</b>: Average complexity is constant time.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Notes</b>: This function breaks the tree and the tree can
    //!   only be used for more unlink_leftmost_without_rebalance calls.
    //!   This function is normally used to achieve a step by step
@@ -1320,14 +1320,14 @@ class rbtree_impl
 
    //! <b>Requires</b>: replace_this must be a valid iterator of *this
    //!   and with_this must not be inserted in any tree.
-   //! 
+   //!
    //! <b>Effects</b>: Replaces replace_this in its position in the
    //!   tree with with_this. The tree does not need to be rebalanced.
-   //! 
-   //! <b>Complexity</b>: Constant. 
-   //! 
+   //!
+   //! <b>Complexity</b>: Constant.
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: This function will break container ordering invariants if
    //!   with_this is not equivalent to *replace_this according to the
    //!   ordering rules. This function is faster than erasing and inserting
@@ -1343,14 +1343,14 @@ class rbtree_impl
 
    //! <b>Requires</b>: value must be an lvalue and shall be in a set of
    //!   appropriate type. Otherwise the behavior is undefined.
-   //! 
+   //!
    //! <b>Effects</b>: Returns: a valid iterator i belonging to the set
    //!   that points to the value
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: This static function is available only if the <i>value traits</i>
    //!   is stateless.
    static iterator s_iterator_to(reference value)
@@ -1361,17 +1361,17 @@ class rbtree_impl
 
    //! <b>Requires</b>: value must be an lvalue and shall be in a set of
    //!   appropriate type. Otherwise the behavior is undefined.
-   //! 
+   //!
    //! <b>Effects</b>: Returns: a valid const_iterator i belonging to the
    //!   set that points to the value
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Note</b>: This static function is available only if the <i>value traits</i>
    //!   is stateless.
-   static const_iterator s_iterator_to(const_reference value) 
+   static const_iterator s_iterator_to(const_reference value)
    {
       BOOST_STATIC_ASSERT((!stateful_value_traits));
       return const_iterator (value_traits::to_node_ptr(const_cast<reference> (value)), 0);
@@ -1379,48 +1379,48 @@ class rbtree_impl
 
    //! <b>Requires</b>: value must be an lvalue and shall be in a set of
    //!   appropriate type. Otherwise the behavior is undefined.
-   //! 
+   //!
    //! <b>Effects</b>: Returns: a valid iterator i belonging to the set
    //!   that points to the value
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    iterator iterator_to(reference value)
    {  return iterator (value_traits::to_node_ptr(value), this); }
 
    //! <b>Requires</b>: value must be an lvalue and shall be in a set of
    //!   appropriate type. Otherwise the behavior is undefined.
-   //! 
+   //!
    //! <b>Effects</b>: Returns: a valid const_iterator i belonging to the
    //!   set that points to the value
-   //! 
+   //!
    //! <b>Complexity</b>: Constant.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
    const_iterator iterator_to(const_reference value) const
    {  return const_iterator (value_traits::to_node_ptr(const_cast<reference> (value)), this); }
 
    //! <b>Requires</b>: value shall not be in a tree.
-   //! 
+   //!
    //! <b>Effects</b>: init_node puts the hook of a value in a well-known default
    //!   state.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Complexity</b>: Constant time.
-   //! 
+   //!
    //! <b>Note</b>: This function puts the hook in the well-known default state
    //!   used by auto_unlink and safe hooks.
    static void init_node(reference value)
    { annotated_node_algorithms::init(value_traits::to_node_ptr(value)); }
 
    //! <b>Effects</b>: removes "value" from the container.
-   //! 
+   //!
    //! <b>Throws</b>: Nothing.
-   //! 
+   //!
    //! <b>Complexity</b>: Logarithmic time.
-   //! 
+   //!
    //! <b>Note</b>: This static function is only usable with non-constant
    //! time size containers that have stateless comparison functors.
    //!
@@ -1597,7 +1597,7 @@ template<class T, class ...Options>
 struct make_rbtree_opt
 {
    typedef typename pack_options
-      < set_defaults<T>, 
+      < set_defaults<T>,
       #if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
       O1, O2, O3, O4
       #else
@@ -1631,7 +1631,7 @@ struct make_rbtree
 {
    /// @cond
    typedef rbtree_impl
-      < typename make_rbtree_opt<T, 
+      < typename make_rbtree_opt<T,
          #if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
          O1, O2, O3, O4
          #else
@@ -1651,7 +1651,7 @@ template<class T, class O1, class O2, class O3, class O4>
 template<class T, class ...Options>
 #endif
 class rbtree
-   :  public make_rbtree<T, 
+   :  public make_rbtree<T,
       #if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
       O1, O2, O3, O4
       #else
@@ -1660,7 +1660,7 @@ class rbtree
       >::type
 {
    typedef typename make_rbtree
-      <T, 
+      <T,
       #if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
       O1, O2, O3, O4
       #else
@@ -1714,8 +1714,8 @@ class rbtree
 #endif
 
 
-} //namespace intrusive 
-} //namespace boost 
+} //namespace intrusive
+} //namespace boost
 
 #include <boost/intrusive/detail/config_end.hpp>
 
