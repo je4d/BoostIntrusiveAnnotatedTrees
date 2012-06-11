@@ -162,7 +162,7 @@ void load_builtins()
 
     {
         const char * args[] = { "string", ":", "delimiters" };
-        bind_builtin( "SPLIT_BY_CHARACTERS", 
+        bind_builtin( "SPLIT_BY_CHARACTERS",
                       builtin_split_by_characters, 0, 0 );
     }
 
@@ -207,9 +207,9 @@ void load_builtins()
       }
 
       {
-          const char * args[] = { "targets", "*", 
+          const char * args[] = { "targets", "*",
                             ":", "log", "?",
-                            ":", "ignore-minus-n", "?", 
+                            ":", "ignore-minus-n", "?",
                             ":", "ignore-minus-q", "?", 0 };
           bind_builtin( "UPDATE_NOW",
                         builtin_update_now, 0, args );
@@ -481,7 +481,7 @@ LIST * builtin_depends( FRAME * frame, int flags )
     LIST * targets = lol_get( frame->args, 0 );
     LIST * sources = lol_get( frame->args, 1 );
     LISTITER iter, end;
-    
+
     iter = list_begin( targets ), end = list_end( targets );
     for ( ; iter != end; iter = list_next( iter ) )
     {
@@ -944,15 +944,19 @@ LIST * builtin_split_by_characters( FRAME * frame, int flags )
     LIST * l2 = lol_get( frame->args, 1 );
 
     LIST * result = L0;
-    
+
     string buf[ 1 ];
 
-    const char * delimiters = object_str( list_front( l2 ) );
+    const char * delimiters;
     char * t;
 
-    string_copy( buf, object_str( list_front( l1 ) ) );
+    if ( list_empty( l1 ) || list_empty( l2 ) )
+        return L0;
 
-    t = strtok( buf->value, delimiters) ;
+    string_copy( buf, object_str( list_front( l1 ) ) );
+    delimiters = object_str( list_front( l2 ) );
+
+    t = strtok( buf->value, delimiters ) ;
     while ( t )
     {
         result = list_push_back( result, object_new( t ) );
@@ -1365,7 +1369,7 @@ LIST * builtin_update_now( FRAME * frame, int flags )
     int original_stderr = 0;
     int original_noexec = 0;
     int original_quitquick = 0;
-	
+
 
     if ( !list_empty( log ) )
     {
@@ -1417,7 +1421,7 @@ LIST * builtin_update_now( FRAME * frame, int flags )
     }
 
     last_update_now_status = status;
-	
+
     if ( status == 0 )
         return list_new( object_copy( constant_ok ) );
     else
@@ -1754,7 +1758,7 @@ LIST *builtin_precious( FRAME * frame, int flags )
     LIST * targets = lol_get(frame->args, 0);
 
     LISTITER iter = list_begin( targets ), end = list_end( targets );
-    for ( ; iter != end; iter = list_next( iter ) )    
+    for ( ; iter != end; iter = list_next( iter ) )
     {
         TARGET* t = bindtarget( list_item( iter ) );
         t->flags |= T_FLAG_PRECIOUS;
@@ -1791,7 +1795,7 @@ LIST *builtin_makedir( FRAME * frame, int flags )
     else
     {
         return L0;
-    }    
+    }
 }
 
 #ifdef HAVE_PYTHON
@@ -1973,10 +1977,10 @@ PyObject* bjam_call( PyObject * self, PyObject * args )
 
 
 /*
- * Accepts four arguments: 
+ * Accepts four arguments:
  * - module name
  * - rule name,
- * - Python callable. 
+ * - Python callable.
  * - (optional) bjam language function signature.
  * Creates a bjam rule with the specified name in the specified module, which will
  * invoke the Python callable.
@@ -1993,7 +1997,7 @@ PyObject * bjam_import_rule( PyObject * self, PyObject * args )
     OBJECT   * module_name;
     OBJECT   * rule_name;
 
-    if ( !PyArg_ParseTuple( args, "ssO|O:import_rule", 
+    if ( !PyArg_ParseTuple( args, "ssO|O:import_rule",
                             &module, &rule, &func, &bjam_signature ) )
         return NULL;
 

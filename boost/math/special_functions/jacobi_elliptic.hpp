@@ -8,6 +8,8 @@
 #define BOOST_MATH_JACOBI_ELLIPTIC_HPP
 
 #include <boost/math/tools/precision.hpp>
+#include <boost/math/tools/promotion.hpp>
+#include <boost/math/policies/error_handling.hpp>
 
 namespace boost{ namespace math{
 
@@ -138,7 +140,7 @@ inline typename tools::promote_args<T>::type jacobi_elliptic(T k, T theta, T* pc
 }
 
 template <class T>
-inline typename tools::promote_args<T>::type jacobi_elliptic(T k, T theta, T* pcn = 0, T* pdn = 0)
+inline typename tools::promote_args<T>::type jacobi_elliptic(T k, T theta, T* pcn, T* pdn)
 {
    return jacobi_elliptic(k, theta, pcn, pdn, policies::policy<>());
 }
