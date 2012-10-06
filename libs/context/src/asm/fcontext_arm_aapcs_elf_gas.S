@@ -26,7 +26,7 @@
  *  -------------------------------------------------------------  *
  *  | 0x2c| 0x30|                                               |  *
  *  -------------------------------------------------------------  *
- *  |sbase|slimit|                                              |  *
+ *  |  sp | size|                                               |  *
  *  -------------------------------------------------------------  *
  *  -------------------------------------------------------------  *
  *  |  13 |  14 | 15 |  16 |  17 |  18 |  19 |  20 |  21 |  22  |  *
@@ -77,24 +77,26 @@ jump_fcontext:
 .align 2
 .type make_fcontext,%function
 make_fcontext:
-    str     a2, [a1,#40]        @ save address of context function
-    ldr     a2, [a1,#44]        @ load address of context stack base
+    stmfd   sp!, {a1-a3,lr}     @ save arguments of make_fcontext and return address on stack, SP % 8 == 0
+    sub     a1, #116            @ reserve space for fcontext_t at top of context stack
+    bl      align_stack@PLT     @ call align_stack, A1 contains address at 16 byte boundary after return
+                                @ == pointer to fcontext_t and address of context stack
 
-    push    {a1,lr}             @ save pointer to fcontext_t
-    mov     a1, a2              @ context stack pointer as arg for align_stack
-    bl      align_stack@PLT     @ call align_stack
-    mov     a2, a1              @ begin of aligned context stack
-    pop     {a1,lr}             @ restore pointer to fcontext_t
+    ldmfd   sp!, {a2-a4,lr}     @ restore arguments of make_fcontext and return address from stack
+    str     a2, [a1,#44]        @ save address of context stack (base) in fcontext_t
+    str     a3, [a1,#48]        @ save context stack size in fcontext_t
+    str     a4, [a1,#40]        @ save address of context function in fcontext_t
 
-    str     a2, [a1,#32]        @ save the aligned context stack base
+    str     a1, [a1,#32]        @ save address in A1 as stack pointer for context function
 
-    adr     a2, finish          @ address of finish; called after context function returns
-    str     a2, [a1,#36]
+    adr     a2, finish          @ compute abs address of label finish
+    str     a2, [a1,#36]        @ save address of finish as return address for context function
+                                @ entered after context function returns
 
-    mov     a1, #0
     bx      lr
 
 finish:
+    @ SP points to same address as SP on entry of context function
     mov     a1, #0              @ exit code is zero
     bl      _exit@PLT           @ exit application
 .size make_fcontext,.-make_fcontext

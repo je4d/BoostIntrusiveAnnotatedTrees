@@ -91,6 +91,23 @@ void expected_results()
    //
    // Catch all cases come last:
    //
+   if(std::numeric_limits<long double>::digits > 54)
+   {
+      add_expected_result(
+         "[^|]*",                          // compiler
+         "[^|]*",                          // stdlib
+         "[^|]*",                          // platform
+         largest_type,                     // test type(s)
+         "[^|]*large[^|]*",                // test data group
+         "[^|]*", 2000000, 200000);        // test function
+      add_expected_result(
+         "[^|]*",                          // compiler
+         "[^|]*",                          // stdlib
+         "[^|]*",                          // platform
+         "double",                         // test type(s)
+         "[^|]*large[^|]*",                // test data group
+         "[^|]*", 500, 100);               // test function
+   }
    add_expected_result(
       "[^|]*",                          // compiler
       "[^|]*",                          // stdlib
@@ -105,6 +122,13 @@ void expected_results()
       largest_type,                     // test type(s)
       "[^|]*large[^|]*",                // test data group
       "[^|]*", 1500, 300);              // test function
+   add_expected_result(
+      "[^|]*",                          // compiler
+      "[^|]*",                          // stdlib
+      "[^|]*",                          // platform
+      largest_type,                     // test type(s)
+      "[^|]*small[^|]*",                // test data group
+      "[^|]*", 400, 100);              // test function
    add_expected_result(
       "[^|]*",                          // compiler
       "[^|]*",                          // stdlib
@@ -604,9 +628,13 @@ void test_big_df(RealType)
     BOOST_CHECK_CLOSE_FRACTION(quantile(infdf10, 0.5), static_cast<RealType>(10), tolerance);
     BOOST_CHECK_CLOSE_FRACTION(quantile(maxdf10, 0.5), static_cast<RealType>(10), tolerance);
 
+    BOOST_TEST_MESSAGE("non_central_t_distribution<RealType> infdf100(inf, 100);");
     non_central_t_distribution<RealType> infdf100(inf, 100);
+    BOOST_TEST_MESSAGE("non_central_t_distribution<RealType> maxdf100(max_val, 100);");
     non_central_t_distribution<RealType> maxdf100(max_val, 100);
+    BOOST_TEST_MESSAGE("BOOST_CHECK_CLOSE_FRACTION(quantile(infdf100, 0.5), static_cast<RealType>(100), tolerance);");
     BOOST_CHECK_CLOSE_FRACTION(quantile(infdf100, 0.5), static_cast<RealType>(100), tolerance);
+    BOOST_TEST_MESSAGE("BOOST_CHECK_CLOSE_FRACTION(quantile(maxdf100, 0.5), static_cast<RealType>(100), tolerance);");
     BOOST_CHECK_CLOSE_FRACTION(quantile(maxdf100, 0.5), static_cast<RealType>(100), tolerance);
     { // Loop back.
       RealType p = static_cast<RealType>(0.01);

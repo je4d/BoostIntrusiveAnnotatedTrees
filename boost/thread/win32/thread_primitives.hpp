@@ -10,7 +10,7 @@
 //  accompanying file LICENSE_1_0.txt or copy at
 //  http://www.boost.org/LICENSE_1_0.txt)
 
-#include <boost/config.hpp>
+#include <boost/thread/detail/config.hpp>
 #include <boost/throw_exception.hpp>
 #include <boost/assert.hpp>
 #include <boost/thread/exceptions.hpp>
@@ -299,7 +299,7 @@ namespace boost
     }
 }
 
-#if defined(BOOST_MSVC) && (_MSC_VER>=1400)  && !defined(UNDER_CE)
+#if (defined(BOOST_MSVC) || defined(BOOST_INTEL_WIN)) && (_MSC_VER>=1400)  && !defined(UNDER_CE)
 
 namespace boost
 {
@@ -332,7 +332,7 @@ namespace boost
     }
 }
 #define BOOST_THREAD_BTS_DEFINED
-#elif (defined(BOOST_MSVC) || defined(BOOST_INTEL_WIN)) && defined(_M_IX86)
+#elif defined(BOOST_MSVC) && defined(_M_IX86)
 namespace boost
 {
     namespace detail
@@ -341,7 +341,7 @@ namespace boost
         {
             inline bool interlocked_bit_test_and_set(long* x,long bit)
             {
-#if 0
+#ifndef BOOST_INTEL_CXX_VERSION
                 __asm {
                     mov eax,bit;
                     mov edx,x;
@@ -349,7 +349,7 @@ namespace boost
                     setc al;
                 };
 #else
-                bool ret;
+                bool ret=false;
                 __asm {
                     mov eax,bit; mov edx,x; lock bts [edx],eax; setc al; mov ret, al
                 };
@@ -360,7 +360,7 @@ namespace boost
 
             inline bool interlocked_bit_test_and_reset(long* x,long bit)
             {
-#if 0
+#ifndef BOOST_INTEL_CXX_VERSION
                 __asm {
                     mov eax,bit;
                     mov edx,x;
@@ -368,9 +368,7 @@ namespace boost
                     setc al;
                 };
 #else
-
-
-                bool ret;
+                bool ret=false;
                 __asm {
                     mov eax,bit; mov edx,x; lock btr [edx],eax; setc al; mov ret, al
                 };

@@ -320,8 +320,8 @@ namespace boost
 
 
             value_type guess = 0;
-            if (boost::math::isinf(v))
-            { // Infinite degrees of freedom, so use normal distribution located at delta.
+            if ( (boost::math::isinf(v)) || (v > 1 / boost::math::tools::epsilon<T>()) )
+            { // Infinite or very large degrees of freedom, so use normal distribution located at delta.
                normal_distribution<T, Policy> n(delta, 1);
                if (p < q)
                {
@@ -331,11 +331,11 @@ namespace boost
                {
                  return quantile(complement(n, q));
                }
-             }
+            }
             else if(v > 3)
             { // Use normal distribution to calculate guess.
-               value_type mean = delta * sqrt(v / 2) * tgamma_delta_ratio((v - 1) * 0.5f, T(0.5f));
-               value_type var = ((delta * delta + 1) * v) / (v - 2) - mean * mean;
+               value_type mean = (v > 1 / policies::get_epsilon<T, Policy>()) ? delta : delta * sqrt(v / 2) * tgamma_delta_ratio((v - 1) * 0.5f, T(0.5f));
+               value_type var = (v > 1 / policies::get_epsilon<T, Policy>()) ? 1 : (((delta * delta + 1) * v) / (v - 2) - mean * mean);
                if(p < q)
                   guess = quantile(normal_distribution<value_type, forwarding_policy>(mean, var), p);
                else
@@ -522,8 +522,9 @@ namespace boost
             BOOST_MATH_STD_USING
             if (v > 1 / boost::math::tools::epsilon<T>() )
             {
-              normal_distribution<T, Policy> n(delta, 1);
-              return boost::math::mean(n); 
+              //normal_distribution<T, Policy> n(delta, 1);
+              //return boost::math::mean(n); 
+              return delta;
             }
             else
             {
@@ -539,7 +540,10 @@ namespace boost
             {
                return 1;
             }
-
+            if (delta == 0)
+            {  // == Student's t
+              return v / (v - 2);
+            }
             T result = ((delta * delta + 1) * v) / (v - 2);
             T m = mean(v, delta, pol);
             result -= m * m;
@@ -553,6 +557,10 @@ namespace boost
             if (boost::math::isinf(v))
             {
                return 0;
+            }
+            if(delta == 0)
+            { // == Student's t
+              return 0;
             }
             T mean = boost::math::detail::mean(v, delta, pol);
             T l2 = delta * delta;
@@ -571,6 +579,10 @@ namespace boost
             if (boost::math::isinf(v))
             {
                return 3;
+            }
+            if (delta == 0)
+            { // == Student's t
+              return 3;
             }
             T mean = boost::math::detail::mean(v, delta, pol);
             T l2 = delta * delta;

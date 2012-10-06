@@ -23,6 +23,8 @@
 #include <boost/bind.hpp>
 #include <stdlib.h>
 #include <memory>
+//#include <vector>
+//#include <utility>
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/remove_reference.hpp>
 #include <boost/io/ios_state.hpp>
@@ -69,10 +71,13 @@ namespace boost
                 f(f_)
             {}
 #endif
+            //thread_data() {}
+
             void run()
             {
                 f();
             }
+
         private:
             F f;
         };
@@ -364,29 +369,17 @@ namespace boost
 #endif
 #if defined(BOOST_THREAD_PLATFORM_WIN32)
         bool timed_join(const system_time& abs_time);
-
-#ifdef BOOST_THREAD_USES_CHRONO
-        bool try_join_until(const chrono::time_point<chrono::system_clock, chrono::nanoseconds>& tp);
-//        bool try_join_until(const chrono::time_point<chrono::system_clock, chrono::nanoseconds>& tp)
-//        {
-//          if (this_thread::get_id() == get_id())
-//          {
-//            boost::throw_exception(thread_resource_error(system::errc::resource_deadlock_would_occur, "boost thread: trying joining itself"));
-//          }
-//          detail::thread_data_ptr local_thread_info=(get_thread_info)();
-//          if(local_thread_info)
-//          {
-//            chrono::milliseconds rel_time= chrono::ceil<chrono::milliseconds>(tp-chrono::system_clock::now());
-//            if(!this_thread::interruptible_wait(local_thread_info->thread_handle,rel_time.count()))
-//            {
-//                return false;
-//            }
-//            release_handle();
-//          }
-//          return true;
-//        }
-#endif
+    private:
+        bool do_try_join_until(uintmax_t milli);
     public:
+#ifdef BOOST_THREAD_USES_CHRONO
+        bool try_join_until(const chrono::time_point<chrono::system_clock, chrono::nanoseconds>& tp)
+        {
+          chrono::milliseconds rel_time= chrono::ceil<chrono::milliseconds>(tp-chrono::system_clock::now());
+          return do_try_join_until(rel_time.count());
+        }
+#endif
+
 
 #else
         bool timed_join(const system_time& abs_time)
@@ -418,7 +411,7 @@ namespace boost
             return timed_join(get_system_time()+rel_time);
         }
 
-        void detach() BOOST_NOEXCEPT;
+        void detach();
 
         static unsigned hardware_concurrency() BOOST_NOEXCEPT;
 

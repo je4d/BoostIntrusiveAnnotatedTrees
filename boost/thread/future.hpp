@@ -102,20 +102,20 @@ namespace boost
   BOOST_SCOPED_ENUM_DECLARE_END(future_status)
 
   BOOST_THREAD_DECL
-  const system::error_category& future_category();
+  const system::error_category& future_category() BOOST_NOEXCEPT;
 
   namespace system
   {
     inline
     error_code
-    make_error_code(future_errc e)
+    make_error_code(future_errc e) //BOOST_NOEXCEPT
     {
         return error_code(underlying_cast<int>(e), boost::future_category());
     }
 
     inline
     error_condition
-    make_error_condition(future_errc e)
+    make_error_condition(future_errc e) //BOOST_NOEXCEPT
     {
         return error_condition(underlying_cast<int>(e), future_category());
     }
@@ -137,14 +137,13 @@ namespace boost
         return ec_;
       }
 
-      //virtual ~future_error() BOOST_NOEXCEPT;
   };
 
     class BOOST_SYMBOL_VISIBLE future_uninitialized:
         public future_error
     {
     public:
-        future_uninitialized():
+        future_uninitialized() :
           future_error(system::make_error_code(future_errc::no_state))
         {}
     };
@@ -179,7 +178,6 @@ namespace boost
     public:
         task_already_started():
         future_error(system::make_error_code(future_errc::promise_already_satisfied))
-            //std::logic_error("Task already started")
         {}
     };
 
@@ -189,7 +187,6 @@ namespace boost
         public:
             task_moved():
               future_error(system::make_error_code(future_errc::no_state))
-                //std::logic_error("Task moved")
             {}
         };
 
@@ -199,7 +196,6 @@ namespace boost
             public:
                   promise_moved():
                   future_error(system::make_error_code(future_errc::no_state))
-                    //std::logic_error("Promise moved")
                 {}
             };
 
@@ -602,7 +598,7 @@ namespace boost
                 {
                     for(count_type i=0;i<count;++i)
                     {
-#if defined __DECCXX || defined __SUNPRO_CC
+#if defined __DECCXX || defined __SUNPRO_CC || defined __hpux
                         locks[i]=boost::unique_lock<boost::mutex>(futures[i].future_->mutex).move();
 #else
                         locks[i]=boost::unique_lock<boost::mutex>(futures[i].future_->mutex);
@@ -1219,6 +1215,11 @@ namespace boost
             future_->mark_exceptional_finish_internal(p);
         }
 
+        // setting the result with deferred notification
+        //void set_value_at_thread_exit(const R& r); // NOT YET IMPLEMENTED
+        //void set_value_at_thread_exit(see below); // NOT YET IMPLEMENTED
+        //void set_exception_at_thread_exit(exception_ptr p); // NOT YET IMPLEMENTED
+
         template<typename F>
         void set_wait_callback(F f)
         {
@@ -1411,6 +1412,8 @@ namespace boost
         };
 
 
+
+
         template<typename R,typename F>
         struct task_object:
             task_base<R>
@@ -1448,6 +1451,34 @@ namespace boost
             }
         };
 
+            template<typename R>
+            struct task_object<R,R (*)()>:
+                task_base<R>
+            {
+            private:
+              task_object(task_object&);
+            public:
+                R (*f)();
+                task_object(R (*f_)()):
+                    f(f_)
+                {}
+                void do_run()
+                {
+                    try
+                    {
+                        this->mark_finished_with_result(f());
+                    }
+                    catch(thread_interrupted& )
+                    {
+                        this->mark_interrupted_finish();
+                    }
+                    catch(...)
+                    {
+                        this->mark_exceptional_finish();
+                    }
+                }
+            };
+
         template<typename F>
         struct task_object<void,F>:
             task_base<void>
@@ -1475,6 +1506,35 @@ namespace boost
                 {
                     f();
                     this->mark_finished_with_result();
+                }
+                catch(thread_interrupted& )
+                {
+                    this->mark_interrupted_finish();
+                }
+                catch(...)
+                {
+                    this->mark_exceptional_finish();
+                }
+            }
+        };
+
+        template<>
+        struct task_object<void,void (*)()>:
+            task_base<void>
+        {
+        private:
+          task_object(task_object&);
+        public:
+            void (*f)();
+            task_object(void (*f_)()):
+                f(f_)
+            {}
+            void do_run()
+            {
+                try
+                {
+                  f();
+                  this->mark_finished_with_result();
                 }
                 catch(thread_interrupted& )
                 {
@@ -1665,15 +1725,46 @@ namespace boost
 
     BOOST_THREAD_DCL_MOVABLE_BEG(T) packaged_task<T> BOOST_THREAD_DCL_MOVABLE_END
 
+
+        template <class R>
+        BOOST_THREAD_FUTURE<R>
+        async(launch policy, R(*f)())
+        {
+            if (int(policy) & int(launch::async))
+            {
+              packaged_task<R> pt( f );
+
+              BOOST_THREAD_FUTURE<R> ret = pt.get_future();
+              boost::thread( boost::move(pt) ).detach();
+              return ::boost::move(ret);
+            }
+            else if (int(policy) & int(launch::deferred))
+            {
+              packaged_task<R> pt( f );
+
+              BOOST_THREAD_FUTURE<R> ret = pt.get_future();
+              return ::boost::move(ret);
+            } else {
+              BOOST_THREAD_FUTURE<R> ret;
+              return ::boost::move(ret);
+            }
+        }
+
+        template <class R>
+        BOOST_THREAD_FUTURE<R>
+        async(R(*f)())
+        {
+            return async(launch::any, f);
+        }
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
     template <class F>
-    BOOST_THREAD_FUTURE<typename boost::result_of<F()>::type>
-    async(launch policy, F f)
+    BOOST_THREAD_FUTURE<typename boost::result_of<typename decay<F>::type()>::type>
+    async(launch policy, BOOST_THREAD_FWD_REF(F)  f)
     {
-        typedef typename boost::result_of<F()>::type R;
-        //typedef BOOST_THREAD_FUTURE<R> future;
+        typedef typename boost::result_of<typename decay<F>::type()>::type R;
         if (int(policy) & int(launch::async))
         {
-          packaged_task<R> pt( f );
+          packaged_task<R> pt( boost::forward<F>(f) );
 
           BOOST_THREAD_FUTURE<R> ret = pt.get_future();
           boost::thread( boost::move(pt) ).detach();
@@ -1681,7 +1772,7 @@ namespace boost
         }
         else if (int(policy) & int(launch::deferred))
         {
-          packaged_task<R> pt( f );
+          packaged_task<R> pt( boost::forward<F>(f) );
 
           BOOST_THREAD_FUTURE<R> ret = pt.get_future();
           return ::boost::move(ret);
@@ -1690,15 +1781,77 @@ namespace boost
           return ::boost::move(ret);
         }
     }
-
     template <class F>
     BOOST_THREAD_FUTURE<typename boost::result_of<F()>::type>
-    async(F f)
+    async(BOOST_THREAD_RV_REF(F) f)
     {
-        return async(launch::any, f);
+        return async(launch::any, boost::forward<F>(f));
+    }
+#else
+
+//    template <class F>
+//    BOOST_THREAD_FUTURE<typename boost::result_of<typename decay<F>::type()>::type>
+//    async(launch policy, F const& f)
+//    {
+//        typedef typename boost::result_of<typename decay<F>::type()>::type R;
+//        if (int(policy) & int(launch::async))
+//        {
+//          packaged_task<R> pt( f );
+//
+//          BOOST_THREAD_FUTURE<R> ret = pt.get_future();
+//          boost::thread( boost::move(pt) ).detach();
+//          return ::boost::move(ret);
+//        }
+//        else if (int(policy) & int(launch::deferred))
+//        {
+//          packaged_task<R> pt( f );
+//
+//          BOOST_THREAD_FUTURE<R> ret = pt.get_future();
+//          return ::boost::move(ret);
+//        } else {
+//          BOOST_THREAD_FUTURE<R> ret;
+//          return ::boost::move(ret);
+//        }
+//    }
+//    template <class F>
+//    BOOST_THREAD_FUTURE<typename boost::result_of<F()>::type>
+//    async(F const& f)
+//    {
+//        return async(launch::any, f);
+//    }
+
+    template <class F>
+    BOOST_THREAD_FUTURE<typename boost::result_of<typename decay<F>::type()>::type>
+    async(launch policy, BOOST_THREAD_FWD_REF(F)  f)
+    {
+        typedef typename boost::result_of<typename decay<F>::type()>::type R;
+        if (int(policy) & int(launch::async))
+        {
+          packaged_task<R> pt( boost::forward<F>(f) );
+
+          BOOST_THREAD_FUTURE<R> ret = pt.get_future();
+          boost::thread( boost::move(pt) ).detach();
+          return ::boost::move(ret);
+        }
+        else if (int(policy) & int(launch::deferred))
+        {
+          packaged_task<R> pt( boost::forward<F>(f) );
+
+          BOOST_THREAD_FUTURE<R> ret = pt.get_future();
+          return ::boost::move(ret);
+        } else {
+          BOOST_THREAD_FUTURE<R> ret;
+          return ::boost::move(ret);
+        }
+    }
+    template <class F>
+    BOOST_THREAD_FUTURE<typename boost::result_of<F()>::type>
+    async(BOOST_THREAD_FWD_REF(F) f)
+    {
+        return async(launch::any, boost::forward<F>(f));
     }
 
-
+#endif
 
 }
 

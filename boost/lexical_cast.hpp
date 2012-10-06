@@ -113,7 +113,7 @@ namespace boost
         }
 
 #ifndef BOOST_NO_NOEXCEPT
-        virtual const char *what() noexcept
+        virtual const char *what() const noexcept
 #else
         virtual const char *what() const throw()
 #endif
@@ -1361,7 +1361,7 @@ namespace boost {
                 if (put_inf_nan(begin, end, val)) return true;
                 const double val_as_double = val;
                 end = begin + 
-#if defined(_MSC_VER) && !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
+#if defined(_MSC_VER) && (_MSC_VER >= 1400) && !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
                     sprintf_s(begin, end-begin,
 #else
                     sprintf(begin, 
@@ -1374,7 +1374,7 @@ namespace boost {
             {   using namespace std;
                 if (put_inf_nan(begin, end, val)) return true;
                 end = begin + 
-#if defined(_MSC_VER) && !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
+#if defined(_MSC_VER) && (_MSC_VER >= 1400) && !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
                     sprintf_s(begin, end-begin,
 #else
                     sprintf(begin, 
@@ -1388,7 +1388,7 @@ namespace boost {
             {   using namespace std;
                 if (put_inf_nan(begin, end, val)) return true;
                 end = begin + 
-#if defined(_MSC_VER) && !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
+#if defined(_MSC_VER) && (_MSC_VER >= 1400) && !defined(__SGI_STL_PORT) && !defined(_STLPORT_VERSION)
                     sprintf_s(begin, end-begin,
 #else
                     sprintf(begin, 
@@ -2298,6 +2298,17 @@ namespace boost {
         >::type caster_type;
 
         return caster_type::lexical_cast_impl(arg);
+    }
+
+    template <typename Target, typename CharType>
+    inline Target lexical_cast(const CharType* chars, std::size_t count)
+    {
+        BOOST_STATIC_ASSERT_MSG(::boost::detail::is_char_or_wchar<CharType>::value, 
+            "CharType must be a character or wide character type");
+
+        return ::boost::lexical_cast<Target>(
+            ::boost::iterator_range<const CharType*>(chars, chars + count)
+        );
     }
 
 } // namespace boost

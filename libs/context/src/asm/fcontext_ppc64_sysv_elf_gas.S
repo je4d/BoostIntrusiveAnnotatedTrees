@@ -47,7 +47,7 @@
  *  -------------------------------------------------------------  *
  *  | 184 | 188 | 192 | 196 |                                   |  *
  *  -------------------------------------------------------------  *
- *  |   sbase   |   slimt   |                                   |  *
+ *  |    sp     |    size   |                                   |  *
  *  -------------------------------------------------------------  *
  *  -------------------------------------------------------------  *
  *  |  50 |  51 |  52 |  53 |  54 |  55 |  56 |  57 |  58 |  59 |  *
@@ -212,38 +212,49 @@ make_fcontext:
 .type .make_fcontext,@function
 .globl .make_fcontext
 .make_fcontext:
-    std     %r4, 176(%r3)       # save address of context function
-    ld      %r0, 184(%r3)       # load address of context stack base
+    mflr    %r0                 # save return address into R0
+    std     %r0, 8(%r1)         # save return address on stack, set up stack frame
+    stdu    %r1, -96(%r1)       # allocate stack space, SP % 16 == 0
 
-    li      %r4, 56
-    subf    %r1, %r4, %r1       # reserve space on stack
-    stw     %r3, 48(%r1)        # store pointer to fcontext_t on stack
-    mflr    %r4                 # load LR
-    stw     %r4, 40(%r1)        # store LR on stack
-    mr.     %r3, %r0            # context stack as arg to align_stack
-    bl      align_stack@plt     # call align_stack
-    mr.     %r0, %r3            # load result into R0
-    lwz     %r4, 40(%r1)        # pop LR from stack
-    mtlr    %r4                 # restore LR
-    lwz     %r3, 48(%r1)        # pop pointer to fcontext_t from stack
-    addi    %r1, %r1, 56        # release space on stack
+    std     %r5, 64(%r1)        # save 3. arg of make_fcontext, pointer to context function 
+    std     %r4, 56(%r1)        # save 2. arg of make_fcontext, context stack size 
+    std     %r3, 48(%r1)        # save 1. arg of make_fcontext, pointer to context stack (base) 
 
-    li      %r4, 64
-    subf    %r0, %r4, %r0       # 64 bytes on stack for parameter area (== 8 registers)
+    subi    %r3, %r3, 352       # reserve space for fcontext_t at top of context stack
+    bl      align_stack@plt     # call align_stack, R3 contains address at 16 byte boundary after return
+                                # == pointer to fcontext_t and address of context stack
+    ld      %r4, 48(%r1)        # restore pointer to context stack (base)
+    ld      %r5, 56(%r1)        # restore context stack size
+    ld      %r6, 64(%r1)        # restore pointer to context function
+
+    std     %r4, 184(%r3)       # save address of context stack (base) in fcontext_t
+    std     %r5, 192(%r3)       # save context stack size in fcontext_t
+    std     %r6, 176(%r3)       # save address of context function in fcontext_t
+
+    subf    %r0, %r3, 64        # 64 bytes on stack for parameter area (== 8 registers)
     std     %r0, 152(%r3)       # save the stack base
 
     mflr    %r0                 # load LR
     bl      1f                  # jump to label 1
 1:
-    mflr    %r4                      # load LR
-    addi    %r4, %r4, finish - 1b    # calulate absolute address of finish
+    mflr    %r4                      # load LR into R4
+    addi    %r4, %r4, finish - 1b    # compute abs address of label finish
     mtlr    %r0                      # restore LR
-    std     %r4, 168(%r3)            # save address of finish
+    std     %r4, 168(%r3)            # save address of finish as return address for context function
+                                     # entered after context function returns
 
-    li      %r3,  0             # set return value to zero
+    addi    %r1, %r1, 64        # deallocate stack space
+    lwz     %r0, 8(%r1)         # load return address from stack, destroy stack frame
+    mtlr    %r0                 # restore return address
+
     blr
 
 finish:
+    # SP points to same address as SP on entry of context function
+    mflr    %r0                 # save return address into R0
+    stw     %r0, 8(%r1)         # save return address on stack, set up stack frame
+    stwu    %r1, -32(%r1)       # allocate stack space, SP % 16 == 0
+
     li      %r3,  0             # set return value to zero
     bl      _exit@plt           # exit application
 .size .make_fcontext, .-.make_fcontext

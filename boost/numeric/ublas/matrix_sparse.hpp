@@ -1359,7 +1359,7 @@ namespace boost { namespace numeric { namespace ublas {
 #endif
         typedef const matrix_reference<const self_type> const_closure_type;
         typedef matrix_reference<self_type> closure_type;
-        typedef mapped_vector<T, typename A::value_type> vector_temporary_type;
+        typedef mapped_vector<T> vector_temporary_type;
         typedef self_type matrix_temporary_type;
         typedef typename A::value_type::second_type vector_data_value_type;
         typedef sparse_tag storage_category;
@@ -1530,7 +1530,7 @@ namespace boost { namespace numeric { namespace ublas {
         template<class C>          // Container assignment without temporary
         BOOST_UBLAS_INLINE
         mapped_vector_of_mapped_vector &operator = (const matrix_container<C> &m) {
-            resize (m ().size1 (), m ().size2 ());
+            resize (m ().size1 (), m ().size2 (), false);
             assign (m);
             return *this;
         }
@@ -4397,11 +4397,15 @@ namespace boost { namespace numeric { namespace ublas {
             if (! sorted_ && filled_ > 0) {
                 typedef index_triple_array<index_array_type, index_array_type, value_array_type> array_triple;
                 array_triple ita (filled_, index1_data_, index2_data_, value_data_);
+#ifndef BOOST_UBLAS_COO_ALWAYS_DO_FULL_SORT
                 const typename array_triple::iterator iunsorted = ita.begin () + sorted_filled_;
                 // sort new elements and merge
                 std::sort (iunsorted, ita.end ());
                 std::inplace_merge (ita.begin (), iunsorted, ita.end ());
-                
+#else
+                const typename array_triple::iterator iunsorted = ita.begin ();
+                std::sort (iunsorted, ita.end ());
+#endif                
                 // sum duplicates with += and remove
                 array_size_type filled = 0;
                 for (array_size_type i = 1; i < filled_; ++ i) {

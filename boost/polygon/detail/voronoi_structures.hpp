@@ -14,14 +14,15 @@
 #include <queue>
 #include <vector>
 
+#include "boost/polygon/voronoi_geometry_type.hpp"
+
 namespace boost {
 namespace polygon {
 namespace detail {
-
 // Cartesian 2D point data structure.
 template <typename T>
 class point_2d {
-public:
+ public:
   typedef T coordinate_type;
 
   point_2d() {}
@@ -30,11 +31,11 @@ public:
       x_(x),
       y_(y) {}
 
-  bool operator==(const point_2d &that) const {
+  bool operator==(const point_2d& that) const {
     return (this->x_ == that.x()) && (this->y_ == that.y());
   }
 
-  bool operator!=(const point_2d &that) const {
+  bool operator!=(const point_2d& that) const {
     return (this->x_ != that.x()) || (this->y_ != that.y());
   }
 
@@ -56,7 +57,7 @@ public:
     return *this;
   }
 
-private:
+ private:
   coordinate_type x_;
   coordinate_type y_;
 };
@@ -84,46 +85,49 @@ private:
 // Note: for all sites is_inverse_ flag is equal to false by default.
 template <typename T>
 class site_event {
-public:
+ public:
   typedef T coordinate_type;
   typedef point_2d<T> point_type;
 
   site_event() :
       point0_(0, 0),
       point1_(0, 0),
-      sorted_index_(0) {}
+      sorted_index_(0),
+      flags_(0) {}
 
   site_event(coordinate_type x, coordinate_type y) :
       point0_(x, y),
       point1_(x, y),
-      sorted_index_(0) {}
+      sorted_index_(0),
+      flags_(0) {}
 
-  site_event(const point_type &point) :
+  explicit site_event(const point_type& point) :
       point0_(point),
       point1_(point),
-      sorted_index_(0) {}
+      sorted_index_(0),
+      flags_(0) {}
 
   site_event(coordinate_type x1, coordinate_type y1,
              coordinate_type x2, coordinate_type y2):
       point0_(x1, y1),
       point1_(x2, y2),
-      sorted_index_(0) {}
+      sorted_index_(0),
+      flags_(0) {}
 
-  site_event(const point_type &point1, const point_type &point2) :
+  site_event(const point_type& point1, const point_type& point2) :
       point0_(point1),
       point1_(point2),
-      sorted_index_(0) {}
+      sorted_index_(0),
+      flags_(0) {}
 
-  bool operator==(const site_event &that) const {
+  bool operator==(const site_event& that) const {
     return (this->point0_ == that.point0_) &&
-           (this->point1_ == that.point1_) &&
-           (this->sorted_index_ == that.sorted_index_);
+           (this->point1_ == that.point1_);
   }
 
-  bool operator!=(const site_event &that) const {
+  bool operator!=(const site_event& that) const {
     return (this->point0_ != that.point0_) ||
-           (this->point1_ != that.point1_) ||
-           (this->sorted_index_ != that.sorted_index_);
+           (this->point1_ != that.point1_);
   }
 
   coordinate_type x(bool oriented = false) const {
@@ -158,21 +162,29 @@ public:
     return is_inverse() ? point0_.y() : point1_.y();
   }
 
-  const point_type &point0(bool oriented = false) const {
+  const point_type& point0(bool oriented = false) const {
     if (!oriented)
       return point0_;
     return is_inverse() ? point1_ : point0_;
   }
 
-  const point_type &point1(bool oriented = false) const {
+  const point_type& point1(bool oriented = false) const {
     if (!oriented)
       return point1_;
     return is_inverse() ? point0_ : point1_;
   }
 
+  std::size_t sorted_index() const {
+    return sorted_index_;
+  }
+
   site_event& sorted_index(std::size_t index) {
-    sorted_index_ = (index << 1) + (sorted_index_ & 1);
+    sorted_index_ = index;
     return *this;
+  }
+
+  std::size_t initial_index() const {
+    return initial_index_;
   }
 
   site_event& initial_index(std::size_t index) {
@@ -180,36 +192,42 @@ public:
     return *this;
   }
 
+  bool is_inverse() const {
+    return (flags_ & IS_INVERSE) ? true : false;
+  }
+
   site_event& inverse() {
-    sorted_index_ ^= 1;
+    flags_ ^= IS_INVERSE;
     return *this;
   }
 
-  std::size_t sorted_index() const {
-    return sorted_index_ >> 1;
+  SourceCategory source_category() const {
+    return static_cast<SourceCategory>(flags_ & SOURCE_CATEGORY_BITMASK);
   }
 
-  std::size_t initial_index() const {
-    return initial_index_;
+  site_event& source_category(SourceCategory source_category) {
+    flags_ |= source_category;
+    return *this;
   }
 
   bool is_point() const {
-    return point0_.x() == point1_.x() && point0_.y() == point1_.y();
+    return (point0_.x() == point1_.x()) && (point0_.y() == point1_.y());
   }
 
   bool is_segment() const {
-    return point0_.x() != point1_.x() || point0_.y() != point1_.y();
+    return (point0_.x() != point1_.x()) || (point0_.y() != point1_.y());
   }
 
-  bool is_inverse() const {
-    return static_cast<bool>(sorted_index_ & 1);
-  }
+ private:
+  enum Bits {
+    IS_INVERSE = 0x20  // 32
+  };
 
-private:
   point_type point0_;
   point_type point1_;
   std::size_t sorted_index_;
   std::size_t initial_index_;
+  std::size_t flags_;
 };
 
 // Circle event type.
@@ -226,7 +244,7 @@ private:
 // NOTE: lower_y coordinate is always equal to center_y.
 template <typename T>
 class circle_event {
-public:
+ public:
   typedef T coordinate_type;
 
   circle_event() : is_active_(true) {}
@@ -279,7 +297,7 @@ public:
     return *this;
   }
 
-private:
+ private:
   coordinate_type center_x_;
   coordinate_type center_y_;
   coordinate_type lower_x_;
@@ -295,7 +313,7 @@ private:
 // events ordering.
 template <typename T, typename Predicate>
 class ordered_queue {
-public:
+ public:
   ordered_queue() {}
 
   bool empty() const {
@@ -324,7 +342,7 @@ public:
     c_list_.clear();
   }
 
-private:
+ private:
   typedef typename std::list<T>::iterator list_iterator_type;
 
   struct comparison {
@@ -340,7 +358,7 @@ private:
                        comparison > c_;
   std::list<T> c_list_;
 
-  //Disallow copy constructor and operator=
+  // Disallow copy constructor and operator=
   ordered_queue(const ordered_queue&);
   void operator=(const ordered_queue&);
 };
@@ -356,7 +374,7 @@ private:
 // processed by the algorithm later (has greater index).
 template <typename Site>
 class beach_line_node_key {
-public:
+ public:
   typedef Site site_type;
 
   // Constructs degenerate bisector, used to search an arc that is above
@@ -398,7 +416,7 @@ public:
     return *this;
   }
 
-private:
+ private:
   site_type left_site_;
   site_type right_site_;
 };
@@ -409,32 +427,32 @@ private:
 // queue if the edge corresponds to the right bisector of the circle event.
 template <typename Edge, typename Circle>
 class beach_line_node_data {
-public:
-  explicit beach_line_node_data(Edge *new_edge) :
+ public:
+  explicit beach_line_node_data(Edge* new_edge) :
       circle_event_(NULL),
       edge_(new_edge) {}
 
-  Circle *circle_event() const {
+  Circle* circle_event() const {
     return circle_event_;
   }
 
-  beach_line_node_data& circle_event(Circle *circle_event) {
+  beach_line_node_data& circle_event(Circle* circle_event) {
     circle_event_ = circle_event;
     return *this;
   }
 
-  Edge *edge() const {
+  Edge* edge() const {
     return edge_;
   }
 
-  beach_line_node_data& edge(Edge *new_edge) {
+  beach_line_node_data& edge(Edge* new_edge) {
     edge_ = new_edge;
     return *this;
   }
 
-private:
-  Circle *circle_event_;
-  Edge *edge_;
+ private:
+  Circle* circle_event_;
+  Edge* edge_;
 };
 }  // detail
 }  // polygon

@@ -30,7 +30,7 @@
 ;  ----------------------------------------------------------------------------------
 ;  |   0x50  |   0x54  |   0x58  |   0x5c  |   0x60   |   0x64  |                   |
 ;  ----------------------------------------------------------------------------------
-;  |       base        |       limit       |        size        |                   |
+;  |        sp         |       size        |        limit       |                   |
 ;  ----------------------------------------------------------------------------------
 ;  ----------------------------------------------------------------------------------
 ;  |    26   |   27    |                                                            |
@@ -44,7 +44,7 @@
 ;  ----------------------------------------------------------------------------------
 ;  |   0x70  |   0x74  |   0x78  |   0x7c  |                                        |
 ;  ----------------------------------------------------------------------------------
-;  | fc_mxcsr|fc_x87_cw|       fc_xmm      |                                        |
+;  | fc_mxcsr|fc_x87_cw|     <padding>     |                                        |
 ;  ----------------------------------------------------------------------------------
 ;  ----------------------------------------------------------------------------------
 ;  |    32    |   33   |   34    |   35    |   36     |   37    |    38   |    39   |
@@ -103,7 +103,7 @@ jump_fcontext PROC EXPORT FRAME:seh_fcontext
     mov     rax,         [r10+08h]  ; load current stack base
     mov     [rcx+050h],  rax        ; save current stack base
     mov     rax,         [r10+010h] ; load current stack limit
-    mov     [rcx+058h],  rax        ; save current stack limit
+    mov     [rcx+060h],  rax        ; save current stack limit
     mov     rax,         [r10+018h] ; load fiber local storage
     mov     [rcx+068h],  rax        ; save fiber local storage
 
@@ -112,31 +112,31 @@ jump_fcontext PROC EXPORT FRAME:seh_fcontext
 
     stmxcsr [rcx+070h]              ; save MMX control and status word
     fnstcw  [rcx+074h]              ; save x87 control word
-	mov	    r10,         [rcx+078h] ; address of aligned XMM storage
-    movaps  [r10],       xmm6
-    movaps  [r10+010h],  xmm7
-    movaps  [r10+020h],  xmm8
-    movaps  [r10+030h],  xmm9
-    movaps  [r10+040h],  xmm10
-    movaps  [r10+050h],  xmm11
-    movaps  [r10+060h],  xmm12
-    movaps  [r10+070h],  xmm13
-    movaps  [r10+080h],  xmm14
-    movaps  [r10+090h],  xmm15
+    ; save XMM storage
+    movaps  [rcx+080h],   xmm6
+    movaps  [rcx+090h],   xmm7
+    movaps  [rcx+0100h],  xmm8
+    movaps  [rcx+0110h],  xmm9
+    movaps  [rcx+0120h],  xmm10
+    movaps  [rcx+0130h],  xmm11
+    movaps  [rcx+0140h],  xmm12
+    movaps  [rcx+0150h],  xmm13
+    movaps  [rcx+0160h],  xmm14
+    movaps  [rcx+0170h],  xmm15
 
     ldmxcsr [rdx+070h]              ; restore MMX control and status word
     fldcw   [rdx+074h]              ; restore x87 control word
-	mov	    r10,         [rdx+078h] ; address of aligned XMM storage
-    movaps  xmm6,        [r10]
-    movaps  xmm7,        [r10+010h]
-    movaps  xmm8,        [r10+020h]
-    movaps  xmm9,        [r10+030h]
-    movaps  xmm10,       [r10+040h]
-    movaps  xmm11,       [r10+050h]
-    movaps  xmm12,       [r10+060h]
-    movaps  xmm13,       [r10+070h]
-    movaps  xmm14,       [r10+080h]
-    movaps  xmm15,       [r10+090h]
+    ; restore XMM storage
+    movaps  xmm6,        [rdx+080h]
+    movaps  xmm7,        [rdx+090h]
+    movaps  xmm8,        [rdx+0100h]
+    movaps  xmm9,        [rdx+0110h]
+    movaps  xmm10,       [rdx+0120h]
+    movaps  xmm11,       [rdx+0130h]
+    movaps  xmm12,       [rdx+0140h]
+    movaps  xmm13,       [rdx+0150h]
+    movaps  xmm14,       [rdx+0160h]
+    movaps  xmm15,       [rdx+0170h]
 nxt:
 
     lea     rax,         [rsp+08h]  ; exclude the return address
@@ -156,7 +156,7 @@ nxt:
     mov     r10,        gs:[030h]   ; load NT_TIB
     mov     rax,        [rdx+050h]  ; load stack base
     mov     [r10+08h],  rax         ; restore stack base
-    mov     rax,        [rdx+058h]  ; load stack limit
+    mov     rax,        [rdx+060h]  ; load stack limit
     mov     [r10+010h], rax         ; restore stack limit
     mov     rax,        [rdx+068h]  ; load fiber local storage
     mov     [r10+018h], rax         ; restore fiber local storage
@@ -170,40 +170,50 @@ nxt:
     jmp     r10                     ; indirect jump to caller
 jump_fcontext ENDP
 
-make_fcontext PROC EXPORT FRAME  ; generate function table entry in .pdata and unwind information in    E
+make_fcontext PROC EXPORT FRAME  ; generate function table entry in .pdata and unwind information in
     .endprolog                   ; .xdata for a function's structured exception handling unwind behavior
 
-    mov  [rcx+048h], rdx         ; save address of context function
-    mov  rdx,        [rcx+050h]  ; load address of context stack base
-    mov  r8,         [rcx+060h]  ; load context stack size
-    neg  r8                      ; negate r8 for LEA 
-    lea  r8,         [rdx+r8]    ; compute the address of context stack limit
-    mov  [rcx+058h], r8          ; save the address of context stack limit
+    push rbp                     ; save previous frame pointer; get the stack 16 byte aligned
+    mov  rbp,        rsp         ; set RBP to RSP
+    sub  rsp,        040h        ; allocate stack space (contains shadow space for subroutines)
 
-    push  rcx                    ; save pointer to fcontext_t
-    sub   rsp,       028h        ; reserve shadow space for align_stack
-    mov   rcx,       rdx         ; context stack pointer as arg for align_stack
-    mov   [rsp+8],   rcx
-    call  align_stack            ; call align_stack
-    mov   rdx,       rax         ; begin of aligned context stack
-    add   rsp,       028h
-    pop   rcx                    ; restore pointer to fcontext_t
+    mov  [rbp-08h],  r8          ; save 3. arg of make_fcontext, pointer to context function
+    mov  [rbp-010h], rdx         ; save 2. arg of make_fcontext, context stack size
+    mov  [rbp-018h], rcx         ; save 1. arg of make_fcontext, pointer to context stack (base)
+    lea  rcx,        [rcx-0180h] ; reserve space for fcontext_t at top of context stack
+    call align_stack             ; align context stack, RAX contains address at 16 byte boundary
+                                 ; == pointer to fcontext_t and address of context stack
 
-    lea  rdx,        [rdx-028h]  ; reserve 32byte shadow space + return address on stack, (RSP + 8) % 16 == 0
-    mov  [rcx+040h], rdx         ; save the address where the context stack begins
+    mov  r8,         [rbp-08h]   ; restore pointer to context function
+    mov  rdx,        [rbp-010h]  ; restore context stack size
+    mov  rcx,        [rbp-018h]  ; restore pointer to context stack (base)
 
-    stmxcsr [rcx+070h]           ; save MMX control and status word
-    fnstcw  [rcx+074h]           ; save x87 control word
+    mov  [rax+048h], r8          ; save address of context function in fcontext_t
+    mov  [rax+058h], rdx         ; save context stack size in fcontext_t
+    mov  [rax+050h], rcx         ; save address of context stack pointer (base) in fcontext_t
 
-    lea  rax,       finish       ; helper code executed after fn() returns
-    mov  [rdx],     rax          ; store address off the helper function as return address
+    neg  rdx                     ; negate stack size for LEA instruction (== substraction)
+    lea  rcx,        [rcx+rdx]   ; compute bottom address of context stack (limit)
+    mov  [rax+060h], rcx         ; save bottom address of context stack (limit) in fcontext_t
 
-    xor  rax,       rax          ; set RAX to zero
+    stmxcsr [rax+070h]           ; save MMX control and status word
+    fnstcw  [rax+074h]           ; save x87 control word
+
+    lea  rdx,        [rax-028h]  ; reserve 32byte shadow space + return address on stack, (RSP - 0x8) % 16 == 0
+    mov  [rax+040h], rdx         ; save address in RDX as stack pointer for context function
+
+    lea  rcx,        finish      ; compute abs address of label finish
+    mov  [rdx],      rcx         ; save address of finish as return address for context function
+                                 ; entered after context function returns
+
+    add  rsp,        040h        ; deallocate shadow space
+    pop  rbp                     ; restore previous frame pointer
+
     ret
 
 finish:
-    xor   rcx,        rcx
-    mov   [rsp+08h],  rcx
+    ; RSP points to same address as RSP on entry of context function + 0x8 
+    xor   rcx,       rcx         ; exit code is zero
     call  _exit                  ; exit application
     hlt
 make_fcontext ENDP
