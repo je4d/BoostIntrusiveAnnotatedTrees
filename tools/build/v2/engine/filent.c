@@ -15,8 +15,10 @@
  * filent.c - scan directories and archives on NT
  *
  * External routines:
- *  file_archscan() - scan an archive for files
- *  file_mkdir()    - create a directory
+ *  file_archscan()         - scan an archive for files
+ *  file_mkdir()            - create a directory
+ *  filetime_to_seconds()   - Windows FILETIME --> number of seconds conversion
+ *  filetime_to_timestamp() - Windows FILETIME --> timestamp conversion
  *
  * External routines called only via routines in filesys.c:
  *  file_collect_dir_content_() - collects directory content information
@@ -26,6 +28,7 @@
 
 #include "jam.h"
 #ifdef OS_NT
+#include "filent.h"
 #include "filesys.h"
 
 #include "object.h"
@@ -46,8 +49,6 @@
 #include <direct.h>
 #include <io.h>
 
-#include <windows.h>
-
 
 /*
  * file_collect_dir_content_() - collects directory content information
@@ -56,8 +57,8 @@
 int file_collect_dir_content_( file_info_t * const d )
 {
     PATHNAME f;
-    string filespec[ 1 ];
-    string filename[ 1 ];
+    string pathspec[ 1 ];
+    string pathname[ 1 ];
     struct _finddata_t finfo[ 1 ];
     LIST * files = L0;
     int d_length;
@@ -74,7 +75,7 @@ int file_collect_dir_content_( file_info_t * const d )
 
     /* Prepare file search specification for the findfirst() API. */
     if ( !d_length )
-        string_copy( filespec, ".\\*" );
+        string_copy( pathspec, ".\\*" );
     else
     {
         /* We can not simply assume the given folder name will never include its
@@ -82,30 +83,30 @@ int file_collect_dir_content_( file_info_t * const d )
          * root folder specified without its drive letter, i.e. '\'.
          */
         char const trailingChar = object_str( d->name )[ d_length - 1 ] ;
-        string_copy( filespec, object_str( d->name ) );
+        string_copy( pathspec, object_str( d->name ) );
         if ( ( trailingChar != '\\' ) && ( trailingChar != '/' ) )
-            string_append( filespec, "\\" );
-        string_append( filespec, "*" );
+            string_append( pathspec, "\\" );
+        string_append( pathspec, "*" );
     }
 
-    #if defined(__BORLANDC__) && __BORLANDC__ < 0x550
-    if ( findfirst( filespec->value, finfo, FA_NORMAL | FA_DIREC ) )
+#if defined(__BORLANDC__) && __BORLANDC__ < 0x550
+    if ( findfirst( pathspec->value, finfo, FA_NORMAL | FA_DIREC ) )
     {
-        string_free( filespec );
+        string_free( pathspec );
         return -1;
     }
 
-    string_new( filename );
+    string_new( pathname );
     do
     {
         f.f_base.ptr = finfo->ff_name;
         f.f_base.len = strlen( finfo->ff_name );
-        string_truncate( filename, 0 );
-        path_build( &f, filename );
+        string_truncate( pathname, 0 );
+        path_build( &f, pathname );
 
-        files = list_push_back( files, object_new( filename->value ) );
+        files = list_push_back( files, object_new( pathname->value ) );
         {
-            file_info_t * const ff = file_info( filename->value );
+            file_info_t * const ff = file_info( pathname->value );
             ff->is_file = finfo->ff_attrib & FA_DIREC ? 0 : 1;
             ff->is_dir = !ff->is_file;
             ff->size = finfo->ff_fsize;
@@ -113,30 +114,30 @@ int file_collect_dir_content_( file_info_t * const d )
         }
     }
     while ( !findnext( finfo ) );
-    #else
+#else  /* defined(__BORLANDC__) && __BORLANDC__ < 0x550 */
     {
-        long const handle = _findfirst( filespec->value, finfo );
+        long const handle = _findfirst( pathspec->value, finfo );
         if ( handle < 0L )
         {
-            string_free( filespec );
+            string_free( pathspec );
             return -1;
         }
 
-        string_new( filename );
+        string_new( pathname );
         do
         {
-            OBJECT * filename_obj;
+            OBJECT * pathname_obj;
 
             f.f_base.ptr = finfo->name;
             f.f_base.len = strlen( finfo->name );
-            string_truncate( filename, 0 );
-            path_build( &f, filename, 0 );
+            string_truncate( pathname, 0 );
+            path_build( &f, pathname, 0 );
 
-            filename_obj = object_new( filename->value );
-            path_key__register_long_path( filename_obj );
-            files = list_push_back( files, filename_obj );
+            pathname_obj = object_new( pathname->value );
+            path_key__register_long_path( pathname_obj );
+            files = list_push_back( files, pathname_obj );
             {
-                file_info_t * const ff = file_info( filename_obj );
+                file_info_t * const ff = file_info( pathname_obj );
                 ff->is_file = finfo->attrib & _A_SUBDIR ? 0 : 1;
                 ff->is_dir = !ff->is_file;
                 ff->size = finfo->size;
@@ -147,9 +148,10 @@ int file_collect_dir_content_( file_info_t * const d )
 
         _findclose( handle );
     }
-    #endif
-    string_free( filename );
-    string_free( filespec );
+#endif  /* defined(__BORLANDC__) && __BORLANDC__ < 0x550 */
+
+    string_free( pathname );
+    string_free( pathspec );
 
     d->files = files;
     return 0;
@@ -344,6 +346,46 @@ void file_archscan( char const * archive, scanback func, void * closure )
     }
 
     close( fd );
+}
+
+
+/*
+ * filetime_to_seconds() - Windows FILETIME --> number of seconds conversion
+ */
+
+double filetime_to_seconds( FILETIME const t )
+{
+    return t.dwHighDateTime * ( (double)( 1UL << 31 ) * 2.0 * 1.0e-7 ) +
+        t.dwLowDateTime * 1.0e-7;
+}
+
+
+/*
+ * filetime_to_timestamp() - Windows FILETIME --> timestamp conversion
+ *
+ * Lifted shamelessly from the CPython implementation.
+ */
+
+time_t filetime_to_timestamp( FILETIME const ft )
+{
+    /* Seconds between 1.1.1601 and 1.1.1970 */
+    static __int64 const secs_between_epochs = 11644473600;
+
+    /* We can not simply cast and dereference a FILETIME, since it might not be
+     * aligned properly. __int64 type variables are expected to be aligned to an
+     * 8 byte boundary while FILETIME structures may be aligned to any 4 byte
+     * boundary. Using an incorrectly aligned __int64 variable may cause a
+     * performance penalty on some platforms or even exceptions on others
+     * (documented on MSDN).
+     */
+    __int64 in;
+    memcpy( &in, &ft, sizeof( in ) );
+
+    /* FILETIME resolution: 100ns. */
+    /* For resolutions finer than 1 second use the following:
+     *   nsec = (int)( in % 10000000 ) * 100;
+     */
+    return (time_t)( ( in / 10000000 ) - secs_between_epochs );
 }
 
 #endif  /* OS_NT */

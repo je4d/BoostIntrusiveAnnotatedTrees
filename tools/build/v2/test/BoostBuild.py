@@ -157,26 +157,6 @@ def glob_remove(sequence, pattern):
         sequence.remove(r)
 
 
-#
-# FIXME: this is copy-pasted from TestSCons.py
-# Should be moved to TestCmd.py?
-#
-if os.name == 'posix':
-    def _failed(self, status=0):
-        if self.status is None:
-            return None
-        return _status(self) != status
-    def _status(self):
-        if os.WIFEXITED(self.status):
-            return os.WEXITSTATUS(self.status)
-        return -1
-elif os.name == 'nt':
-    def _failed(self, status=0):
-        return not self.status is None and self.status != status
-    def _status(self):
-        return self.status
-
-
 class Tester(TestCmd.TestCmd):
     """Main tester class for Boost Build.
 
@@ -210,29 +190,30 @@ class Tester(TestCmd.TestCmd):
 
     Optional arguments inherited from the base class:
 
-    `description`                 - Test description string displayed in case of
-                                    a failed test.
+    `description`                 - Test description string displayed in case
+                                    of a failed test.
     `subdir'                      - List of subdirectories to automatically
                                     create under the working directory. Each
                                     subdirectory needs to be specified
-                                    separately parent coming before its child.
-    `verbose`                     - Flag that may be used to enable more verbose
-                                    test system output. Note that it does not
-                                    also enable more verbose build system
-                                    output like the --verbose command line
-                                    option does.
+                                    separately, parent coming before its child.
+    `verbose`                     - Flag that may be used to enable more
+                                    verbose test system output. Note that it
+                                    does not also enable more verbose build
+                                    system output like the --verbose command
+                                    line option does.
     """
-    def __init__(self, arguments="", executable="bjam",
+    def __init__(self, arguments=None, executable="bjam",
         match=TestCmd.match_exact, boost_build_path=None,
         translate_suffixes=True, pass_toolset=True, use_test_config=True,
         ignore_toolset_requirements=True, workdir="", pass_d0=True, **keywords):
 
+        assert arguments.__class__ is not str
         self.original_workdir = os.getcwd()
         if workdir and not os.path.isabs(workdir):
             raise ("Parameter workdir <%s> must point to an absolute "
                 "directory: " % workdir)
 
-        self.last_build_time_finish = 0
+        self.last_build_timestamp = 0
         self.translate_suffixes = translate_suffixes
         self.use_test_config = use_test_config
 
@@ -315,7 +296,7 @@ class Tester(TestCmd.TestCmd):
         if verbosity:
             program_list += verbosity
         if arguments:
-            program_list += arguments.split(" ")
+            program_list += arguments
 
         TestCmd.TestCmd.__init__(self, program=program_list, match=match,
             workdir=workdir, inpath=use_default_bjam, **keywords)
@@ -402,7 +383,7 @@ class Tester(TestCmd.TestCmd):
         if names == ["."]:
             # If we are deleting the entire workspace, there is no need to wait
             # for a clock tick.
-            self.last_build_time_finish = 0
+            self.last_build_timestamp = 0
 
         # Avoid attempts to remove the current directory.
         os.chdir(self.original_workdir)
@@ -439,11 +420,12 @@ class Tester(TestCmd.TestCmd):
     #
     #   FIXME: Large portion copied from TestSCons.py, should be moved?
     #
-    def run_build_system(self, extra_args="", subdir="", stdout=None,
+    def run_build_system(self, extra_args=None, subdir="", stdout=None,
         stderr="", status=0, match=None, pass_toolset=None,
         use_test_config=None, ignore_toolset_requirements=None,
         expected_duration=None, **kw):
 
+        assert extra_args.__class__ is not str
         build_time_start = time.time()
 
         try:
@@ -470,7 +452,7 @@ class Tester(TestCmd.TestCmd):
                 kw['program'] = []
                 kw['program'] += self.program
                 if extra_args:
-                    kw['program'] += extra_args.split(" ")
+                    kw['program'] += extra_args
                 if pass_toolset:
                     kw['program'].append("toolset=" + self.toolset)
                 if use_test_config:
@@ -487,16 +469,17 @@ class Tester(TestCmd.TestCmd):
                 self.dump_stdio()
                 raise
         finally:
-            old_last_build_time_finish = self.last_build_time_finish
-            self.last_build_time_finish = time.time()
+            build_time_finish = time.time()
+            old_last_build_timestamp = self.last_build_timestamp
+            self.last_build_timestamp = self.__get_current_file_timestamp()
 
-        if status is not None and _failed(self, status):
+        if (status and self.status) is not None and self.status != status:
             expect = ''
             if status != 0:
                 expect = " (expected %d)" % status
 
             annotation("failure", '"%s" returned %d%s' % (kw['program'],
-                _status(self), expect))
+                self.status, expect))
 
             annotation("reason", "unexpected status returned by bjam")
             self.fail_test(1)
@@ -524,11 +507,11 @@ class Tester(TestCmd.TestCmd):
             self.fail_test(1, dump_stdio=False)
 
         if expected_duration is not None:
-            actual_duration = self.last_build_time_finish - build_time_start
+            actual_duration = build_time_finish - build_time_start
             if actual_duration > expected_duration:
-                print "Test run lasted %f seconds while it was expected to " \
+                print("Test run lasted %f seconds while it was expected to "
                     "finish in under %f seconds." % (actual_duration,
-                    expected_duration)
+                    expected_duration))
                 self.fail_test(1, dump_stdio=False)
 
         self.tree = tree.build_tree(self.workdir)
@@ -538,7 +521,7 @@ class Tester(TestCmd.TestCmd):
             # passed since the last build that actually changed something,
             # there is no need to wait for touched or newly created files to
             # start getting newer timestamps than the currently existing ones.
-            self.last_build_time_finish = old_last_build_time_finish
+            self.last_build_timestamp = old_last_build_timestamp
 
         self.difference.ignore_directories()
         self.unexpected_difference = copy.deepcopy(self.difference)
@@ -907,7 +890,7 @@ class Tester(TestCmd.TestCmd):
     def wait_for_time_change_since_last_build(self):
         """
           Wait until newly assigned file system timestamps are larger than the
-        one assigned to files created by our previous build run. Used to make
+        ones assigned to files created by our previous build run. Used to make
         subsequent builds correctly recognize newly created or touched files.
 
         """
@@ -915,10 +898,19 @@ class Tester(TestCmd.TestCmd):
             # In fact, I'm not sure why "+ 2" as opposed to "+ 1" is needed but
             # empirically, "+ 1" sometimes causes 'touch' and other functions
             # not to bump the file time enough for a rebuild to happen.
-            if math.floor(time.time()) < math.floor(self.last_build_time_finish) + 2:
+            if (math.floor(time.time()) < math.floor(self.last_build_timestamp)
+                + 2):
                 time.sleep(0.1)
             else:
                 break
+
+    def __get_current_file_timestamp(self):
+        fd, path = tempfile.mkstemp(prefix="__Boost_Build_timestamp_tester__")
+        try:
+            return os.fstat(fd).st_mtime
+        finally:
+            os.close(fd)
+            os.unlink(path)
 
 
 class List:

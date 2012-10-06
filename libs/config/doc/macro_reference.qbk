@@ -149,8 +149,13 @@ The C++ implementation does not provide the `<limits>` header. Never check for
 this symbol in library code; always include `<boost/limits.hpp>`, which
 guarantees to provide `std::numeric_limits`.
 ]]
-[[`BOOST_NO_NUMERIC_LIMITS_LOWEST`][Standard library][
-Static function `numeric_limits<T>::lowest()` is not available for use.
+[[`BOOST_NO_CXX11_NUMERIC_LIMITS`][Standard library][
+C++11 additions to `std::numeric_limits` are not available for use.
+`static function numeric_limits<T>::lowest()` the lowest finite value representable by the numeric type.
+`static int const max_digits10` the number of decimal digits that are required to make sure that two distinct values of the type have distinct decimal representations.
+`template<> class numeric_limits<char16_t>;`, see also `BOOST_NO_CXX11_CHAR16_T`, 
+`template<> class numeric_limits<char32_t>;` see also `BOOST_NO_CXX11_CHAR32_T`.
+Replaces BOOST_NO_NUMERIC_LIMITS_LOWEST.
 ]]
 [[`BOOST_NO_LIMITS_COMPILE_TIME_CONSTANTS`][Standard library][
 Constants such as `numeric_limits<T>::is_signed` are not available for use
@@ -1045,6 +1050,7 @@ They will be removed in a future version of boost.
 [[`BOOST_NO_UNIFIED_INITIALIZATION_SYNTAX`][`BOOST_NO_CXX11_UNIFIED_INITIALIZATION_SYNTAX`][Boost 1.51][]]
 [[`BOOST_NO_VARIADIC_TEMPLATES`][`BOOST_NO_CXX11_VARIADIC_TEMPLATES`][Boost 1.51][]]
 [[`BOOST_NO_VARIADIC_MACROS`][`BOOST_NO_CXX11_VARIADIC_MACROS`][Boost 1.51][]]
+[[`BOOST_NO_NUMERIC_LIMITS_LOWEST`][`BOOST_NO_CXX11_NUMERIC_LIMITS`][Boost 1.51][]]
 ]
 
 [endsect]

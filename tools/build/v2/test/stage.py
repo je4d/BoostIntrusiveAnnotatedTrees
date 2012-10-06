@@ -11,7 +11,7 @@ import BoostBuild
 
 t = BoostBuild.Tester()
 
-t.write("jamroot.jam", "import gcc ;")
+t.write("jamroot.jam", "")
 t.write("jamfile.jam", """\
 lib a : a.cpp ;
 stage dist : a a.h auxilliary/1 ;
@@ -50,7 +50,7 @@ stage dist : a : <variant>debug:<location>ds <variant>release:<location>rs ;
 t.run_build_system()
 t.expect_addition("ds/a.dll")
 
-t.run_build_system("release")
+t.run_build_system(["release"])
 t.expect_addition("rs/a.dll")
 
 
@@ -141,7 +141,7 @@ stage a2 : a2.txt : <location>dist <dependency>a1 ;
 """)
 t.write("a1.txt", "")
 t.write("a2.txt", "")
-t.run_build_system("a2")
+t.run_build_system(["a2"])
 t.expect_addition(["dist/a1.txt", "dist/a2.txt"])
 
 # Regression test: check that <location>. works.
