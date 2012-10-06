@@ -2,7 +2,8 @@
 
 # Copyright 2012. Jurko Gospodnetic
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # Test Boost Jam parser's source line tracking & reporting.
 
@@ -13,8 +14,8 @@ def test_eof_in_string():
     t = BoostBuild.Tester(pass_toolset=False)
     t.write("file.jam", '\n\n\naaa = "\n\n\n\n\n\n')
     t.run_build_system(["-ffile.jam"], status=1)
-    t.expect_output_line('file.jam:4: unmatched " in string at keyword =')
-    t.expect_output_line("file.jam:4: syntax error at EOF")
+    t.expect_output_lines('file.jam:4: unmatched " in string at keyword =')
+    t.expect_output_lines("file.jam:4: syntax error at EOF")
     t.cleanup()
 
 
@@ -30,8 +31,8 @@ def test_error_missing_argument(eof):
 rule f ( param ) { }
 f ;%s""" % __trailing_newline(eof))
     t.run_build_system(["-ffile.jam"], status=1)
-    t.expect_output_line("file.jam:2: in module scope")
-    t.expect_output_line("file.jam:1:see definition of rule 'f' being called")
+    t.expect_output_lines("file.jam:2: in module scope")
+    t.expect_output_lines("file.jam:1:see definition of rule 'f' being called")
     t.cleanup()
 
 
@@ -39,7 +40,7 @@ def test_error_syntax(eof):
     t = BoostBuild.Tester(pass_toolset=False)
     t.write("file.jam", "ECHO%s" % __trailing_newline(eof))
     t.run_build_system(["-ffile.jam"], status=1)
-    t.expect_output_line("file.jam:1: syntax error at EOF")
+    t.expect_output_lines("file.jam:1: syntax error at EOF")
     t.cleanup()
 
 
@@ -49,7 +50,7 @@ def test_traceback():
 NOTFILE all ;
 ECHO [ BACKTRACE ] ;""")
     t.run_build_system(["-ffile.jam"])
-    t.expect_output_line("file.jam 2  module scope")
+    t.expect_output_lines("file.jam 2  module scope")
     t.cleanup()
 
 

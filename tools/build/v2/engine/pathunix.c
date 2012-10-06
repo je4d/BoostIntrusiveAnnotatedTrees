@@ -4,11 +4,12 @@
  * This file is part of Jam - see jam.c for Copyright information.
  */
 
-/*  This file is ALSO:
- *  Copyright 2001-2004 David Abrahams.
- *  Copyright 2005 Rene Rivera.
- *  Distributed under the Boost Software License, Version 1.0.
- *  (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+/* This file is ALSO:
+ * Copyright 2001-2004 David Abrahams.
+ * Copyright 2005 Rene Rivera.
+ * Distributed under the Boost Software License, Version 1.0.
+ * (See accompanying file LICENSE_1_0.txt or copy at
+ * http://www.boost.org/LICENSE_1_0.txt)
  */
 
 /*
@@ -24,14 +25,11 @@
  */
 
 #include "jam.h"
-
 #ifdef USE_PATHUNIX
 
 #include "pathsys.h"
 
 #include "filesys.h"
-#include "object.h"
-#include "strings.h"
 
 #include <assert.h>
 #include <stdlib.h>
@@ -169,7 +167,7 @@ static char as_path_delim( char const c )
  * in 'timestamp.c'.
  */
 
-void path_build( PATHNAME * f, string * file, int binding )
+void path_build( PATHNAME * f, string * file )
 {
     file_build1( f, file );
 
@@ -185,8 +183,7 @@ void path_build( PATHNAME * f, string * file, int binding )
     {
         string_append_range( file, f->f_root.ptr, f->f_root.ptr + f->f_root.len
             );
-        /* If 'root' already ends with a path delimeter, do not add yet another
-         * one.
+        /* If 'root' already ends with a path delimeter, do not add another one.
          */
         if ( !is_path_delim( f->f_root.ptr[ f->f_root.len - 1 ] ) )
             string_push_back( file, as_path_delim( f->f_root.ptr[ f->f_root.len
@@ -241,6 +238,7 @@ void path_parent( PATHNAME * f )
 }
 
 #ifdef NT
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
 /* The definition of this in winnt.h is not ANSI-C compatible. */
@@ -258,60 +256,25 @@ static struct hash * path_key_cache;
 
 
 /*
- * may_be_a_valid_short_name() - returns whether the given file name may be a
- * valid Windows short name, i.e. whether it might have a different long name.
- */
-
-static int may_be_a_valid_short_name( char const * const n, int const n_length )
-{
-    char const * p;
-    char const * const n_end = n + n_length;
-    char const * dot = 0;
-
-    /* Short names have at most 12 characters (8 + dot + 3). */
-    if ( n_length > 12 )
-        return 0;
-
-    for ( p = n; p != n_end; ++p )
-        switch ( *p )
-        {
-            case ' ':
-                /* Short names may not contain spaces. */
-                return 0;
-
-            case '.':
-                /* Short name may contain at most one dot. */
-                if ( dot )
-                    return 0;
-                dot = p;
-                /* Short name base must have at least one character. */
-                if ( dot == n )
-                    return 0;
-                /* Short name base may not be longer than 8 characters. */
-                if ( dot - n > 8 )
-                    return 0;
-                /* Short name extension may not be longer than 3 characters. */
-                if ( n_end - dot - 1 > 3 )
-                    return 0;
-        }
-
-    return 1;
-}
-
-
-/*
- * ShortPathToLongPath() - convert a given path into its long format
+ * canonicWindowsPath() - convert a given path into its canonic/long format
  *
- * In the process, automatically registers long paths for all of the parent
- * folders on the path, if they have not already been registered.
+ * Appends the canonic path to the end of the given 'string' object.
+ *
+ * FIXME: This function is still work-in-progress as it originally did not
+ * necessarily return the canonic path format (could return slightly different
+ * results for certain equivalent path strings) and could accept paths pointing
+ * to non-existing file system entities as well.
+ *
+ * Caches results internally, automatically caching any parent paths it has to
+ * convert to their canonic format in the process.
  *
  * Prerequisites:
- *  - Path to given in normalized form, i.e. all of its folder separators have
- *    already been converted into '\\'.
- *  - path_key_cache path/key mapping cache object has already been initialized.
+ *  - path given in normalized form, i.e. all of its folder separators have
+ *    already been converted into '\\'
+ *  - path_key_cache path/key mapping cache object already initialized
  */
 
-static void ShortPathToLongPath( char const * const path, int const path_length,
+static void canonicWindowsPath( char const * const path, int const path_length,
     string * const out )
 {
     char const * last_element;
@@ -359,9 +322,8 @@ static void ShortPathToLongPath( char const * const path, int const path_length,
             path_key_cache, dir_obj, &found );
         if ( !found )
         {
-            /* dir is already normalized. */
             result->path = dir_obj;
-            ShortPathToLongPath( dir, dir_length, out );
+            canonicWindowsPath( dir, dir_length, out );
             result->key = object_new( out->value );
         }
         else
@@ -377,24 +339,14 @@ static void ShortPathToLongPath( char const * const path, int const path_length,
     saved_size = out->size;
     string_append_range( out, last_element, path + path_length );
 
-    /* If we have a name that can not be a valid short name then it must be a
-     * valid long name and we are done. If there is a chance this is not the
-     * file's long name, ask the OS for the file's actual long name. We try to
-     * avoid this file system access as it could be unnecessarily expensive.
-     * Note that there is no way to detect the file's 'long name' in case it
-     * does not already exist, in which case in theory a file could later be
-     * created that has a different long name and the name given here as its
-     * short name.
-     */
     {
         char const * const n = last_element;
         int const n_length = path + path_length - n;
         if ( !( n_length == 1 && n[ 0 ] == '.' )
-            && !( n_length == 2 && n[ 0 ] == '.' && n[ 1 ] == '.' )
-            && may_be_a_valid_short_name( n, n_length ) )
+            && !( n_length == 2 && n[ 0 ] == '.' && n[ 1 ] == '.' ) )
         {
             WIN32_FIND_DATA fd;
-            HANDLE const hf = FindFirstFile( out->value, &fd );
+            HANDLE const hf = FindFirstFileA( out->value, &fd );
             if ( hf != INVALID_HANDLE_VALUE )
             {
                 string_truncate( out, saved_size );
@@ -406,11 +358,26 @@ static void ShortPathToLongPath( char const * const path, int const path_length,
 }
 
 
-OBJECT * short_path_to_long_path( OBJECT * short_path )
-{
-    return path_as_key( short_path );
-}
-
+/*
+ * normalize_path() - 'normalizes' the given path for the path-key mapping
+ *
+ * The resulting string has nothing to do with 'normalized paths' as used in
+ * Boost Jam build scripts and the built-in NORMALIZE_PATH rule. It is intended
+ * to be used solely as an intermediate step when mapping an arbitrary path to
+ * its canonical representation.
+ *
+ * When choosing the intermediate string the important things are for it to be
+ * inexpensive to calculate and any two paths having different canonical
+ * representations also need to have different calculated intermediate string
+ * representations. Any implemented additional rules serve only to simplify
+ * constructing the canonical path representation from the calculated
+ * intermediate string.
+ *
+ * Implemented returned path rules:
+ *  - use backslashes as path separators
+ *  - lowercase only (since all Windows file systems are case insensitive)
+ *  - trim trailing path separator except in case of a root path, i.e. 'X:\'
+ */
 
 static void normalize_path( string * path )
 {
@@ -425,7 +392,7 @@ static void normalize_path( string * path )
 
 
 static path_key_entry * path_key( OBJECT * const path,
-    int const known_to_be_long )
+    int const known_to_be_canonic )
 {
     path_key_entry * result;
     int found;
@@ -453,16 +420,16 @@ static path_key_entry * path_key( OBJECT * const path,
         if ( !found || nresult == result )
         {
             nresult->path = normalized;
-            if ( known_to_be_long )
+            if ( known_to_be_canonic )
                 nresult->key = object_copy( path );
             else
             {
-                string long_path[ 1 ];
-                string_new( long_path );
-                ShortPathToLongPath( object_str( normalized ), normalized_size,
-                    long_path );
-                nresult->key = object_new( long_path->value );
-                string_free( long_path );
+                string canonic_path[ 1 ];
+                string_new( canonic_path );
+                canonicWindowsPath( object_str( normalized ), normalized_size,
+                    canonic_path );
+                nresult->key = object_new( canonic_path->value );
+                string_free( canonic_path );
             }
         }
         else
@@ -478,9 +445,9 @@ static path_key_entry * path_key( OBJECT * const path,
 }
 
 
-void path_key__register_long_path( OBJECT * long_path )
+void path_register_key( OBJECT * canonic_path )
 {
-    path_key( long_path, 1 );
+    path_key( canonic_path, 1 );
 }
 
 
@@ -502,7 +469,7 @@ void path_done( void )
 {
     if ( path_key_cache )
     {
-        hashenumerate( path_key_cache, &free_path_key_entry, (void *)0 );
+        hashenumerate( path_key_cache, &free_path_key_entry, 0 );
         hashdone( path_key_cache );
     }
 }
@@ -510,7 +477,7 @@ void path_done( void )
 #else  /* NT */
 
 
-void path_key__register_long_path( OBJECT * path )
+void path_register_key( OBJECT * path )
 {
 }
 
@@ -589,6 +556,5 @@ OBJECT * path_tmpfile( void )
 
     return result;
 }
-
 
 #endif  /* USE_PATHUNIX */

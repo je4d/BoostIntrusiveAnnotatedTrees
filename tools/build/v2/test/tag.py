@@ -1,19 +1,19 @@
 #!/usr/bin/python
 
-# Copyright (C) Pedro Ferreira 2003. Permission to copy, use, modify, sell and
-# distribute this software is granted provided this copyright notice appears in
-# all copies. This software is provided "as is" without express or implied
-# warranty, and with no claim as to its suitability for any purpose.
+# Copyright (C) 2003. Pedro Ferreira
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 import BoostBuild
 
 
-################################################################################
+###############################################################################
 #
 # test_folder_with_dot_in_name()
 # ------------------------------
 #
-################################################################################
+###############################################################################
 
 def test_folder_with_dot_in_name(t):
     """
@@ -27,7 +27,7 @@ project test : requirements <tag>@$(__name__).tag ;
 rule tag ( name : type ? : property-set )
 {
    # Do nothing, just make sure the rule is invoked OK.
-   ECHO "The tag rule has been invoked." ;
+   ECHO The tag rule has been invoked. ;
 }
 exe a : a.cpp ;
 """)
@@ -35,15 +35,15 @@ exe a : a.cpp ;
 
     t.run_build_system(subdir="version-1.32.0")
     t.expect_addition("version-1.32.0/bin/$toolset/debug/a.exe")
-    t.expect_output_line("The tag rule has been invoked.")
+    t.expect_output_lines("The tag rule has been invoked.")
 
 
-################################################################################
+###############################################################################
 #
 # test_tag_property()
 # -------------------
 #
-################################################################################
+###############################################################################
 
 def test_tag_property(t):
     """Basic tag property test."""
@@ -107,12 +107,12 @@ __declspec (dllexport) void x () {}
     t.expect_removal(file_list)
 
 
-################################################################################
+###############################################################################
 #
 # main()
 # ------
 #
-################################################################################
+###############################################################################
 
 t = BoostBuild.Tester()
 

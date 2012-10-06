@@ -4,11 +4,12 @@
  * This file is part of Jam - see jam.c for Copyright information.
  */
 
-/*  This file is ALSO:
- *  Copyright 2001-2004 David Abrahams.
- *  Copyright 2007 Rene Rivera.
- *  Distributed under the Boost Software License, Version 1.0.
- *  (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+/* This file is ALSO:
+ * Copyright 2001-2004 David Abrahams.
+ * Copyright 2007 Rene Rivera.
+ * Distributed under the Boost Software License, Version 1.0.
+ * (See accompanying file LICENSE_1_0.txt or copy at
+ * http://www.boost.org/LICENSE_1_0.txt)
  */
 
 /*
@@ -27,17 +28,18 @@
  * Do not just set JAMSHELL to cmd.exe - it will not work!
  *
  * External routines:
- *  exec_check()       - preprocess and validate the command
- *  exec_cmd()         - launch an async command execution
- *  exec_wait()        - wait for any of the async command processes to
- *                       terminate
+ *  exec_check() - preprocess and validate the command
+ *  exec_cmd()   - launch an async command execution
+ *  exec_wait()  - wait for any of the async command processes to terminate
+ *
+ * Internal routines:
+ *  filetime_to_seconds() - Windows FILETIME --> number of seconds conversion
  */
 
 #include "jam.h"
 #ifdef USE_EXECNT
 #include "execcmd.h"
 
-#include "filent.h"
 #include "lists.h"
 #include "output.h"
 #include "pathsys.h"
@@ -48,6 +50,8 @@
 #include <errno.h>
 #include <time.h>
 
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 #include <process.h>
 #include <tlhelp32.h>
 
@@ -305,7 +309,7 @@ void exec_cmd
         char const * p = cmd_orig->value + cmd_orig->size;
         char const * end = p;
         while ( isspace( *start ) ) ++start;
-        while ( p > start && isspace( p[-1] ) )
+        while ( p > start && isspace( p[ -1 ] ) )
             if ( *--p == '\n' )
                 end = p;
         string_new( cmd_local );
@@ -664,6 +668,17 @@ static FILETIME negate_FILETIME( FILETIME t )
 }
 
 
+/*
+ * filetime_to_seconds() - Windows FILETIME --> number of seconds conversion
+ */
+
+static double filetime_to_seconds( FILETIME const ft )
+{
+    return ft.dwHighDateTime * ( (double)( 1UL << 31 ) * 2.0 * 1.0e-7 ) +
+        ft.dwLowDateTime * 1.0e-7;
+}
+
+
 static void record_times( HANDLE const process, timing_info * const time )
 {
     FILETIME creation;
@@ -674,8 +689,8 @@ static void record_times( HANDLE const process, timing_info * const time )
     {
         time->system = filetime_to_seconds( kernel );
         time->user = filetime_to_seconds( user );
-        time->start = filetime_to_timestamp( creation );
-        time->end = filetime_to_timestamp( exit );
+        timestamp_from_filetime( &time->start, &creation );
+        timestamp_from_filetime( &time->end, &exit );
     }
 }
 
@@ -851,10 +866,10 @@ static double running_time( HANDLE const process )
     FILETIME exit;
     FILETIME kernel;
     FILETIME user;
-    FILETIME current;
     if ( GetProcessTimes( process, &creation, &exit, &kernel, &user ) )
     {
         /* Compute the elapsed time. */
+        FILETIME current;
         GetSystemTimeAsFileTime( &current );
         return filetime_to_seconds( add_FILETIME( current,
             negate_FILETIME( creation ) ) );
@@ -908,7 +923,6 @@ static double creation_time( HANDLE const process )
     FILETIME exit;
     FILETIME kernel;
     FILETIME user;
-    FILETIME current;
     return GetProcessTimes( process, &creation, &exit, &kernel, &user )
         ? filetime_to_seconds( creation )
         : 0.0;

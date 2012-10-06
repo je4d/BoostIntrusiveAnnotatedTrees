@@ -1,19 +1,20 @@
 #~ Copyright 2002-2007 Rene Rivera.
 #~ Distributed under the Boost Software License, Version 1.0.
-#~ (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+#~ (See accompanying file LICENSE_1_0.txt or copy at
+#~ http://www.boost.org/LICENSE_1_0.txt)
 
 # Clean env vars of any "extra" empty values.
 for local v in ARGV CC CFLAGS LIBS
 {
-	local values ;
-	for local x in $($(v))
-	{
-		if $(x) != ""
-		{
-			values += $(x) ;
-		}
-	}
-	$(v) = $(values) ;
+    local values ;
+    for local x in $($(v))
+    {
+        if $(x) != ""
+        {
+            values += $(x) ;
+        }
+    }
+    $(v) = $(values) ;
 }
 
 # Platform related specifics.
@@ -472,7 +473,7 @@ else
 
 if --show-locate-target in $(ARGV)
 {
-  ECHO $(locate-target) ;
+    ECHO $(locate-target) ;
 }
 
 # We have some different files for UNIX, and NT.
@@ -745,7 +746,8 @@ if $(UNIX) = true { actions [YACC] {
 } }
 if $(grammar) && ! $(yacc)
 {
-    EXIT "Could not find the 'yacc' tool, and therefore can not build the grammar." ;
+    EXIT Could not find the 'yacc' tool, and therefore can not build the
+        grammar. ;
 }
 if $(grammar) && $(yacc)
 {
@@ -786,29 +788,31 @@ rule .jam
 
 
 # Scan sources for header dependencies.
-#	WARNING: Yes those are *REAL TABS* below. DO NOT CHANGE,
-#	under any circumstances, to spaces!! And the tabs
-#	indenting this are so that if someone is in the mood to
-#	replace tabs they hit this comment, and hopefully notice
-#	their error.
-rule .scan
+#
+# In order to keep things simple, we do not support include paths here. This
+# means our build will only detect changes in headers included relative to the
+# current folder as opposed to those included from somewhere on the include
+# path.
+rule .scan ( targets + )
 {
-    HDRRULE on $(<:D=) = .hdr.scan ;
-    HDRSCAN on $(<:D=) = "^[ 	]*#[ 	]*include[ 	]*([<\"][^\">]*[\">]).*$" ;
+    HDRRULE on $(targets) = .hdr.scan ;
+    HDRSCAN on $(targets) = "^[ \t]*#[ \t]*include[ \t]*\"([^\"]*)\".*$" ;
 }
-rule .hdr.scan
+rule .hdr.scan ( target : includes * : binding )
 {
-    local hdrs = [ GLOB . : $(>:D=) ] ;
-    INCLUDES $(<:D=) : $(hdrs:D=) ;
-    HDRRULE on $(>:D=) = .hdr.scan ;
-    HDRSCAN on $(>:D=) = "^[ 	]*#[ 	]*include[ 	]*([<\"][^\">]*[\">]).*$" ;
+    local target-path = [ NORMALIZE_PATH $(binding:D) ] ;
+    NOCARE $(includes) ;
+    INCLUDES $(target) : $(includes) ;
+    SEARCH on $(includes) = $(target-path) ;
+    ISFILE $(includes) ;
+    .scan $(includes) ;
 }
-.scan [ GLOB . : *.c ] ;
+.scan $(jam.source) ;
 
-# Distribution making from here on out. Assumes that
-# the docs are already built as html at ../doc/html. If
-# they aren't, then the docs are not included in the dist
-# archive.
+
+# Distribution making from here on out. Assumes that the docs are already built
+# as HTML at ../doc/html. Otherwise they will not be included in the built
+# distribution archive.
 dist.license =
     [ GLOB . : $(LICENSE).txt ]
     ;
@@ -996,8 +1000,8 @@ actions [RPM] {
     rm -f rpm.out
 }
 
-# The distribution targets. Don't bother with the targets if
-# distribution build not requested.
+# The distribution targets. Do not bother with them unless this is a
+# distribution build.
 if dist in $(ARGV)
 {
     #~ .binary bjam ;

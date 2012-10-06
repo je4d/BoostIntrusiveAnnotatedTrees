@@ -1,10 +1,10 @@
 #!/usr/bin/python
 
-#  Copyright (C) Vladimir Prus 2006.
-#  Copyright (C) Jurko Gospodnetic 2008.
-#  Distributed under the Boost Software License, Version 1.0. (See
-#  accompanying file LICENSE_1_0.txt or copy at
-#  http://www.boost.org/LICENSE_1_0.txt)
+# Copyright (C) 2006. Vladimir Prus
+# Copyright (C) 2008. Jurko Gospodnetic
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # Tests that we explicitly request a file (not target) to be built by
 # specifying its name on the command line.
@@ -36,7 +36,7 @@ exe sub : hello.cpp ;
     t.write("sub/hello.cpp", "int main() {}\n")
 
     t.run_build_system(["sub", t.adjust_suffix("hello.obj")])
-    t.expect_output_line("*depends on itself*", False)
+    t.expect_output_lines("*depends on itself*", False)
     t.expect_addition("sub/bin/$toolset/debug/hello.obj")
     t.expect_nothing_more()
 
@@ -90,7 +90,7 @@ exe hello3 : hello3.cpp ;
 
     obj = t.adjust_suffix("hello2.obj")
     t.run_build_system(["hello1", obj], status=1)
-    t.expect_output_line("don't know how to make*" + obj)
+    t.expect_output_lines("don't know how to make*" + obj)
     t.expect_nothing_more()
 
     t.cleanup()
@@ -148,7 +148,7 @@ exe sub : hello.cpp ;
     t.write("sub/hello.cpp", "int main() {}\n")
 
     t.run_build_system([t.adjust_suffix("hello.obj")])
-    t.expect_output_line("*depends on itself*", False)
+    t.expect_output_lines("*depends on itself*", False)
     t.expect_addition("bin/$toolset/debug/hello.obj")
     t.expect_addition("sub/bin/$toolset/debug/hello.obj")
     t.expect_nothing_more()

@@ -2,7 +2,8 @@
 # Copyright 2006, 2007 Rene Rivera
 # Copyright 2003, 2004, 2005, 2006 Vladimir Prus
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # This file is part of Boost Build version 2. You can think of it as forming the
 # main() routine. It is invoked by the bootstrapping code in bootstrap.jam.
@@ -10,7 +11,9 @@
 import build-request ;
 import builtin ;
 import "class" : new ;
+import configure ;
 import feature ;
+import generators ;
 import make ;
 import modules ;
 import os ;
@@ -24,8 +27,6 @@ import toolset ;
 import utility ;
 import version ;
 import virtual-target ;
-import generators ;
-import configure ;
 
 
 ################################################################################
@@ -40,22 +41,6 @@ import configure ;
 # Flag indicating we should display additional debugging information related to
 # locating and loading Boost Build configuration files.
 .debug-config = [ MATCH ^(--debug-configuration)$ : $(.argv) ] ;
-
-# Legacy option doing too many things, some of which are not even documented.
-# Should be phased out.
-#   * Disables loading site and user configuration files.
-#   * Disables auto-configuration for toolsets specified explicitly on the
-#     command-line.
-#   * Causes --toolset command-line options to be ignored.
-#   * Prevents the default toolset from being used even if no toolset has been
-#     configured at all.
-.legacy-ignore-config = [ MATCH ^(--ignore-config)$ : $(.argv) ] ;
-
-# The cleaning is tricky. Say, if user says 'bjam --clean foo' where 'foo' is a
-# directory, then we want to clean targets which are in 'foo' as well as those
-# in any children Jamfiles under foo but not in any unrelated Jamfiles. To
-# achieve this we collect a list of projects under which cleaning is allowed.
-.project-targets = ;
 
 # Virtual targets obtained when building main targets references on the command
 # line. When running 'bjam --clean main_target' we want to clean only files
@@ -134,13 +119,17 @@ rule set-post-build-hook ( function )
 #
 local rule actual-clean-targets ( )
 {
-    # Construct a list of projects explicitly detected as targets on this build
-    # system run. These are the projects under which cleaning is allowed.
+    # The cleaning is tricky. Say, if user says 'bjam --clean foo' where 'foo'
+    # is a directory, then we want to clean targets which are in 'foo' as well
+    # as those in any children Jamfiles under foo but not in any unrelated
+    # Jamfiles. To achieve this we first mark all projects explicitly detected
+    # as targets for this build system run as needing to be cleaned.
     for local t in $(targets)
     {
         if [ class.is-a $(t) : project-target ]
         {
-            .project-targets += [ $(t).project-module ] ;
+            local project = [ $(t).project-module ] ;
+            .should-clean-project.$(project) = true ;
         }
     }
 
@@ -157,16 +146,13 @@ local rule actual-clean-targets ( )
     local to-clean ;
     for local t in [ virtual-target.all-targets ]
     {
+        # Remove only derived targets and only those asked to be cleaned,
+        # whether directly or by belonging to one of the removed projects.
         local p = [ $(t).project ] ;
-
-        # Remove only derived targets.
-        if [ $(t).action ]
+        if [ $(t).action ] && ( $(t) in $(targets-to-clean) ||
+            [ should-clean-project [ $(p).project-module ] ] )
         {
-            if $(t) in $(targets-to-clean) ||
-                [ should-clean-project [ $(p).project-module ] ] = true
-            {
-                to-clean += $(t) ;
-            }
+            to-clean += $(t) ;
         }
     }
 
@@ -293,8 +279,7 @@ local rule load-config ( module-name : filename : path + : must-find ? )
 #   Always named site-config.jam. Will only be found if located on the system
 # root path (Windows), /etc (non-Windows), user's home folder or the Boost Build
 # path, in that order. Not loaded in case the test-config configuration file is
-# loaded or either the --ignore-site-config or the --ignore-config command-line
-# option is specified.
+# loaded or the --ignore-site-config command-line option is specified.
 #
 #   -- user-config --
 #   Named user-config.jam by default or may be named explicitly using the
@@ -302,10 +287,13 @@ local rule load-config ( module-name : filename : path + : must-find ? )
 # variable. If named explicitly the file is looked for from the current working
 # directory and if the default one is used then it is searched for in the
 # user's home directory and the Boost Build path, in that order. Not loaded in
-# case either the test-config configuration file is loaded, --ignore-config
-# command-line option is specified or an empty file name is explicitly
-# specified. If the file name has been given explicitly then the file must
-# exist.
+# case either the test-config configuration file is loaded or an empty file name
+# is explicitly specified. If the file name has been given explicitly then the
+# file must exist.
+#
+#   -- project-config --
+#   Always named project-config.jam. Looked up in the current working folder and
+# then upwards through its parents up to the root folder.
 #
 # Test configurations have been added primarily for use by Boost Build's
 # internal unit testing system but may be used freely in other places as well.
@@ -316,12 +304,6 @@ local rule load-configuration-files
     local ignore-site-config =
         [ MATCH ^(--ignore-site-config)$ : $(.argv) ] ;
 
-    if $(.legacy-ignore-config) && $(.debug-config)
-    {
-        ECHO "notice: Regular site and user configuration files will be ignored" ;
-        ECHO "notice: due to the --ignore-config command-line option." ;
-    }
-
     initialize-config-module test-config ;
     local test-config = [ MATCH ^--test-config=(.*)$ : $(.argv) ] ;
     local uq = [ MATCH \"(.*)\" : $(test-config) ] ;
@@ -331,11 +313,11 @@ local rule load-configuration-files
     }
     if $(test-config)
     {
-        local where =
-            [ load-config test-config : $(test-config:BS) : $(test-config:D) ] ;
+        local where = [ load-config test-config : $(test-config:BS) :
+            $(test-config:D) ] ;
         if $(where)
         {
-            if $(.debug-config) && ! $(.legacy-ignore-config)
+            if $(.debug-config)
             {
                 ECHO "notice: Regular site and user configuration files will" ;
                 ECHO "notice: be ignored due to the test configuration being"
@@ -355,20 +337,20 @@ local rule load-configuration-files
         site-path = [ modules.peek : SystemRoot ] $(user-path) ;
     }
 
-    if $(ignore-site-config) && !$(.legacy-ignore-config)
+    if $(.debug-config) && ! $(test-config) && $(ignore-site-config)
     {
         ECHO "notice: Site configuration files will be ignored due to the" ;
         ECHO "notice: --ignore-site-config command-line option." ;
     }
 
     initialize-config-module site-config ;
-    if ! $(test-config) && ! $(ignore-site-config) && ! $(.legacy-ignore-config)
+    if ! $(test-config) && ! $(ignore-site-config)
     {
         load-config site-config : site-config.jam : $(site-path) ;
     }
 
     initialize-config-module user-config ;
-    if ! $(test-config) && ! $(.legacy-ignore-config)
+    if ! $(test-config)
     {
         local user-config = [ MATCH ^--user-config=(.*)$ : $(.argv) ] ;
         user-config = $(user-config[-1]) ;
@@ -411,13 +393,12 @@ local rule load-configuration-files
         }
     }
 
-    # We look for project-config.jam from "." upward.
-    # I am not sure this is 100% right decision, we might as well check for
-    # it only alonside the Jamroot file. However:
-    #
-    # - We need to load project-root.jam before Jamroot
-    # - We probably would need to load project-root.jam even if there's no
-    #   Jamroot - e.g. to implement automake-style out-of-tree builds.
+    # We look for project-config.jam from "." upward. I am not sure this is 100%
+    # right decision, we might as well check for it only alongside the Jamroot
+    # file. However:
+    # - We need to load project-config.jam before Jamroot
+    # - We probably need to load project-config.jam even if there is no Jamroot
+    #   - e.g. to implement automake-style out-of-tree builds.
     local file = [ path.glob "." : project-config.jam ] ;
     if ! $(file)
     {
@@ -428,6 +409,8 @@ local rule load-configuration-files
         initialize-config-module project-config : $(file:D) ;
         load-config project-config : project-config.jam : $(file:D) ;
     }
+
+    project.end-load ;
 }
 
 
@@ -498,7 +481,7 @@ local rule process-explicit-toolset-requests
         # Make sure we get an appropriate property into the build request in
         # case toolset has been specified using the "--toolset=..." command-line
         # option form.
-        if ! $(t) in $(.argv) && ! $(t) in $(feature-toolsets)
+        if ! $(t) in $(.argv) $(feature-toolsets)
         {
             if $(.debug-config)
             {
@@ -513,24 +496,21 @@ local rule process-explicit-toolset-requests
 }
 
 
-# Returns 'true' if the given 'project' is equal to or is a (possibly indirect)
-# child to any of the projects requested to be cleaned in this build system run.
-# Returns 'false' otherwise. Expects the .project-targets list to have already
-# been constructed.
+# Returns whether the given project (identifed by its project module) should be
+# cleaned because it or any of its parent projects have already been marked as
+# needing to be cleaned in this build. As an optimization, will explicitly mark
+# all encountered project needing to be cleaned in case thay have not already
+# been marked so.
 #
 local rule should-clean-project ( project )
 {
-    if ! $(.should-clean-project.$(project))
+    if ! $(.should-clean-project.$(project))-is-defined
     {
-        local r = false ;
-        if $(project) in $(.project-targets)
-        {
-            r = true ;
-        }
-        else
+        local r = "" ;
+        if ! [ project.is-jamroot-module $(project) ]
         {
             local parent = [ project.attribute $(project) parent-module ] ;
-            if $(parent) && $(parent) != user-config
+            if $(parent)
             {
                 r = [ should-clean-project $(parent) ] ;
             }
@@ -560,28 +540,24 @@ local rule should-clean-project ( project )
 
     load-configuration-files ;
 
-    local extra-properties ;
-    # Note that this causes --toolset options to be ignored if --ignore-config
-    # is specified.
-    if ! $(.legacy-ignore-config)
-    {
-        extra-properties = [ process-explicit-toolset-requests ] ;
-    }
+    # Load explicitly specified toolset modules.
+    local extra-properties = [ process-explicit-toolset-requests ] ;
 
-
-    # We always load project in "." so that 'use-project' directives have any
-    # chance of being seen. Otherwise, we would not be able to refer to
-    # subprojects using target ids.
+    # Load the actual project build script modules. We always load the project
+    # in the current folder so 'use-project' directives have any chance of being
+    # seen. Otherwise, we would not be able to refer to subprojects using target
+    # ids.
     local current-project ;
-    if [ project.find "." : "." ]
     {
-        current-project = [ project.target [ project.load "." ] ] ;
+        local current-module = [ project.find "." : "." ] ;
+        if $(current-module)
+        {
+            current-project = [ project.target $(current-module) ] ;
+        }
     }
 
-
-    # In case there are no toolsets currently defined makes the build run using
-    # the default toolset.
-    if ! $(.legacy-ignore-config) && ! [ feature.values <toolset> ]
+    # Load the default toolset module if no other has already been specified.
+    if ! [ feature.values <toolset> ]
     {
         local default-toolset = $(.default-toolset) ;
         local default-toolset-version = ;
@@ -615,6 +591,11 @@ local rule should-clean-project ( project )
 
     # Parse command line for targets and properties. Note that this requires
     # that all project files already be loaded.
+    # FIXME: This is not entirely true. Additional project files may be loaded
+    # only later via the project.find() rule when dereferencing encountered
+    # target ids containing explicit project references. See what to do about
+    # those as such 'lazy loading' may cause problems that are then extremely
+    # difficult to debug.
     local build-request = [ build-request.from-command-line $(.argv)
         $(extra-properties) ] ;
     local target-ids = [ $(build-request).get-at 1 ] ;
@@ -833,7 +814,8 @@ local rule should-clean-project ( project )
             # constituent action fails and regenerate the xml on every bjam run.
             INCLUDES $(xml-file) : $(constituents) ;
             ALWAYS $(xml-file) ;
-            __ACTION_RULE__ on $(xml-file) = build-system.out-xml.generate-action ;
+            __ACTION_RULE__ on $(xml-file) =
+                build-system.out-xml.generate-action ;
             out-xml.generate $(xml-file) ;
         }
 
@@ -1001,8 +983,8 @@ local rule should-clean-project ( project )
             {
                 $(.post-build-hook) $(ok) ;
             }
-            # Prevent automatic update of the 'all' target, now that
-            # we have explicitly updated what we wanted.
+            # Prevent automatic update of the 'all' target, now that we have
+            # explicitly updated what we wanted.
             UPDATE ;
         }
         else

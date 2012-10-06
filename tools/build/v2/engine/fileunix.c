@@ -15,8 +15,9 @@
  * fileunix.c - manipulate file names and scan directories on UNIX/AmigaOS
  *
  * External routines:
- *  file_archscan() - scan an archive for files
- *  file_mkdir()    - create a directory
+ *  file_archscan()                 - scan an archive for files
+ *  file_mkdir()                    - create a directory
+ *  file_supported_fmt_resolution() - file modification timestamp resolution
  *
  * External routines called only via routines in filesys.c:
  *  file_collect_dir_content_() - collects directory content information
@@ -134,7 +135,7 @@ int file_collect_dir_content_( file_info_t * const d )
         f.f_base.len = strlen( f.f_base.ptr );
 
         string_truncate( path, 0 );
-        path_build( &f, path, 0 );
+        path_build( &f, path );
         files = list_push_back( files, object_new( path->value ) );
     }
     string_free( path );
@@ -157,7 +158,7 @@ void file_dirscan_( file_info_t * const d, scanback func, void * closure )
 
     /* Special case / : enter it */
     if ( !strcmp( object_str( d->name ), "/" ) )
-        (*func)( closure, d->name, 1 /* stat()'ed */, d->time );
+        (*func)( closure, d->name, 1 /* stat()'ed */, &d->time );
 }
 
 
@@ -167,7 +168,7 @@ void file_dirscan_( file_info_t * const d, scanback func, void * closure )
 
 int file_mkdir( char const * const path )
 {
-    return mkdir( path, 0766 );
+    return mkdir( path, 0777 );
 }
 
 
@@ -178,6 +179,28 @@ int file_mkdir( char const * const path )
 int file_query_( file_info_t * const info )
 {
     return file_query_posix_( info );
+}
+
+
+/*
+ * file_supported_fmt_resolution() - file modification timestamp resolution
+ *
+ * Returns the minimum file modification timestamp resolution supported by this
+ * Boost Jam implementation. File modification timestamp changes of less than
+ * the returned value might not be recognized.
+ *
+ * Does not take into consideration any OS or file system related restrictions.
+ *
+ * Return value 0 indicates that any value supported by the OS is also supported
+ * here.
+ */
+
+void file_supported_fmt_resolution( timestamp * const t )
+{
+    /* The current implementation does not support file modification timestamp
+     * resolution of less than one second.
+     */
+    timestamp_init( t, 1, 0 );
 }
 
 
@@ -230,7 +253,6 @@ void file_archscan( char const * archive, scanback func, void * closure )
         char * c;
         char * src;
         char * dest;
-        OBJECT * member;
 
         strncpy( lar_name, ar_hdr.ar_name, sizeof( ar_hdr.ar_name ) );
 
@@ -274,9 +296,13 @@ void file_archscan( char const * archive, scanback func, void * closure )
 
         sprintf( buf, "%s(%s)", archive, lar_name );
 
-        member = object_new( buf );
-        (*func)( closure, member, 1 /* time valid */, (time_t)lar_date );
-        object_free( member );
+        {
+            OBJECT * const member = object_new( buf );
+            timestamp time;
+            timestamp_init( &time, (time_t)lar_date, 0 );
+            (*func)( closure, member, 1 /* time valid */, &time );
+            object_free( member );
+        }
 
         offset += SARHDR + ( ( lar_size + 1 ) & ~1 );
         lseek( fd, offset, 0 );
@@ -317,7 +343,6 @@ static void file_archscan_small( int fd, char const * archive, scanback func,
     {
         long lar_date;
         int lar_namlen;
-        OBJECT * member;
 
         sscanf( ar_hdr.hdr.ar_namlen, "%d" , &lar_namlen );
         sscanf( ar_hdr.hdr.ar_date  , "%ld", &lar_date   );
@@ -330,9 +355,13 @@ static void file_archscan_small( int fd, char const * archive, scanback func,
 
         sprintf( buf, "%s(%s)", archive, ar_hdr.hdr._ar_name.ar_name );
 
-        member = object_new( buf );
-        (*func)( closure, member, 1 /* time valid */, (time_t)lar_date );
-        object_free( member );
+        {
+            OBJECT * const member = object_new( buf );
+            timestamp time;
+            timestamp_init( &time, (time_t)lar_date, 0 );
+            (*func)( closure, member, 1 /* time valid */, &time );
+            object_free( member );
+        }
     }
 }
 
@@ -364,8 +393,7 @@ static void file_archscan_big( int fd, char const * archive, scanback func,
         read( fd, &ar_hdr, sizeof( ar_hdr ) ) >= sizeof( ar_hdr.hdr ) )
     {
         long lar_date;
-        int  lar_namlen;
-        OBJECT * member;
+        int lar_namlen;
 
         sscanf( ar_hdr.hdr.ar_namlen, "%d"  , &lar_namlen );
         sscanf( ar_hdr.hdr.ar_date  , "%ld" , &lar_date   );
@@ -378,9 +406,13 @@ static void file_archscan_big( int fd, char const * archive, scanback func,
 
         sprintf( buf, "%s(%s)", archive, ar_hdr.hdr._ar_name.ar_name );
 
-        member = object_new( buf );
-        (*func)( closure, member, 1 /* time valid */, (time_t)lar_date );
-        object_free( member );
+        {
+            OBJECT * const member = object_new( buf );
+            timestamp time;
+            timestamp_init( &time, (time_t)lar_date, 0 );
+            (*func)( closure, member, 1 /* time valid */, &time );
+            object_free( member );
+        }
     }
 }
 

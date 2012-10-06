@@ -1,7 +1,8 @@
 /*
- *  Copyright 2011 Steven Watanabe
- *  Distributed under the Boost Software License, Version 1.0.
- *  (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+ * Copyright 2011 Steven Watanabe
+ * Distributed under the Boost Software License, Version 1.0.
+ * (See accompanying file LICENSE_1_0.txt or copy at
+ * http://www.boost.org/LICENSE_1_0.txt)
  */
 
 #include "jam.h"
@@ -34,86 +35,86 @@
 #endif
 
 int glob( char const * s, char const * c );
-void backtrace( FRAME * frame );
-void backtrace_line( FRAME * frame );
+void backtrace( FRAME * );
+void backtrace_line( FRAME * );
 
-#define INSTR_PUSH_EMPTY                    0
-#define INSTR_PUSH_CONSTANT                 1
-#define INSTR_PUSH_ARG                      2
-#define INSTR_PUSH_VAR                      3
-#define INSTR_PUSH_VAR_FIXED                57
-#define INSTR_PUSH_GROUP                    4
-#define INSTR_PUSH_RESULT                   5
-#define INSTR_PUSH_APPEND                   6
-#define INSTR_SWAP                          7
+#define INSTR_PUSH_EMPTY                   0
+#define INSTR_PUSH_CONSTANT                1
+#define INSTR_PUSH_ARG                     2
+#define INSTR_PUSH_VAR                     3
+#define INSTR_PUSH_VAR_FIXED               57
+#define INSTR_PUSH_GROUP                   4
+#define INSTR_PUSH_RESULT                  5
+#define INSTR_PUSH_APPEND                  6
+#define INSTR_SWAP                         7
 
-#define INSTR_JUMP_EMPTY                    8
-#define INSTR_JUMP_NOT_EMPTY                9
+#define INSTR_JUMP_EMPTY                   8
+#define INSTR_JUMP_NOT_EMPTY               9
 
-#define INSTR_JUMP                          10
-#define INSTR_JUMP_LT                       11
-#define INSTR_JUMP_LE                       12
-#define INSTR_JUMP_GT                       13
-#define INSTR_JUMP_GE                       14
-#define INSTR_JUMP_EQ                       15
-#define INSTR_JUMP_NE                       16
-#define INSTR_JUMP_IN                       17
-#define INSTR_JUMP_NOT_IN                   18
+#define INSTR_JUMP                         10
+#define INSTR_JUMP_LT                      11
+#define INSTR_JUMP_LE                      12
+#define INSTR_JUMP_GT                      13
+#define INSTR_JUMP_GE                      14
+#define INSTR_JUMP_EQ                      15
+#define INSTR_JUMP_NE                      16
+#define INSTR_JUMP_IN                      17
+#define INSTR_JUMP_NOT_IN                  18
 
-#define INSTR_JUMP_NOT_GLOB                 19
+#define INSTR_JUMP_NOT_GLOB                19
 
-#define INSTR_FOR_INIT                      56
-#define INSTR_FOR_LOOP                      20
+#define INSTR_FOR_INIT                     56
+#define INSTR_FOR_LOOP                     20
 
-#define INSTR_SET_RESULT                    21
-#define INSTR_RETURN                        22
-#define INSTR_POP                           23
+#define INSTR_SET_RESULT                   21
+#define INSTR_RETURN                       22
+#define INSTR_POP                          23
 
-#define INSTR_PUSH_LOCAL                    24
-#define INSTR_POP_LOCAL                     25
-#define INSTR_SET                           26
-#define INSTR_APPEND                        27
-#define INSTR_DEFAULT                       28
+#define INSTR_PUSH_LOCAL                   24
+#define INSTR_POP_LOCAL                    25
+#define INSTR_SET                          26
+#define INSTR_APPEND                       27
+#define INSTR_DEFAULT                      28
 
-#define INSTR_PUSH_LOCAL_FIXED              58
-#define INSTR_POP_LOCAL_FIXED               59
-#define INSTR_SET_FIXED                     60
-#define INSTR_APPEND_FIXED                  61
-#define INSTR_DEFAULT_FIXED                 62
+#define INSTR_PUSH_LOCAL_FIXED             58
+#define INSTR_POP_LOCAL_FIXED              59
+#define INSTR_SET_FIXED                    60
+#define INSTR_APPEND_FIXED                 61
+#define INSTR_DEFAULT_FIXED                62
 
-#define INSTR_PUSH_LOCAL_GROUP              29
-#define INSTR_POP_LOCAL_GROUP               30
-#define INSTR_SET_GROUP                     31
-#define INSTR_APPEND_GROUP                  32
-#define INSTR_DEFAULT_GROUP                 33
+#define INSTR_PUSH_LOCAL_GROUP             29
+#define INSTR_POP_LOCAL_GROUP              30
+#define INSTR_SET_GROUP                    31
+#define INSTR_APPEND_GROUP                 32
+#define INSTR_DEFAULT_GROUP                33
 
-#define INSTR_PUSH_ON                       34
-#define INSTR_POP_ON                        35
-#define INSTR_SET_ON                        36
-#define INSTR_APPEND_ON                     37
-#define INSTR_DEFAULT_ON                    38
+#define INSTR_PUSH_ON                      34
+#define INSTR_POP_ON                       35
+#define INSTR_SET_ON                       36
+#define INSTR_APPEND_ON                    37
+#define INSTR_DEFAULT_ON                   38
 
-#define INSTR_CALL_RULE                     39
+#define INSTR_CALL_RULE                    39
 
-#define INSTR_APPLY_MODIFIERS               40
-#define INSTR_APPLY_INDEX                   41
-#define INSTR_APPLY_INDEX_MODIFIERS         42
-#define INSTR_APPLY_MODIFIERS_GROUP         43
-#define INSTR_APPLY_INDEX_GROUP             44
-#define INSTR_APPLY_INDEX_MODIFIERS_GROUP   45
-#define INSTR_COMBINE_STRINGS               46
+#define INSTR_APPLY_MODIFIERS              40
+#define INSTR_APPLY_INDEX                  41
+#define INSTR_APPLY_INDEX_MODIFIERS        42
+#define INSTR_APPLY_MODIFIERS_GROUP        43
+#define INSTR_APPLY_INDEX_GROUP            44
+#define INSTR_APPLY_INDEX_MODIFIERS_GROUP  45
+#define INSTR_COMBINE_STRINGS              46
 
-#define INSTR_INCLUDE                       47
-#define INSTR_RULE                          48
-#define INSTR_ACTIONS                       49
-#define INSTR_PUSH_MODULE                   50
-#define INSTR_POP_MODULE                    51
-#define INSTR_CLASS                         52
-#define INSTR_BIND_MODULE_VARIABLES         63
+#define INSTR_INCLUDE                      47
+#define INSTR_RULE                         48
+#define INSTR_ACTIONS                      49
+#define INSTR_PUSH_MODULE                  50
+#define INSTR_POP_MODULE                   51
+#define INSTR_CLASS                        52
+#define INSTR_BIND_MODULE_VARIABLES        63
 
-#define INSTR_APPEND_STRINGS                53
-#define INSTR_WRITE_FILE                    54
-#define INSTR_OUTPUT_STRINGS                55
+#define INSTR_APPEND_STRINGS               53
+#define INSTR_WRITE_FILE                   54
+#define INSTR_OUTPUT_STRINGS               55
 
 typedef struct instruction
 {
@@ -138,7 +139,8 @@ typedef struct _subaction
 #define FUNCTION_BUILTIN    0
 #define FUNCTION_JAM        1
 
-struct argument {
+struct argument
+{
     int flags;
 #define ARG_ONE 0
 #define ARG_OPTIONAL 1
@@ -150,7 +152,8 @@ struct argument {
     int index;
 };
 
-struct arg_list {
+struct arg_list
+{
     int size;
     struct argument * args;
 };
@@ -198,7 +201,7 @@ typedef struct _python_function
     PyObject * python_function;
 } PYTHON_FUNCTION;
 
-static LIST * call_python_function( PYTHON_FUNCTION * function, FRAME * frame );
+static LIST * call_python_function( PYTHON_FUNCTION *, FRAME * );
 
 #endif
 
@@ -275,7 +278,7 @@ void stack_set( STACK * s, int n, LIST * value )
 void * stack_get( STACK * s )
 {
     check_alignment( s );
-    return (LIST * *)s->data;
+    return s->data;
 }
 
 LIST * frame_get_local( FRAME * frame, int idx )
@@ -631,7 +634,7 @@ static void var_edit_file( char const * in, string * out, VAR_EDITS * edits )
             path_parent( &pathname );
 
         /* Put filename back together. */
-        path_build( &pathname, out, 0 );
+        path_build( &pathname, out );
     }
     else
         string_append( out, in );
@@ -1280,7 +1283,7 @@ static int compile_emit_actions( compiler * c, PARSE * parse )
 
 static JAM_FUNCTION * compile_to_function( compiler * c )
 {
-    JAM_FUNCTION * result = BJAM_MALLOC( sizeof(JAM_FUNCTION) );
+    JAM_FUNCTION * const result = BJAM_MALLOC( sizeof( JAM_FUNCTION ) );
     int i;
     result->base.type = FUNCTION_JAM;
     result->base.reference_count = 1;
@@ -1290,16 +1293,16 @@ static JAM_FUNCTION * compile_to_function( compiler * c )
     result->base.rulename = 0;
 
     result->code_size = c->code->size;
-    result->code = BJAM_MALLOC( c->code->size * sizeof(instruction) );
-    memcpy( result->code, c->code->data, c->code->size * sizeof(instruction) );
+    result->code = BJAM_MALLOC( c->code->size * sizeof( instruction ) );
+    memcpy( result->code, c->code->data, c->code->size * sizeof( instruction ) );
 
-    result->constants = BJAM_MALLOC( c->constants->size * sizeof(OBJECT *) );
+    result->constants = BJAM_MALLOC( c->constants->size * sizeof( OBJECT * ) );
     memcpy( result->constants, c->constants->data, c->constants->size * sizeof(
-        OBJECT *) );
+        OBJECT * ) );
     result->num_constants = c->constants->size;
 
     result->num_subfunctions = c->rules->size;
-    result->functions = BJAM_MALLOC( c->rules->size * sizeof(SUBFUNCTION) );
+    result->functions = BJAM_MALLOC( c->rules->size * sizeof( SUBFUNCTION ) );
     for ( i = 0; i < c->rules->size; ++i )
     {
         struct stored_rule * const rule = &dynamic_array_at( struct stored_rule,
@@ -1311,9 +1314,9 @@ static JAM_FUNCTION * compile_to_function( compiler * c )
         result->functions[ i ].local = rule->local;
     }
 
-    result->actions = BJAM_MALLOC( c->actions->size * sizeof(SUBACTION) );
+    result->actions = BJAM_MALLOC( c->actions->size * sizeof( SUBACTION ) );
     memcpy( result->actions, c->actions->data, c->actions->size * sizeof(
-        SUBACTION) );
+        SUBACTION ) );
     result->num_subactions = c->actions->size;
 
     result->generic = 0;
@@ -2297,7 +2300,7 @@ static void compile_parse( PARSE * parse, compiler * c, int result_location )
     }
     else if ( parse->type == PARSE_MODULE )
     {
-        int nested_result = result_location == RESULT_NONE
+        int const nested_result = result_location == RESULT_NONE
             ? RESULT_NONE
             : RESULT_RETURN;
         compile_parse( parse->left, c, RESULT_STACK );
@@ -2324,7 +2327,7 @@ static void compile_parse( PARSE * parse, compiler * c, int result_location )
     }
     else if ( parse->type == PARSE_LIST )
     {
-        OBJECT * o = parse->string;
+        OBJECT * const o = parse->string;
         char const * s = object_str( o );
         VAR_PARSE_GROUP * group;
         current_file = object_str( parse->file );
@@ -2508,7 +2511,7 @@ static void compile_parse( PARSE * parse, compiler * c, int result_location )
 
         adjust_result( c, RESULT_STACK, result_location );
     }
-    else if ( parse->type  == PARSE_SWITCH )
+    else if ( parse->type == PARSE_SWITCH )
     {
         int const switch_end = compile_new_label( c );
         compile_parse( parse->left, c, RESULT_STACK );
@@ -3369,7 +3372,8 @@ static char check_align_expansion_item[ sizeof(struct align_expansion_item) <= s
 static char check_ptr_size1[ sizeof(LIST *) <= sizeof(void *) ? 1 : -1 ];
 static char check_ptr_size2[ sizeof(char *) <= sizeof(void *) ? 1 : -1 ];
 
-void function_run_actions( FUNCTION * function, FRAME * frame, STACK * s, string * out )
+void function_run_actions( FUNCTION * function, FRAME * frame, STACK * s,
+    string * out )
 {
     *(string * *)stack_allocate( s, sizeof( string * ) ) = out;
     list_free( function_run( function, frame, s ) );
@@ -3377,9 +3381,8 @@ void function_run_actions( FUNCTION * function, FRAME * frame, STACK * s, string
 }
 
 /*
- * WARNING: The instruction set is tuned for Jam and
- * is not really generic.  Be especially careful about
- * stack push/pop.
+ * WARNING: The instruction set is tuned for Jam and is not really generic. Be
+ * especially careful about stack push/pop.
  */
 
 LIST * function_run( FUNCTION * function_, FRAME * frame, STACK * s )
@@ -3393,7 +3396,7 @@ LIST * function_run( FUNCTION * function_, FRAME * frame, STACK * s )
 
     if ( function_->type == FUNCTION_BUILTIN )
     {
-        BUILTIN_FUNCTION * f = (BUILTIN_FUNCTION *)function_;
+        BUILTIN_FUNCTION const * const f = (BUILTIN_FUNCTION *)function_;
         if ( function_->formal_arguments )
             argument_list_check( function_->formal_arguments,
                 function_->num_formal_arguments, function_, frame );
@@ -3401,13 +3404,11 @@ LIST * function_run( FUNCTION * function_, FRAME * frame, STACK * s )
     }
 
 #ifdef HAVE_PYTHON
-
     else if ( function_->type == FUNCTION_PYTHON )
     {
         PYTHON_FUNCTION * f = (PYTHON_FUNCTION *)function_;
         return call_python_function( f, frame );
     }
-
 #endif
 
     assert( function_->type == FUNCTION_JAM );
@@ -3636,7 +3637,6 @@ LIST * function_run( FUNCTION * function_, FRAME * frame, STACK * s )
                 argument_list_pop( function_->formal_arguments,
                     function_->num_formal_arguments, frame, s );
 #ifndef NDEBUG
-
             if ( !( saved_stack == s->data ) )
             {
                 frame->file = function->file;

@@ -32,37 +32,63 @@
 
 #include "hash.h"
 #include "lists.h"
-#include "modules.h"
 #include "object.h"
 #include "parse.h"
 #include "pathsys.h"
 #include "search.h"
-#include "timestamp.h"
 #include "variable.h"
 
 
 static void set_rule_actions( RULE *, rule_actions * );
-static void set_rule_body   ( RULE *, FUNCTION * procedure );
+static void set_rule_body   ( RULE *, FUNCTION * );
 
 static struct hash * targethash = 0;
 
 
 /*
- * target_include() - adds the 'included' TARGET to the list of targets included
- * by the 'including' TARGET. Such targets are modeled as dependencies of the
- * internal include node belonging to the 'including' TARGET.
+ * get_target_includes() - lazy creates a target's internal includes node
+ *
+ * The newly created node is not entered into the hash table as there should
+ * never be a need to bind them directly from a target names. If you want to
+ * access an internal includes node by name, first access the actual target and
+ * then read the internal includes node from there.
  */
 
-void target_include( TARGET * including, TARGET * included )
+static TARGET * get_target_includes( TARGET * const t )
 {
-    TARGET * internal;
-    if ( !including->includes )
+    if ( !t->includes )
     {
-        including->includes = copytarget( including );
-        including->includes->original_target = including;
+        TARGET * const i = (TARGET *)BJAM_MALLOC( sizeof( *t ) );
+        memset( (char *)i, '\0', sizeof( *i ) );
+        i->name = object_copy( t->name );
+        i->boundname = object_copy( i->name );
+        i->flags |= T_FLAG_NOTFILE | T_FLAG_INTERNAL;
+        i->original_target = t;
+        t->includes = i;
     }
-    internal = including->includes;
+    return t->includes;
+}
+
+
+/*
+ * target_include() - adds a target to the given targe's 'included' list
+ * target_include_many() - adds targets to the given target's 'included' list
+ *
+ * Included targets are modeled as dependencies of the including target's
+ * internal include node.
+ */
+
+void target_include( TARGET * const including, TARGET * const included )
+{
+    TARGET * const internal = get_target_includes( including );
     internal->depends = targetentry( internal->depends, included );
+}
+
+void target_include_many( TARGET * const including, LIST * const included_names
+    )
+{
+    TARGET * const internal = get_target_includes( including );
+    internal->depends = targetlist( internal->depends, included_names );
 }
 
 
@@ -74,9 +100,8 @@ void target_include( TARGET * including, TARGET * included )
 static RULE * enter_rule( OBJECT * rulename, module_t * target_module )
 {
     int found;
-    RULE * r;
-
-    r = (RULE *)hash_insert( demand_rules(target_module), rulename, &found );
+    RULE * const r = (RULE *)hash_insert( demand_rules( target_module ),
+        rulename, &found );
     if ( !found )
     {
         r->name = object_copy( rulename );
@@ -129,7 +154,7 @@ void rule_free( RULE * r )
  * bindtarget() - return pointer to TARGET, creating it if necessary.
  */
 
-TARGET * bindtarget( OBJECT * target_name )
+TARGET * bindtarget( OBJECT * const target_name )
 {
     int found;
     TARGET * t;
@@ -182,27 +207,10 @@ void bind_explicitly_located_targets()
 
 
 /*
- * copytarget() - make a new target with the old target's name.
- *
- * Not entered into the hash table -- for internal nodes.
- */
-
-TARGET * copytarget( const TARGET * ot )
-{
-    TARGET * t = (TARGET *)BJAM_MALLOC( sizeof( *t ) );
-    memset( (char *)t, '\0', sizeof( *t ) );
-    t->name = object_copy( ot->name );
-    t->boundname = object_copy( t->name );
-    t->flags |= T_FLAG_NOTFILE | T_FLAG_INTERNAL;
-    return t;
-}
-
-
-/*
  * touch_target() - mark a target to simulate being new.
  */
 
-void touch_target( OBJECT * t )
+void touch_target( OBJECT * const t )
 {
     bindtarget( t )->flags |= T_FLAG_TOUCHED;
 }
@@ -567,8 +575,8 @@ static RULE * global_rule( RULE * r )
         return r;
 
     {
-        OBJECT * name = global_rule_name( r );
-        RULE * result = define_rule( r->module, name, root_module() );
+        OBJECT * const name = global_rule_name( r );
+        RULE * const result = define_rule( r->module, name, root_module() );
         object_free( name );
         return result;
     }
@@ -584,7 +592,7 @@ static RULE * global_rule( RULE * r )
 RULE * new_rule_body( module_t * m, OBJECT * rulename, FUNCTION * procedure,
     int exported )
 {
-    RULE * local = define_rule( m, rulename, m );
+    RULE * const local = define_rule( m, rulename, m );
     local->exported = exported;
     set_rule_body( local, procedure );
 
@@ -593,7 +601,7 @@ RULE * new_rule_body( module_t * m, OBJECT * rulename, FUNCTION * procedure,
      * can use, e.g. in profiling output. Only do this once, since this could be
      * called multiple times with the same procedure.
      */
-    if ( function_rulename( procedure ) == 0 )
+    if ( !function_rulename( procedure ) )
         function_set_rulename( procedure, global_rule_name( local ) );
 
     return local;
@@ -656,23 +664,25 @@ RULE * lookup_rule( OBJECT * rulename, module_t * m, int local_only )
     else if ( !local_only && m->imported_modules )
     {
         /* Try splitting the name into module and rule. */
-        char *p = strchr( object_str( rulename ), '.' ) ;
+        char * p = strchr( object_str( rulename ), '.' ) ;
         if ( p )
         {
-            string buf[1];
-            OBJECT * module_part;
-            OBJECT * rule_part;
-            string_new( buf );
-            string_append_range( buf, object_str( rulename ), p );
-            module_part = object_new( buf->value );
-            rule_part = object_new( p + 1 );
-            /* Now, r->name keeps the module name, and p+1 keeps the rule name.
+            /* Now, r->name keeps the module name, and p + 1 keeps the rule
+             * name.
              */
+            OBJECT * rule_part = object_new( p + 1 );
+            OBJECT * module_part;
+            {
+                string buf[ 1 ];
+                string_new( buf );
+                string_append_range( buf, object_str( rulename ), p );
+                module_part = object_new( buf->value );
+                string_free( buf );
+            }
             if ( hash_find( m->imported_modules, module_part ) )
                 result = lookup_rule( rule_part, bindmodule( module_part ), 1 );
-            object_free( rule_part );
             object_free( module_part );
-            string_free( buf );
+            object_free( rule_part );
         }
     }
 
@@ -684,7 +694,7 @@ RULE * lookup_rule( OBJECT * rulename, module_t * m, int local_only )
         {
             /* Lookup started in class module. We have found a rule in class
              * module, which is marked for execution in that module, or in some
-             * instances. Mark it for execution in the instance where we started
+             * instance. Mark it for execution in the instance where we started
              * the lookup.
              */
             int const execute_in_class = result->module == m;
@@ -716,7 +726,7 @@ RULE * bindrule( OBJECT * rulename, module_t * m )
 
 RULE * import_rule( RULE * source, module_t * m, OBJECT * name )
 {
-    RULE * dest = define_rule( source->module, name, m );
+    RULE * const dest = define_rule( source->module, name, m );
     set_rule_body( dest, source->procedure );
     set_rule_actions( dest, source->actions );
     return dest;
@@ -734,4 +744,3 @@ void rule_localize( RULE * rule, module_t * m )
         rule->procedure = procedure;
     }
 }
-

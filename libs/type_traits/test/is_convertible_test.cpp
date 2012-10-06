@@ -102,6 +102,8 @@ BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<const int*, int[3]>::value),
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<const int&, int>::value), true);
 #ifndef BOOST_NO_RVALUE_REFERENCES
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<const int&&, int>::value), true);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int&&, const int&>::value), true);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int, int&>::value), false);
 #endif
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(&)[4], const int*>::value), true);
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(&)(int), int(*)(int)>::value), true);
@@ -112,6 +114,16 @@ BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int[2], const int*>::value),
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<const int[2], int*>::value), false);
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int*, int[3]>::value), false);
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<test_abc3, const test_abc1&>::value), true);
+
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int()>::value), false);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int(*)()>::value), true);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int(* const)()>::value), true);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int(* volatile)()>::value), true);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int(* const volatile)()>::value), true);
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int(&)()>::value), true);
+#ifndef BOOST_NO_RVALUE_REFERENCES
+BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<int(), int(&&)()>::value), true);
+#endif
 
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<non_pointer, void*>::value), true);
 BOOST_CHECK_INTEGRAL_CONSTANT((::tt::is_convertible<non_pointer, int*>::value), false);

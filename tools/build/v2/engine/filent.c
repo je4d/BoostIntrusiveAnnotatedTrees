@@ -4,21 +4,21 @@
  * This file is part of Jam - see jam.c for Copyright information.
  */
 
-/*  This file is ALSO:
- *  Copyright 2001-2004 David Abrahams.
- *  Copyright 2005 Rene Rivera.
- *  Distributed under the Boost Software License, Version 1.0.
- *  (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+/* This file is ALSO:
+ * Copyright 2001-2004 David Abrahams.
+ * Copyright 2005 Rene Rivera.
+ * Distributed under the Boost Software License, Version 1.0.
+ * (See accompanying file LICENSE_1_0.txt or copy at
+ * http://www.boost.org/LICENSE_1_0.txt)
  */
 
 /*
  * filent.c - scan directories and archives on NT
  *
  * External routines:
- *  file_archscan()         - scan an archive for files
- *  file_mkdir()            - create a directory
- *  filetime_to_seconds()   - Windows FILETIME --> number of seconds conversion
- *  filetime_to_timestamp() - Windows FILETIME --> timestamp conversion
+ *  file_archscan()                 - scan an archive for files
+ *  file_mkdir()                    - create a directory
+ *  file_supported_fmt_resolution() - file modification timestamp resolution
  *
  * External routines called only via routines in filesys.c:
  *  file_collect_dir_content_() - collects directory content information
@@ -28,7 +28,6 @@
 
 #include "jam.h"
 #ifdef OS_NT
-#include "filent.h"
 #include "filesys.h"
 
 #include "object.h"
@@ -36,13 +35,11 @@
 #include "strings.h"
 
 #ifdef __BORLANDC__
-# if __BORLANDC__ < 0x550
-#  include <dir.h>
-#  include <dos.h>
-# endif
 # undef FILENAME  /* cpp namespace collision */
-# define _finddata_t ffblk
 #endif
+
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -59,7 +56,6 @@ int file_collect_dir_content_( file_info_t * const d )
     PATHNAME f;
     string pathspec[ 1 ];
     string pathname[ 1 ];
-    struct _finddata_t finfo[ 1 ];
     LIST * files = L0;
     int d_length;
 
@@ -73,7 +69,7 @@ int file_collect_dir_content_( file_info_t * const d )
     f.f_dir.ptr = object_str( d->name );
     f.f_dir.len = d_length;
 
-    /* Prepare file search specification for the findfirst() API. */
+    /* Prepare file search specification for the FindXXX() Windows API. */
     if ( !d_length )
         string_copy( pathspec, ".\\*" );
     else
@@ -89,35 +85,17 @@ int file_collect_dir_content_( file_info_t * const d )
         string_append( pathspec, "*" );
     }
 
-#if defined(__BORLANDC__) && __BORLANDC__ < 0x550
-    if ( findfirst( pathspec->value, finfo, FA_NORMAL | FA_DIREC ) )
+    /* The following code for collecting information about all files in a folder
+     * needs to be kept synchronized with how the file_query() operation is
+     * implemented (collects information about a single file).
+     */
     {
-        string_free( pathspec );
-        return -1;
-    }
-
-    string_new( pathname );
-    do
-    {
-        f.f_base.ptr = finfo->ff_name;
-        f.f_base.len = strlen( finfo->ff_name );
-        string_truncate( pathname, 0 );
-        path_build( &f, pathname );
-
-        files = list_push_back( files, object_new( pathname->value ) );
-        {
-            file_info_t * const ff = file_info( pathname->value );
-            ff->is_file = finfo->ff_attrib & FA_DIREC ? 0 : 1;
-            ff->is_dir = !ff->is_file;
-            ff->size = finfo->ff_fsize;
-            ff->time = ( finfo->ff_ftime << 16 ) | finfo->ff_ftime;
-        }
-    }
-    while ( !findnext( finfo ) );
-#else  /* defined(__BORLANDC__) && __BORLANDC__ < 0x550 */
-    {
-        long const handle = _findfirst( pathspec->value, finfo );
-        if ( handle < 0L )
+        /* FIXME: Avoid duplicate FindXXX Windows API calls here and in the code
+         * determining a normalized path.
+         */
+        WIN32_FIND_DATA finfo;
+        HANDLE const findHandle = FindFirstFileA( pathspec->value, &finfo );
+        if ( findHandle == INVALID_HANDLE_VALUE )
         {
             string_free( pathspec );
             return -1;
@@ -128,27 +106,26 @@ int file_collect_dir_content_( file_info_t * const d )
         {
             OBJECT * pathname_obj;
 
-            f.f_base.ptr = finfo->name;
-            f.f_base.len = strlen( finfo->name );
+            f.f_base.ptr = finfo.cFileName;
+            f.f_base.len = strlen( finfo.cFileName );
+
             string_truncate( pathname, 0 );
-            path_build( &f, pathname, 0 );
+            path_build( &f, pathname );
 
             pathname_obj = object_new( pathname->value );
-            path_key__register_long_path( pathname_obj );
+            path_register_key( pathname_obj );
             files = list_push_back( files, pathname_obj );
             {
                 file_info_t * const ff = file_info( pathname_obj );
-                ff->is_file = finfo->attrib & _A_SUBDIR ? 0 : 1;
-                ff->is_dir = !ff->is_file;
-                ff->size = finfo->size;
-                ff->time = finfo->time_write;
+                ff->is_dir = finfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+                ff->is_file = !ff->is_dir;
+                timestamp_from_filetime( &ff->time, &finfo.ftLastWriteTime );
             }
         }
-        while ( !_findnext( handle, finfo ) );
+        while ( FindNextFile( findHandle, &finfo ) );
 
-        _findclose( handle );
+        FindClose( findHandle );
     }
-#endif  /* defined(__BORLANDC__) && __BORLANDC__ < 0x550 */
 
     string_free( pathname );
     string_free( pathspec );
@@ -172,7 +149,7 @@ void file_dirscan_( file_info_t * const d, scanback func, void * closure )
         char const * const name = object_str( d->name );
         if ( name[ 0 ] == '\\' && !name[ 1 ] )
         {
-            (*func)( closure, d->name, 1 /* stat()'ed */, d->time );
+            (*func)( closure, d->name, 1 /* stat()'ed */, &d->time );
         }
         else if ( name[ 0 ] && name[ 1 ] == ':' && name[ 2 ] && !name[ 3 ] )
         {
@@ -189,8 +166,8 @@ void file_dirscan_( file_info_t * const d, scanback func, void * closure )
              * $(p2). But, that seems rather fragile.
              */
             OBJECT * const dir_no_slash = object_new_range( name, 2 );
-            (*func)( closure, d->name, 1 /* stat()'ed */, d->time );
-            (*func)( closure, dir_no_slash, 1 /* stat()'ed */, d->time );
+            (*func)( closure, d->name, 1 /* stat()'ed */, &d->time );
+            (*func)( closure, dir_no_slash, 1 /* stat()'ed */, &d->time );
             object_free( dir_no_slash );
         }
     }
@@ -209,23 +186,47 @@ int file_mkdir( char const * const path )
 
 /*
  * file_query_() - query information about a path from the OS
+ *
+ * The following code for collecting information about a single file needs to be
+ * kept synchronized with how the file_collect_dir_content_() operation is
+ * implemented (collects information about all files in a folder).
  */
 
 int file_query_( file_info_t * const info )
 {
-    /* Note that the POSIX stat() function implementation on Windows suffers
-     * from several issues:
-     *   * Does not support file timestamps with resolution finer than 1 second.
-     *     This means it can not be used to detect file timestamp changes of
-     *     less than one second. One possible consequence is that some
-     *     fast-paced touch commands (such as those done by Boost Build's
-     *     internal testing system if it does not do extra waiting before those
-     *     touch operations) will not be detected correctly by the build system.
-     *   * Returns file modification times automatically adjusted for daylight
-     *     savings time even though daylight savings time should have nothing to
-     *     do with internal time representation.
+    WIN32_FILE_ATTRIBUTE_DATA fileData;
+    char const * const pathstr = object_str( info->name );
+    char const * const pathspec = *pathstr ? pathstr : ".";
+
+    if ( !GetFileAttributesExA( pathspec, GetFileExInfoStandard, &fileData ) )
+        return -1;
+
+    info->is_dir = fileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+    info->is_file = !info->is_dir;
+    timestamp_from_filetime( &info->time, &fileData.ftLastWriteTime );
+    return 0;
+}
+
+
+/*
+ * file_supported_fmt_resolution() - file modification timestamp resolution
+ *
+ * Returns the minimum file modification timestamp resolution supported by this
+ * Boost Jam implementation. File modification timestamp changes of less than
+ * the returned value might not be recognized.
+ *
+ * Does not take into consideration any OS or file system related restrictions.
+ *
+ * Return value 0 indicates that any value supported by the OS is also supported
+ * here.
+ */
+
+void file_supported_fmt_resolution( timestamp * const t )
+{
+    /* On Windows we support nano-second file modification timestamp resolution,
+     * just the same as the Windows OS itself.
      */
-    return file_query_posix_( info );
+    timestamp_init( t, 0, 0 );
 }
 
 
@@ -240,7 +241,8 @@ int file_query_( file_info_t * const info )
 
 #define ARFMAG  "`\n"
 
-struct ar_hdr {
+struct ar_hdr
+{
     char ar_name[ 16 ];
     char ar_date[ 12 ];
     char ar_uid[ 6 ];
@@ -337,7 +339,9 @@ void file_archscan( char const * archive, scanback func, void * closure )
         sprintf( buf, "%s(%.*s)", archive, endname - name, name );
         {
             OBJECT * const member = object_new( buf );
-            (*func)( closure, member, 1 /* time valid */, (time_t)lar_date );
+            timestamp time;
+            timestamp_init( &time, (time_t)lar_date, 0 );
+            (*func)( closure, member, 1 /* time valid */, &time );
             object_free( member );
         }
 
@@ -346,46 +350,6 @@ void file_archscan( char const * archive, scanback func, void * closure )
     }
 
     close( fd );
-}
-
-
-/*
- * filetime_to_seconds() - Windows FILETIME --> number of seconds conversion
- */
-
-double filetime_to_seconds( FILETIME const t )
-{
-    return t.dwHighDateTime * ( (double)( 1UL << 31 ) * 2.0 * 1.0e-7 ) +
-        t.dwLowDateTime * 1.0e-7;
-}
-
-
-/*
- * filetime_to_timestamp() - Windows FILETIME --> timestamp conversion
- *
- * Lifted shamelessly from the CPython implementation.
- */
-
-time_t filetime_to_timestamp( FILETIME const ft )
-{
-    /* Seconds between 1.1.1601 and 1.1.1970 */
-    static __int64 const secs_between_epochs = 11644473600;
-
-    /* We can not simply cast and dereference a FILETIME, since it might not be
-     * aligned properly. __int64 type variables are expected to be aligned to an
-     * 8 byte boundary while FILETIME structures may be aligned to any 4 byte
-     * boundary. Using an incorrectly aligned __int64 variable may cause a
-     * performance penalty on some platforms or even exceptions on others
-     * (documented on MSDN).
-     */
-    __int64 in;
-    memcpy( &in, &ft, sizeof( in ) );
-
-    /* FILETIME resolution: 100ns. */
-    /* For resolutions finer than 1 second use the following:
-     *   nsec = (int)( in % 10000000 ) * 100;
-     */
-    return (time_t)( ( in / 10000000 ) - secs_between_epochs );
 }
 
 #endif  /* OS_NT */

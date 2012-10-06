@@ -2,7 +2,8 @@
 
 # Copyright 2004 Vladimir Prus
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # Tests that on gcc, we correctly report a problem when static runtime is
 # requested for building a shared library.
@@ -14,7 +15,7 @@ t.write("jamroot.jam", "lib hello : hello.cpp ;")
 t.write("hello.cpp", "int main() {}\n")
 
 t.run_build_system(["runtime-link=static"])
-t.expect_output_line("warning: On gcc, DLLs can not be built with "
+t.expect_output_lines("warning: On gcc, DLLs can not be built with "
     "'<runtime-link>static'.")
 t.expect_nothing_more()
 

@@ -3,7 +3,8 @@
 # Copyright 2007 Rene Rivera.
 # Copyright 2011 Steven Watanabe
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 import BoostBuild
 
@@ -38,6 +39,6 @@ DEPENDS all : sleeper ;
 """)
 
 t.run_build_system(["-ffile.jam", "-d1", "-l2"], status=1)
-t.expect_output_line("2 second time limit exceeded")
+t.expect_output_lines("2 second time limit exceeded")
 
 t.cleanup()

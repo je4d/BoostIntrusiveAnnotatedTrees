@@ -123,13 +123,13 @@
 
 /* Macintosh is "special" */
 #ifdef OS_MAC
-    #include <QuickDraw.h>
+# include <QuickDraw.h>
 #endif
 
 /* And UNIX for this. */
 #ifdef unix
-    #include <sys/utsname.h>
-    #include <signal.h>
+# include <sys/utsname.h>
+# include <signal.h>
 #endif
 
 struct globs globs =
@@ -159,27 +159,27 @@ static char * othersyms[] = { OSMAJOR, OSMINOR, OSPLAT, JAMVERSYM, 0 };
  */
 
 #ifdef OS_MAC
-    #define use_environ arg_environ
-    #ifdef MPW
-        QDGlobals qd;
-    #endif
+# define use_environ arg_environ
+# ifdef MPW
+    QDGlobals qd;
+# endif
 #endif
 
 /* on Win32-LCC */
 #if defined( OS_NT ) && defined( __LCC__ )
-    #define use_environ _environ
+# define use_environ _environ
 #endif
 
-# if defined( __MWERKS__)
-    #define use_environ _environ
+#if defined( __MWERKS__)
+# define use_environ _environ
     extern char * * _environ;
 #endif
 
 #ifndef use_environ
-    #define use_environ environ
-    #if !defined( __WATCOM__ ) && !defined( OS_OS2 ) && !defined( OS_NT )
-        extern char **environ;
-    #endif
+# define use_environ environ
+# if !defined( __WATCOM__ ) && !defined( OS_OS2 ) && !defined( OS_NT )
+    extern char **environ;
+# endif
 #endif
 
 #if YYDEBUG != 0
@@ -189,10 +189,10 @@ static char * othersyms[] = { OSMAJOR, OSMINOR, OSPLAT, JAMVERSYM, 0 };
 #ifndef NDEBUG
 static void run_unit_tests()
 {
-#if defined( USE_EXECNT )
+# if defined( USE_EXECNT )
     extern void execnt_unit_test();
     execnt_unit_test();
-#endif
+# endif
     string_unit_test();
 }
 #endif
@@ -228,9 +228,9 @@ int main( int argc, char * * argv, char * * arg_environ )
 
     BJAM_MEM_INIT();
 
-# ifdef OS_MAC
+#ifdef OS_MAC
     InitGraf( &qd.thePort );
-# endif
+#endif
 
     --argc;
     ++argv;
@@ -261,14 +261,13 @@ int main( int argc, char * * argv, char * * arg_environ )
     /* Version info. */
     if ( ( s = getoptval( optv, 'v', 0 ) ) )
     {
-        printf( "Boost.Jam  " );
-        printf( "Version %s. %s.\n", VERSION, OSMINOR );
-        printf( "   Copyright 1993-2002 Christopher Seiwald and Perforce Software, Inc.\n" );
+        printf( "Boost.Jam  Version %s. %s.\n", VERSION, OSMINOR );
+        printf( "   Copyright 1993-2002 Christopher Seiwald and Perforce "
+            "Software, Inc.\n" );
         printf( "   Copyright 2001 David Turner.\n" );
         printf( "   Copyright 2001-2004 David Abrahams.\n" );
         printf( "   Copyright 2002-2008 Rene Rivera.\n" );
         printf( "   Copyright 2003-2008 Vladimir Prus.\n" );
-
         return EXITOK;
     }
 
@@ -386,7 +385,12 @@ int main( int argc, char * * argv, char * * arg_environ )
 #endif
 
         /* Set JAMDATE. */
-        var_set( root_module(), constant_JAMDATE, list_new( outf_time(time(0)) ), VAR_SET );
+        {
+            timestamp current;
+            timestamp_current( &current );
+            var_set( root_module(), constant_JAMDATE, list_new( outf_time(
+                &current ) ), VAR_SET );
+        }
 
         /* Set JAM_VERSION. */
         var_set( root_module(), constant_JAM_VERSION,
@@ -416,7 +420,15 @@ int main( int argc, char * * argv, char * * arg_environ )
                              object_new( u.machine ) ), VAR_SET );
             }
         }
-#endif /* unix */
+#endif  /* unix */
+
+        /* Set JAM_TIMESTAMP_RESOLUTION. */
+        {
+            timestamp fmt_resolution[ 1 ];
+            file_supported_fmt_resolution( fmt_resolution );
+            var_set( root_module(), constant_JAM_TIMESTAMP_RESOLUTION, list_new(
+                object_new( timestamp_timestr( fmt_resolution ) ) ), VAR_SET );
+        }
 
         /* Load up environment variables. */
 
@@ -450,7 +462,7 @@ int main( int argc, char * * argv, char * * arg_environ )
          */
         for ( n = 0; n < arg_c; ++n )
             var_set( root_module(), constant_ARGV, list_new( object_new(
-                arg_v[n] ) ), VAR_APPEND );
+                arg_v[ n ] ) ), VAR_APPEND );
 
         /* Initialize built-in rules. */
         load_builtins();
@@ -593,7 +605,8 @@ int main( int argc, char * * argv, char * * arg_environ )
  */
 
 #if defined(_WIN32)
-#include <windows.h>
+# define WIN32_LEAN_AND_MEAN
+# include <windows.h>
 char * executable_path( char const * argv0 )
 {
     char buf[ 1024 ];
@@ -601,22 +614,21 @@ char * executable_path( char const * argv0 )
     return ( !ret || ret == sizeof( buf ) ) ? NULL : strdup( buf );
 }
 #elif defined(__APPLE__)  /* Not tested */
-#include <mach-o/dyld.h>
+# include <mach-o/dyld.h>
 char *executable_path( char const * argv0 )
 {
     char buf[ 1024 ];
     uint32_t size = sizeof( buf );
     return _NSGetExecutablePath( buf, &size ) ? NULL : strdup( buf );
 }
-#elif defined(sun) || defined(__sun) /* Not tested */
-#include <stdlib.h>
-
+#elif defined(sun) || defined(__sun)  /* Not tested */
+# include <stdlib.h>
 char * executable_path( char const * argv0 )
 {
     return strdup( getexecname() );
 }
 #elif defined(__FreeBSD__)
-#include <sys/sysctl.h>
+# include <sys/sysctl.h>
 char * executable_path( char const * argv0 )
 {
     int mib[ 4 ] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
@@ -626,11 +638,11 @@ char * executable_path( char const * argv0 )
     return ( !size || size == sizeof( buf ) ) ? NULL : strndup( buf, size );
 }
 #elif defined(__linux__)
-#include <unistd.h>
+# include <unistd.h>
 char * executable_path( char const * argv0 )
 {
     char buf[ 1024 ];
-    ssize_t ret = readlink("/proc/self/exe", buf, sizeof(buf));
+    ssize_t const ret = readlink( "/proc/self/exe", buf, sizeof( buf ) );
     return ( !ret || ret == sizeof( buf ) ) ? NULL : strndup( buf, ret );
 }
 #else

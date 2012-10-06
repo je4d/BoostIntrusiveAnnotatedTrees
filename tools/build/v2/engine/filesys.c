@@ -45,7 +45,7 @@
  */
 void file_dirscan_( file_info_t * const dir, scanback func, void * closure );
 int file_collect_dir_content_( file_info_t * const dir );
-int file_query_( file_info_t * const info );
+int file_query_( file_info_t * const );
 
 static void file_dirscan_impl( OBJECT * dir, scanback func, void * closure );
 static void free_file_info( void * xfile, void * data );
@@ -59,7 +59,7 @@ static struct hash * filecache_hash;
  * file_build1() - construct a path string based on PATHNAME information
  */
 
-void file_build1( PATHNAME * f, string * file )
+void file_build1( PATHNAME * const f, string * file )
 {
     if ( DEBUG_SEARCH )
     {
@@ -78,7 +78,7 @@ void file_build1( PATHNAME * f, string * file )
      */
     if ( f->f_grist.len )
     {
-        if ( f->f_grist.ptr[0] != '<' )
+        if ( f->f_grist.ptr[ 0 ] != '<' )
             string_push_back( file, '<' );
         string_append_range(
             file, f->f_grist.ptr, f->f_grist.ptr + f->f_grist.len );
@@ -123,7 +123,7 @@ void file_done()
  * referenced.
  */
 
-file_info_t * file_info( OBJECT * path )
+file_info_t * file_info( OBJECT * const path )
 {
     OBJECT * const path_key = path_as_key( path );
     file_info_t * finfo;
@@ -138,8 +138,7 @@ file_info_t * file_info( OBJECT * path )
         finfo->name = path_key;
         finfo->is_file = 0;
         finfo->is_dir = 0;
-        finfo->size = 0;
-        finfo->time = 0;
+        timestamp_clear( &finfo->time );
         finfo->files = L0;
     }
     else
@@ -153,7 +152,7 @@ file_info_t * file_info( OBJECT * path )
  * file_is_file() - return whether a path identifies an existing file
  */
 
-int file_is_file( OBJECT * path )
+int file_is_file( OBJECT * const path )
 {
     file_info_t const * const ff = file_query( path );
     return ff ? ff->is_file : -1;
@@ -164,11 +163,11 @@ int file_is_file( OBJECT * path )
  * file_time() - get a file timestamp
  */
 
-int file_time( OBJECT * path, time_t * time )
+int file_time( OBJECT * const path, timestamp * const time )
 {
     file_info_t const * const ff = file_query( path );
     if ( !ff ) return -1;
-    *time = ff->time;
+    timestamp_copy( time, &ff->time );
     return 0;
 }
 
@@ -180,7 +179,7 @@ int file_time( OBJECT * path, time_t * time )
  * the path does not reference an existing file system object.
  */
 
-file_info_t * file_query( OBJECT * path )
+file_info_t * file_query( OBJECT * const path )
 {
     /* FIXME: Add tracking for disappearing files (i.e. those that can not be
      * detected by stat() even though they had been detected successfully
@@ -196,7 +195,7 @@ file_info_t * file_query( OBJECT * path )
      * failed.
      */
     file_info_t * const ff = file_info( path );
-    if ( !ff->time )
+    if ( timestamp_empty( &ff->time ) )
     {
         if ( file_query_( ff ) < 0 )
             return 0;
@@ -204,7 +203,8 @@ file_info_t * file_query( OBJECT * path )
         /* Set the path's timestamp to 1 in case it is 0 or undetected to avoid
          * confusion with non-existing paths.
          */
-        if ( !ff->time ) ff->time = 1;
+        if ( timestamp_empty( &ff->time ) )
+            timestamp_init( &ff->time, 1, 0 );
     }
     return ff;
 }
@@ -214,6 +214,18 @@ file_info_t * file_query( OBJECT * path )
  * file_query_posix_() - query information about a path using POSIX stat()
  *
  * Fallback file_query_() implementation for OS specific modules.
+ *
+ * Note that the Windows POSIX stat() function implementation suffers from
+ * several issues:
+ *   * Does not support file timestamps with resolution finer than 1 second,
+ *     meaning it can not be used to detect file timestamp changes of less than
+ *     1 second. One possible consequence is that some fast-paced touch commands
+ *     (such as those done by Boost Build's internal testing system if it does
+ *     not do some extra waiting) will not be detected correctly by the build
+ *     system.
+ *   * Returns file modification times automatically adjusted for daylight
+ *     savings time even though daylight savings time should have nothing to do
+ *     with internal time representation.
  */
 
 int file_query_posix_( file_info_t * const info )
@@ -222,15 +234,14 @@ int file_query_posix_( file_info_t * const info )
     char const * const pathstr = object_str( info->name );
     char const * const pathspec = *pathstr ? pathstr : ".";
 
-    assert( !info->time );
+    assert( timestamp_empty( &info->time ) );
 
     if ( stat( pathspec, &statbuf ) < 0 )
         return -1;
 
     info->is_file = statbuf.st_mode & S_IFREG ? 1 : 0;
     info->is_dir = statbuf.st_mode & S_IFDIR ? 1 : 0;
-    info->size = statbuf.st_size;
-    info->time = statbuf.st_mtime;
+    timestamp_init( &info->time, statbuf.st_mtime, 0 );
     return 0;
 }
 
@@ -296,7 +307,7 @@ static void file_dirscan_impl( OBJECT * dir, scanback func, void * closure )
              *    short path variant thus allowing for many different path
              *    strings identifying the same file.
              */
-            (*func)( closure, ff->name, 1 /* stat()'ed */, ff->time );
+            (*func)( closure, ff->name, 1 /* stat()'ed */, &ff->time );
         }
     }
 }

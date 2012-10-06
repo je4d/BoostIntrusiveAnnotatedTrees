@@ -2,7 +2,8 @@
 
 # Copyright 2008 Jurko Gospodnetic
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # Tests dumping Boost Build based testing results.
 
@@ -26,7 +27,7 @@ test-suite testit : [ run ../TestSource/test.cpp ] ;
 t.write("TestSource/test.cpp", "int main() {}\n")
 
 t.run_build_system(subdir="TestBuild")
-t.expect_output_line('boost-test(RUN) "*/TestBuild/test" : '
+t.expect_output_lines('boost-test(RUN) "*/TestBuild/test" : '
     '"../TestSource/test.cpp"')
 
 t.cleanup()

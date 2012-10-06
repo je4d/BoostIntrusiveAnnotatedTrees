@@ -2,7 +2,8 @@
 
 # Copyright 2012. Jurko Gospodnetic
 # Distributed under the Boost Software License, Version 1.0.
-# (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 #   Tests that variables in actions get expanded but double quote characters
 # get treated as regular characters and not string literal delimiters when
@@ -33,6 +34,6 @@ actions dummy
 dummy all ;
 """)
 t.run_build_system(["-ffile.jam", "-d1"])
-t.expect_output_line("From rule: 1 seconds 2 seconds 3 seconds")
-t.expect_output_line('*From action: 1" 2" 3" seconds"*')
+t.expect_output_lines("From rule: 1 seconds 2 seconds 3 seconds")
+t.expect_output_lines('*From action: 1" 2" 3" seconds"*')
 t.cleanup()

@@ -52,7 +52,7 @@ namespace boost
         {
         public:
             BOOST_THREAD_NO_COPYABLE(thread_data)
-#ifndef BOOST_NO_RVALUE_REFERENCES
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
               thread_data(BOOST_THREAD_RV_REF(F) f_):
                 f(boost::forward<F>(f_))
               {}
@@ -131,7 +131,7 @@ namespace boost
 
         detail::thread_data_ptr get_thread_info BOOST_PREVENT_MACRO_SUBSTITUTION () const;
 
-#ifndef BOOST_NO_RVALUE_REFERENCES
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
         template<typename F>
         static inline detail::thread_data_ptr make_thread_info(BOOST_THREAD_RV_REF(F) f)
         {
@@ -174,7 +174,7 @@ namespace boost
             detach();
     #endif
         }
-#ifndef BOOST_NO_RVALUE_REFERENCES
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
         template <
           class F
         >
@@ -367,6 +367,24 @@ namespace boost
 
 #ifdef BOOST_THREAD_USES_CHRONO
         bool try_join_until(const chrono::time_point<chrono::system_clock, chrono::nanoseconds>& tp);
+//        bool try_join_until(const chrono::time_point<chrono::system_clock, chrono::nanoseconds>& tp)
+//        {
+//          if (this_thread::get_id() == get_id())
+//          {
+//            boost::throw_exception(thread_resource_error(system::errc::resource_deadlock_would_occur, "boost thread: trying joining itself"));
+//          }
+//          detail::thread_data_ptr local_thread_info=(get_thread_info)();
+//          if(local_thread_info)
+//          {
+//            chrono::milliseconds rel_time= chrono::ceil<chrono::milliseconds>(tp-chrono::system_clock::now());
+//            if(!this_thread::interruptible_wait(local_thread_info->thread_handle,rel_time.count()))
+//            {
+//                return false;
+//            }
+//            release_handle();
+//          }
+//          return true;
+//        }
 #endif
     public:
 
@@ -434,7 +452,7 @@ namespace boost
         return lhs.swap(rhs);
     }
 
-#ifndef BOOST_NO_RVALUE_REFERENCES
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
     inline thread&& move(thread& t) BOOST_NOEXCEPT
     {
         return static_cast<thread&&>(t);

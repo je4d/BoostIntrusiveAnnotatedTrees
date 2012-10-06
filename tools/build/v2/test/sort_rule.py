@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-#  Copyright (C) 2008. Jurko Gospodnetic
-#  Distributed under the Boost Software License, Version 1.0. (See
-#  accompanying file LICENSE_1_0.txt or copy at
-#  http://www.boost.org/LICENSE_1_0.txt)
+# Copyright (C) 2008. Jurko Gospodnetic
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # Tests for the Boost Jam builtin SORT rule.
 
@@ -39,9 +39,9 @@ if $(sorted-data) != $(target-data)
 """)
 
     t.run_build_system()
-    t.expect_output_line("starting up")
-    t.expect_output_line("done")
-    t.expect_output_line("SORT error", False)
+    t.expect_output_lines("starting up")
+    t.expect_output_lines("done")
+    t.expect_output_lines("SORT error", False)
 
     t.cleanup()
 
@@ -65,7 +65,7 @@ def testSORTDuration():
     f = open(t.workpath("test.jam"), "w")
     print >> f, "data = "
     for i in range(0, 20000):
-        if i % 2 != 0:
+        if i % 2:
             print >> f, '"aaa"'
         else:
             print >> f, '"bbb"'
@@ -79,8 +79,8 @@ NOCARE all ;
     f.close()
 
     t.run_build_system(expected_duration=1)
-    t.expect_output_line("starting up")
-    t.expect_output_line("done")
+    t.expect_output_lines("starting up")
+    t.expect_output_lines("done")
 
     t.cleanup()
 

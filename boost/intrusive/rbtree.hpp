@@ -91,7 +91,7 @@ class rbtree_impl
    typedef typename Config::value_traits                             value_traits;
    /// @cond
    static const bool external_value_traits =
-      detail::external_value_traits_is_true<value_traits>::value;
+      detail::external_value_traits_bool_is_true<value_traits>::value;
    typedef typename detail::get_real_value_traits<value_traits>::type real_value_traits;
    /// @endcond
    typedef typename real_value_traits::pointer                       pointer;

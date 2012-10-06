@@ -4,18 +4,19 @@
  * This file is part of Jam - see jam.c for Copyright information.
  */
 
-/*  This file is ALSO:
- *  Copyright 2001-2004 David Abrahams.
- *  Distributed under the Boost Software License, Version 1.0.
- *  (See accompanying file LICENSE_1_0.txt or http://www.boost.org/LICENSE_1_0.txt)
+/* This file is ALSO:
+ * Copyright 2001-2004 David Abrahams.
+ * Distributed under the Boost Software License, Version 1.0.
+ * (See accompanying file LICENSE_1_0.txt or
+ * http://www.boost.org/LICENSE_1_0.txt)
  */
 
 /*
  * timestamp.c - get the timestamp of a file or archive member
  *
  * External routines:
- *  timestamp_from_target() - return timestamp on a file, if present
- *  timestamp_done()        - free timestamp tables
+ *  timestamp_from_path() - return timestamp for a path, if present
+ *  timestamp_done()      - free timestamp tables
  *
  * Internal routines:
  *  time_enter()      - internal worker callback for scanning archives &
@@ -37,13 +38,14 @@
  * BINDING - all known files
  */
 
-typedef struct _binding {
+typedef struct _binding
+{
     OBJECT * name;
-    short    flags;
+    short flags;
 
 #define BIND_SCANNED  0x01  /* if directory or arch, has been scanned */
 
-    short    progress;
+    short progress;
 
 #define BIND_INIT     0  /* never seen */
 #define BIND_NOENTRY  1  /* timestamp requested but file never found */
@@ -51,12 +53,14 @@ typedef struct _binding {
 #define BIND_MISSING  3  /* file found but can not get timestamp */
 #define BIND_FOUND    4  /* file found and time stamped */
 
-    /* update time - 0 if not exist */
-    time_t   time;
+    /* update time - cleared if the there is nothing to bind */
+    timestamp time;
 } BINDING;
 
 static struct hash * bindhash = 0;
-static void time_enter( void *, OBJECT *, int const found, time_t );
+
+static void time_enter( void *, OBJECT *, int const found,
+    timestamp const * const );
 
 static char * time_progress[] =
 {
@@ -68,11 +72,82 @@ static char * time_progress[] =
 };
 
 
+#ifdef OS_NT
 /*
- * timestamp_from_target() - return timestamp on a file, if present
+ * timestamp_from_filetime() - Windows FILETIME --> timestamp conversion
+ *
+ * Lifted shamelessly from the CPython implementation.
  */
 
-void timestamp_from_target( OBJECT * target, time_t * time )
+void timestamp_from_filetime( timestamp * const t, FILETIME const * const ft )
+{
+    /* Seconds between 1.1.1601 and 1.1.1970 */
+    static __int64 const secs_between_epochs = 11644473600;
+
+    /* We can not simply cast and dereference a FILETIME, since it might not be
+     * aligned properly. __int64 type variables are expected to be aligned to an
+     * 8 byte boundary while FILETIME structures may be aligned to any 4 byte
+     * boundary. Using an incorrectly aligned __int64 variable may cause a
+     * performance penalty on some platforms or even exceptions on others
+     * (documented on MSDN).
+     */
+    __int64 in;
+    memcpy( &in, ft, sizeof( in ) );
+
+    /* FILETIME resolution: 100ns. */
+    timestamp_init( t, (time_t)( ( in / 10000000 ) - secs_between_epochs ),
+        (int)( in % 10000000 ) * 100 );
+}
+#endif  /* OS_NT */
+
+
+void timestamp_clear( timestamp * const time )
+{
+    time->secs = time->nsecs = 0;
+}
+
+
+int timestamp_cmp( timestamp const * const lhs, timestamp const * const rhs )
+{
+    return lhs->secs == rhs->secs
+        ? lhs->nsecs - rhs->nsecs
+        : lhs->secs - rhs->secs;
+}
+
+
+void timestamp_copy( timestamp * const target, timestamp const * const source )
+{
+    target->secs = source->secs;
+    target->nsecs = source->nsecs;
+}
+
+
+void timestamp_current( timestamp * const t )
+{
+#ifdef OS_NT
+    /* GetSystemTimeAsFileTime()'s resolution seems to be about 15 ms on Windows
+     * XP and under a millisecond on Windows 7.
+     */
+    FILETIME ft;
+    GetSystemTimeAsFileTime( &ft );
+    timestamp_from_filetime( t, &ft );
+#else  /* OS_NT */
+    timestamp_init( t, time( 0 ), 0 );
+#endif  /* OS_NT */
+}
+
+
+int timestamp_empty( timestamp const * const time )
+{
+    return !time->secs && !time->nsecs;
+}
+
+
+/*
+ * timestamp_from_path() - return timestamp for a path, if present
+ */
+
+void timestamp_from_path( timestamp * const time, OBJECT * const path )
 {
     PROFILE_ENTER( timestamp );
 
@@ -82,7 +157,7 @@ void timestamp_from_target( OBJECT * target, time_t * time )
     BINDING * b;
     string buf[ 1 ];
 
-    target = path_as_key( target );
+    OBJECT * const normalized_path = path_as_key( path );
 
     string_new( buf );
 
@@ -91,99 +166,143 @@ void timestamp_from_target( OBJECT * target, time_t * time )
 
     /* Quick path - is it there? */
 
-    b = (BINDING *)hash_insert( bindhash, target, &found );
+    b = (BINDING *)hash_insert( bindhash, normalized_path, &found );
     if ( !found )
     {
-        b->name = object_copy( target );  /* never freed */
-        b->time = b->flags = 0;
+        b->name = object_copy( normalized_path );
+        b->flags = 0;
         b->progress = BIND_INIT;
+        timestamp_clear( &b->time );
     }
 
-    if ( b->progress != BIND_INIT )
-        goto afterscanning;
-
-    b->progress = BIND_NOENTRY;
-
-    /* Not found - have to scan for it. */
-    path_parse( object_str( target ), &f1 );
-
-    /* Scan directory if not already done so. */
+    if ( b->progress == BIND_INIT )
     {
-        int found;
-        BINDING * b;
-        OBJECT * name;
+        b->progress = BIND_NOENTRY;
 
-        f2 = f1;
-        f2.f_grist.len = 0;
-        path_parent( &f2 );
-        path_build( &f2, buf, 0 );
+        /* Not found - have to scan for it. */
+        path_parse( object_str( normalized_path ), &f1 );
 
-        name = object_new( buf->value );
-
-        b = (BINDING *)hash_insert( bindhash, name, &found );
-        if ( !found )
+        /* Scan directory if not already done so. */
         {
-            b->name = object_copy( name );
-            b->time = b->flags = 0;
-            b->progress = BIND_INIT;
+            int found;
+            BINDING * b;
+            OBJECT * name;
+
+            f2 = f1;
+            f2.f_grist.len = 0;
+            path_parent( &f2 );
+            path_build( &f2, buf );
+
+            name = object_new( buf->value );
+
+            b = (BINDING *)hash_insert( bindhash, name, &found );
+            if ( !found )
+            {
+                b->name = object_copy( name );
+                b->flags = 0;
+                b->progress = BIND_INIT;
+                timestamp_clear( &b->time );
+            }
+
+            if ( !( b->flags & BIND_SCANNED ) )
+            {
+                file_dirscan( name, time_enter, bindhash );
+                b->flags |= BIND_SCANNED;
+            }
+
+            object_free( name );
         }
 
-        if ( !( b->flags & BIND_SCANNED ) )
+        /* Scan archive if not already done so. */
+        if ( f1.f_member.len )
         {
-            file_dirscan( name, time_enter, bindhash );
-            b->flags |= BIND_SCANNED;
-        }
+            int found;
+            BINDING * b;
+            OBJECT * name;
 
-        object_free( name );
+            f2 = f1;
+            f2.f_grist.len = 0;
+            f2.f_member.len = 0;
+            string_truncate( buf, 0 );
+            path_build( &f2, buf );
+
+            name = object_new( buf->value );
+
+            b = (BINDING *)hash_insert( bindhash, name, &found );
+            if ( !found )
+            {
+                b->name = object_copy( name );
+                b->flags = 0;
+                b->progress = BIND_INIT;
+                timestamp_clear( &b->time );
+            }
+
+            if ( !( b->flags & BIND_SCANNED ) )
+            {
+                file_archscan( buf->value, time_enter, bindhash );
+                b->flags |= BIND_SCANNED;
+            }
+
+            object_free( name );
+        }
     }
-
-    /* Scan archive if not already done so. */
-    if ( f1.f_member.len )
-    {
-        int found;
-        BINDING * b;
-        OBJECT * name;
-
-        f2 = f1;
-        f2.f_grist.len = 0;
-        f2.f_member.len = 0;
-        string_truncate( buf, 0 );
-        path_build( &f2, buf, 0 );
-
-        name = object_new( buf->value );
-
-        b = (BINDING *)hash_insert( bindhash, name, &found );
-        if ( !found )
-        {
-            b->name = object_copy( name );
-            b->time = b->flags = 0;
-            b->progress = BIND_INIT;
-        }
-
-        if ( !( b->flags & BIND_SCANNED ) )
-        {
-            file_archscan( buf->value, time_enter, bindhash );
-            b->flags |= BIND_SCANNED;
-        }
-
-        object_free( name );
-    }
-
-    afterscanning:
 
     if ( b->progress == BIND_SPOTTED )
-    {
-         b->progress = file_time( b->name, &b->time ) < 0
+        b->progress = file_time( b->name, &b->time ) < 0
             ? BIND_MISSING
             : BIND_FOUND;
-    }
 
-    *time = b->progress == BIND_FOUND ? b->time : 0;
+    if ( b->progress == BIND_FOUND )
+        timestamp_copy( time, &b->time );
+    else
+        timestamp_clear( time );
 
     string_free( buf );
-    object_free( target );
+    object_free( normalized_path );
 
     PROFILE_EXIT( timestamp );
+}
+
+
+void timestamp_init( timestamp * const time, time_t const secs, int const nsecs
+    )
+{
+    time->secs = secs;
+    time->nsecs = nsecs;
+}
+
+
+void timestamp_max( timestamp * const max, timestamp const * const lhs,
+    timestamp const * const rhs )
+{
+    if ( timestamp_cmp( lhs, rhs ) > 0 )
+        timestamp_copy( max, lhs );
+    else
+        timestamp_copy( max, rhs );
+}
+
+
+static char const * timestamp_formatstr( timestamp const * const time,
+    char const * const format )
+{
+    static char result1[ 500 ];
+    static char result2[ 500 ];
+    strftime( result1, sizeof( result1 ) / sizeof( *result1 ), format, gmtime(
+        &time->secs ) );
+    sprintf( result2, result1, time->nsecs );
+    return result2;
+}
+
+
+char const * timestamp_str( timestamp const * const time )
+{
+    return timestamp_formatstr( time, "%Y-%m-%d %H:%M:%S.%%09d +0000" );
+}
+
+
+char const * timestamp_timestr( timestamp const * const time )
+{
+    return timestamp_formatstr( time, "%H:%M:%S.%%09d" );
 }
 
 
@@ -192,7 +311,7 @@ void timestamp_from_target( OBJECT * target, time_t * time )
  */
 
 static void time_enter( void * closure, OBJECT * target, int const found,
-    time_t time )
+    timestamp const * const time )
 {
     int item_found;
     BINDING * b;
@@ -207,7 +326,7 @@ static void time_enter( void * closure, OBJECT * target, int const found,
         b->flags = 0;
     }
 
-    b->time = time;
+    timestamp_copy( &b->time, time );
     b->progress = found ? BIND_FOUND : BIND_SPOTTED;
 
     if ( DEBUG_BINDSCAN )
@@ -224,7 +343,7 @@ static void time_enter( void * closure, OBJECT * target, int const found,
 
 static void free_timestamps( void * xbinding, void * data )
 {
-    object_free( ((BINDING *)xbinding)->name );
+    object_free( ( (BINDING *)xbinding )->name );
 }
 
 
@@ -236,7 +355,7 @@ void timestamp_done()
 {
     if ( bindhash )
     {
-        hashenumerate( bindhash, free_timestamps, (void *)0 );
+        hashenumerate( bindhash, free_timestamps, 0 );
         hashdone( bindhash );
     }
 }

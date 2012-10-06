@@ -1,9 +1,9 @@
 #!/usr/bin/python
 
-# Copyright (C) Vladimir Prus 2003. Permission to copy, use, modify, sell and
-# distribute this software is granted provided this copyright notice appears in
-# all copies. This software is provided "as is" without express or implied
-# warranty, and with no claim as to its suitability for any purpose.
+# Copyright (C) 2003. Vladimir Prus
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
 
 # Test that the <dll-path> property is correctly set when using
 # <hardcode-dll-paths>true.
@@ -60,7 +60,6 @@ rule init ( )
             return [ generator.generated-targets $(sources) :
                 [ $(property-set).add-raw $(dll-paths:G=<dll-path>) ] :
                 $(project) $(name) ] ;
-
         }
     }
     generators.register [ new dll-paths-list-generator ] ;
@@ -141,7 +140,7 @@ t.expect_addition("bin/$toolset/debug/mp.pathlist")
 es1 = t.adjust_names("a/bin/$toolset/debug")[0]
 es2 = t.adjust_names("b/bin/$toolset/debug")[0]
 
-t.expect_content_line("bin/$toolset/debug/mp.pathlist", "*" + es1);
-t.expect_content_line("bin/$toolset/debug/mp.pathlist", "*" + es2);
+t.expect_content_lines("bin/$toolset/debug/mp.pathlist", "*" + es1);
+t.expect_content_lines("bin/$toolset/debug/mp.pathlist", "*" + es2);
 
 t.cleanup()
