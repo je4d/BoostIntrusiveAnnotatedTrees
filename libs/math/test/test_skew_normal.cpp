@@ -30,6 +30,7 @@ using std::endl;
 using std::setprecision;
 #include <limits>
 using std::numeric_limits;
+#include "test_out_of_range.hpp"
 
 template <class RealType>
 void check_skew_normal(RealType mean, RealType scale, RealType shape, RealType x, RealType p, RealType q, RealType tol)
@@ -436,7 +437,11 @@ void test_spots(RealType)
            , static_cast<RealType>(0.8638862008406084244563L), tol1000);
       }
 
-
+      BOOST_CHECK_THROW(cdf(skew_normal_distribution<RealType>(0, 0, 0), 0), std::domain_error);
+      BOOST_CHECK_THROW(cdf(skew_normal_distribution<RealType>(0, -1, 0), 0), std::domain_error);
+      BOOST_CHECK_THROW(quantile(skew_normal_distribution<RealType>(0, 1, 0), -1), std::domain_error);
+      BOOST_CHECK_THROW(quantile(skew_normal_distribution<RealType>(0, 1, 0), 2), std::domain_error);
+      check_out_of_range<skew_normal_distribution<RealType> >(1, 1, 1);
     }
 
 

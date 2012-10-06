@@ -31,7 +31,7 @@
 #include <boost/assert.hpp>
 #include <utility>
 
-#if !defined(BOOST_NO_0X_HDR_TUPLE)
+#if !defined(BOOST_NO_CXX11_HDR_TUPLE)
 #include <tuple>
 #endif
 
@@ -91,6 +91,10 @@ namespace boost { namespace unordered { namespace detail {
 #define BOOST_UNORDERED_EMPLACE_ARGS BOOST_FWD_REF(Args)... args
 #define BOOST_UNORDERED_EMPLACE_FORWARD boost::forward<Args>(args)...
 
+#define BOOST_UNORDERED_EMPLACE_ARGS1(a0) a0
+#define BOOST_UNORDERED_EMPLACE_ARGS2(a0, a1) a0, a1
+#define BOOST_UNORDERED_EMPLACE_ARGS3(a0, a1, a2) a0, a1, a2
+
 #else
 
 #define BOOST_UNORDERED_EMPLACE_TEMPLATE typename Args
@@ -127,6 +131,10 @@ namespace boost { namespace unordered { namespace detail {
         > e(BOOST_PP_ENUM_PARAMS_Z(z, n, b));                               \
         return e;                                                           \
     }
+
+#define BOOST_UNORDERED_EMPLACE_ARGS1 create_emplace_args
+#define BOOST_UNORDERED_EMPLACE_ARGS2 create_emplace_args
+#define BOOST_UNORDERED_EMPLACE_ARGS3 create_emplace_args
 
 #if defined(BOOST_NO_RVALUE_REFERENCES)
 
@@ -253,7 +261,7 @@ BOOST_PP_REPEAT_FROM_TO(1, BOOST_UNORDERED_EMPLACE_LIMIT, BOOST_UNORDERED_EARGS,
 
 BOOST_UNORDERED_CONSTRUCT_FROM_TUPLE(10, boost::)
 
-#if !defined(__SUNPRO_CC) && !defined(BOOST_NO_0X_HDR_TUPLE)
+#if !defined(__SUNPRO_CC) && !defined(BOOST_NO_CXX11_HDR_TUPLE)
    BOOST_UNORDERED_CONSTRUCT_FROM_TUPLE(10, std::)
 #endif
 
@@ -496,17 +504,6 @@ BOOST_UNORDERED_CONSTRUCT_FROM_TUPLE(10, boost::)
 #endif // BOOST_UNORDERED_DEPRECATED_PAIR_CONSTRUCT
 #endif // BOOST_NO_VARIADIC_TEMPLATES
 
-    ////////////////////////////////////////////////////////////////////////////
-    // Construct without using the emplace args mechanism.
-
-    template <typename T, typename A0>
-    inline void construct_impl2(T* address, BOOST_FWD_REF(A0) a0)
-    {
-        new((void*) address) T(
-            boost::forward<A0>(a0)
-        );
-    }
-
 }}}
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -526,8 +523,6 @@ BOOST_UNORDERED_CONSTRUCT_FROM_TUPLE(10, boost::)
             // Use container's allocator_traits for older versions of Visual
             // C++ as I don't test with them.
 #           define BOOST_UNORDERED_USE_ALLOCATOR_TRAITS 2
-#       elif BOOST_MSVC >= 1700
-#           define BOOST_UNORDERED_USE_ALLOCATOR_TRAITS 1
 #       endif
 #   endif
 #endif
@@ -541,7 +536,7 @@ BOOST_UNORDERED_CONSTRUCT_FROM_TUPLE(10, boost::)
 // Some utilities for implementing allocator_traits, but useful elsewhere so
 // they're always defined.
 
-#if !defined(BOOST_NO_0X_HDR_TYPE_TRAITS)
+#if !defined(BOOST_NO_CXX11_HDR_TYPE_TRAITS)
 #  include <type_traits>
 #endif
 
@@ -552,7 +547,7 @@ namespace boost { namespace unordered { namespace detail {
     //
     // Uses the standard versions if available.
 
-#if !defined(BOOST_NO_0X_HDR_TYPE_TRAITS)
+#if !defined(BOOST_NO_CXX11_HDR_TYPE_TRAITS)
 
     using std::integral_constant;
     using std::true_type;

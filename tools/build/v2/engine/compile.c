@@ -64,69 +64,26 @@
  *  builtin_echo() - ECHO rule
  *  builtin_exit() - EXIT rule
  *  builtin_flags() - NOCARE, NOTFILE, TEMPORARY rule
- *
- * 02/03/94 (seiwald) - Changed trace output to read "setting" instead of
- *          the awkward sounding "settings".
- * 04/12/94 (seiwald) - Combined build_depends() with build_includes().
- * 04/12/94 (seiwald) - actionlist() now just appends a single action.
- * 04/13/94 (seiwald) - added shorthand L0 for null list pointer
- * 05/13/94 (seiwald) - include files are now bound as targets, and thus
- *          can make use of $(SEARCH)
- * 06/01/94 (seiwald) - new 'actions existing' does existing sources
- * 08/23/94 (seiwald) - Support for '+=' (append to variable)
- * 12/20/94 (seiwald) - NOTIME renamed NOTFILE.
- * 01/22/95 (seiwald) - Exit rule.
- * 02/02/95 (seiwald) - Always rule; LEAVES rule.
- * 02/14/95 (seiwald) - NoUpdate rule.
- * 09/11/00 (seiwald) - new evaluate_rule() for headers().
- * 09/11/00 (seiwald) - compile_xxx() now return LIST *.
- *          New compile_append() and compile_list() in
- *          support of building lists here, rather than
- *          in jamgram.yy.
- * 01/10/00 (seiwald) - built-ins split out to builtin.c.
  */
 
-static void debug_compile( int which, const char * s, FRAME * frame );
-int glob( const char * s, const char * c );
+static void debug_compile( int which, const char * s, FRAME * );
+
 /* Internal functions from builtins.c */
-void backtrace( FRAME * frame );
-void backtrace_line( FRAME * frame );
-void print_source_line( FRAME * frame );
-
-struct frame * frame_before_python_call;
-
-static OBJECT * module_scope;
-
-void frame_init( FRAME* frame )
-{
-    frame->prev = 0;
-    frame->prev_user = 0;
-    lol_init(frame->args);
-    frame->module = root_module();
-    frame->rulename = "module scope";
-    frame->file = 0;
-    frame->line = -1;
-}
-
-
-void frame_free( FRAME* frame )
-{
-    lol_free( frame->args );
-}
+void backtrace( FRAME * );
+void backtrace_line( FRAME * );
+void print_source_line( FRAME * );
+void unknown_rule( FRAME *, char const * key, module_t *, OBJECT * rule_name );
 
 
 /*
  * evaluate_rule() - execute a rule invocation.
  */
 
-LIST *
-evaluate_rule(
-    OBJECT * rulename,
-    FRAME  * frame )
+LIST * evaluate_rule( OBJECT * rulename, FRAME * frame )
 {
     LIST          * result = L0;
     RULE          * rule;
-    profile_frame   prof[1];
+    profile_frame   prof[ 1 ];
     module_t      * prev_module = frame->module;
 
     rule = bindrule( rulename, frame->module );
@@ -172,19 +129,7 @@ evaluate_rule(
 
     /* Check traditional targets $(<) and sources $(>). */
     if ( !rule->actions && !rule->procedure )
-    {
-        backtrace_line( frame->prev );
-        if ( frame->module->name )
-        {
-            printf( "rule %s unknown in module %s\n", object_str( rule->name ), object_str( frame->module->name ) );
-        }
-        else
-        {
-            printf( "rule %s unknown in module \n", object_str( rule->name ) );
-        }
-        backtrace( frame->prev );
-        exit( 1 );
-    }
+        unknown_rule( frame, NULL, frame->module, rule->name );
 
     /* If this rule will be executed for updating the targets then construct the
      * action for make().

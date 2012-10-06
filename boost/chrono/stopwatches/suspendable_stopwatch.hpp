@@ -10,8 +10,9 @@
 #include <boost/chrono/config.hpp>
 
 #include <boost/chrono/stopwatches/stopwatch_scoped.hpp>
-#include <boost/chrono/stopwatches/collectors/no_memory.hpp>
-#include <boost/system/error_code.hpp>
+#include <boost/chrono/stopwatches/collectors/no_memory.hpp> // default laps_collector
+#include <boost/chrono/stopwatches/dont_start.hpp>
+#include <boost/chrono/detail/system.hpp>
 #include <boost/chrono/system_clocks.hpp>
 #include <utility>
 
@@ -19,12 +20,6 @@ namespace boost
 {
   namespace chrono
   {
-
-    struct dont_start_t
-    {
-    };
-    static const dont_start_t dont_start =
-    { };
 
     template<typename Clock=high_resolution_clock, typename LapsCollector=no_memory<typename Clock::duration> >
     class suspendable_stopwatch
@@ -41,8 +36,8 @@ namespace boost
       suspendable_stopwatch() :
         start_(duration::zero()),
         running_(false),
-        laps_collector_(),
         suspended_(false),
+        laps_collector_(),
         partial_(duration::zero())
       {
         start();
@@ -53,8 +48,8 @@ namespace boost
           ) :
         start_(duration::zero()),
         running_(false),
-        laps_collector_(),
         suspended_(false),
+        laps_collector_(),
         partial_(duration::zero())
       {
         start(ec);
@@ -66,8 +61,8 @@ namespace boost
           ) :
           start_(duration::zero()),
           running_(false),
-          laps_collector_(),
           suspended_(false),
+          laps_collector_(),
           partial_(duration::zero())
       {
       }
@@ -77,8 +72,8 @@ namespace boost
           ) :
           start_(duration::zero()),
           running_(false),
-          laps_collector_(acc),
           suspended_(false),
+          laps_collector_(acc),
           partial_(duration::zero())
       {
         start();
@@ -91,8 +86,8 @@ namespace boost
           ) :
           start_(duration::zero()),
           running_(false),
-          laps_collector_(acc),
           suspended_(false),
+          laps_collector_(acc),
           partial_(duration::zero())
       {
         start(ec);
@@ -105,8 +100,8 @@ namespace boost
           ) :
             start_(duration::zero()),
             running_(false),
-            laps_collector_(acc),
             suspended_(false),
+            laps_collector_(acc),
             partial_(duration::zero())
       {
       }
@@ -311,7 +306,7 @@ namespace boost
         start_ = time_point(duration::zero());
       }
 
-      laps_collector const& get_laps_memory()
+      laps_collector const& get_laps_collector()
       {
         return laps_collector_;
       }
@@ -328,8 +323,8 @@ namespace boost
     private:
       time_point start_;
       bool running_;
-      laps_collector laps_collector_;
       bool suspended_;
+      laps_collector laps_collector_;
       duration partial_;
     };
 

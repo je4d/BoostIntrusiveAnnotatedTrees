@@ -10,7 +10,6 @@
 import build-request ;
 import builtin ;
 import "class" : new ;
-import errors ;
 import feature ;
 import make ;
 import modules ;
@@ -27,6 +26,7 @@ import version ;
 import virtual-target ;
 import generators ;
 import configure ;
+
 
 ################################################################################
 #
@@ -235,8 +235,10 @@ local rule load-config ( module-name : filename : path + : must-find ? )
 {
     if $(.debug-config)
     {
-        ECHO "notice: Searching" "$(path)" "for" "$(module-name)"
-            "configuration file" "$(filename)" "." ;
+        local path-string = $(path) ;
+        if $(path-string) = "" { path-string = . ; }
+        ECHO notice: Searching '$(path-string)' for $(module-name)
+            configuration file '$(filename)'. ;
     }
     local where = [ GLOB $(path) : $(filename) ] ;
     if $(where)
@@ -244,31 +246,35 @@ local rule load-config ( module-name : filename : path + : must-find ? )
         where = [ NORMALIZE_PATH $(where[1]) ] ;
         if $(.debug-config)
         {
-            ECHO "notice: Loading" "$(module-name)" "configuration file"
-                "$(filename)" "from" $(where) "." ;
+            local where-string = $(where:D) ;
+            if $(where-string) = "" { where-string = . ; }
+            where-string = '$(where-string)' ;
+            ECHO notice: Loading $(module-name) configuration file '$(filename)'
+                from $(where-string:J=" "). ;
         }
 
-        # Set source location so that path-constant in config files
-        # with relative paths work. This is of most importance
-        # for project-config.jam, but may be used in other
-        # config files as well.
+        # Set source location so that path-constant in config files with
+        # relative paths work. This is of most importance for
+        # project-config.jam, but may be used in other config files as well.
         local attributes = [ project.attributes $(module-name) ] ;
         $(attributes).set source-location : $(where:D) : exact ;
         modules.load $(module-name) : $(filename) : $(path) ;
         project.load-used-projects $(module-name) ;
     }
-    else
+    else if $(must-find) || $(.debug-config)
     {
+        local path-string = $(path) ;
+        if $(path-string) = "" { path-string = . ; }
+        path-string = '$(path-string)' ;
+        path-string = $(path-string:J=" ") ;
         if $(must-find)
         {
-            errors.user-error "Configuration file" "$(filename)" "not found in"
-                "$(path)" "." ;
+            import errors ;
+            errors.user-error Configuration file '$(filename)' not found "in"
+                $(path-string). ;
         }
-        if $(.debug-config)
-        {
-            ECHO "notice:" "Configuration file" "$(filename)" "not found in"
-                "$(path)" "." ;
-        }
+        ECHO notice: Configuration file '$(filename)' not found "in"
+            $(path-string). ;
     }
     return $(where) ;
 }
@@ -386,8 +392,8 @@ local rule load-configuration-files
 
                 if $(.debug-config)
                 {
-                    ECHO "notice: Loading explicitly specified user"
-                        "configuration file:" ;
+                    ECHO notice: Loading explicitly specified user configuration
+                        file: ;
                     ECHO "    $(user-config)" ;
                 }
 
@@ -401,10 +407,10 @@ local rule load-configuration-files
         }
         else if $(.debug-config)
         {
-            ECHO "notice: User configuration file loading explicitly disabled." ;
+            ECHO notice: User configuration file loading explicitly disabled. ;
         }
     }
-        
+
     # We look for project-config.jam from "." upward.
     # I am not sure this is 100% right decision, we might as well check for
     # it only alonside the Jamroot file. However:
@@ -420,8 +426,8 @@ local rule load-configuration-files
     if $(file)
     {
         initialize-config-module project-config : $(file:D) ;
-        load-config project-config : project-config.jam : $(file:D) ;        
-    }   
+        load-config project-config : project-config.jam : $(file:D) ;
+    }
 }
 
 
@@ -543,15 +549,15 @@ local rule should-clean-project ( project )
 #
 ################################################################################
 
-{    
+{
     if --version in $(.argv)
     {
         version.print ;
         EXIT ;
     }
-    
-    version.verify-engine-version ;    
-    
+
+    version.verify-engine-version ;
+
     load-configuration-files ;
 
     local extra-properties ;
@@ -593,7 +599,7 @@ local rule should-clean-project ( project )
             else if [ os.name ] = MACOSX
             {
                 default-toolset = darwin ;
-            }                        
+            }
         }
 
         ECHO "warning: No toolsets are configured." ;
@@ -638,9 +644,9 @@ local rule should-clean-project ( project )
     # Check that we actually found something to build.
     if ! $(current-project) && ! $(target-ids)
     {
-        errors.user-error "error: no Jamfile in current directory found, and no"
-            "target references specified." ;
-        EXIT ;
+        import errors ;
+        errors.user-error error: no Jamfile "in" current directory found, and no
+            target references specified. ;
     }
 
 
@@ -707,23 +713,23 @@ local rule should-clean-project ( project )
     {
         targets += [ project.target [ project.module-name "." ] ] ;
     }
-    
-    if [ option.get dump-generators : : true ] 
+
+    if [ option.get dump-generators : : true ]
     {
         generators.dump ;
     }
-    
-    # We wish to put config.log in the build directory corresponding
-    # to Jamroot, so that the location does not differ depending on
-    # directory where we do build.  The amount of indirection necessary
-    # here is scary.
+
+    # We wish to put config.log in the build directory corresponding to Jamroot,
+    # so that the location does not differ depending on the directory we run the
+    # build from. The amount of indirection necessary here is scary.
     local first-project = [ $(targets[0]).project ] ;
     local first-project-root-location = [ $(first-project).get project-root ] ;
-    local first-project-root-module = [ project.load $(first-project-root-location) ] ;
-    local first-project-root = [ project.target  $(first-project-root-module) ] ;
+    local first-project-root-module = [ project.load
+        $(first-project-root-location) ] ;
+    local first-project-root = [ project.target $(first-project-root-module) ] ;
     local first-build-build-dir = [ $(first-project-root).build-dir ] ;
     configure.set-log-file $(first-build-build-dir)/config.log ;
-    
+
     # Now that we have a set of targets to build and a set of property sets to
     # build the targets with, we can start the main build process by using each
     # property set to generate virtual targets from all of our listed targets
@@ -920,7 +926,7 @@ local rule should-clean-project ( project )
             __ACTION_RULE__ = build-system.out-xml.collect
                 [ modules.peek build-system : .out-xml ] ;
         }
-        
+
         IMPORT
             build-system :
             out-xml.collect
@@ -936,7 +942,7 @@ local rule should-clean-project ( project )
     {
         modules.poke : PARALLELISM : $(j) ;
     }
-    
+
     local k = [ option.get keep-going : true : true ] ;
     if $(k) in "on" "yes" "true"
     {
@@ -948,10 +954,9 @@ local rule should-clean-project ( project )
     }
     else
     {
-        ECHO "error: Invalid value for the --keep-going option" ;
-        EXIT ;
+        EXIT "error: Invalid value for the --keep-going option" ;
     }
-                
+
     # The 'all' pseudo target is not strictly needed expect in the case when we
     # use it below but people often assume they always have this target
     # available and do not declare it themselves before use which may cause
@@ -980,17 +985,17 @@ local rule should-clean-project ( project )
         UPDATE clean ;
     }
     else
-    {      
-        configure.print-configure-checks-summary ;        
-        
+    {
+        configure.print-configure-checks-summary ;
+
         if $(.pre-build-hook)
         {
             $(.pre-build-hook) ;
         }
-        
+
         DEPENDS all : $(actual-targets) ;
         if UPDATE_NOW in [ RULENAMES ]
-        {            
+        {
             local ok = [ UPDATE_NOW all $(.out-xml) ] ;
             if $(.post-build-hook)
             {
@@ -1003,6 +1008,6 @@ local rule should-clean-project ( project )
         else
         {
             UPDATE all $(.out-xml) ;
-        }            
+        }
     }
 }

@@ -31,9 +31,8 @@
 #endif
 
 namespace ctx = boost::ctx;
-namespace po = boost::program_options;
 
-bool preserve_fpu = true;
+bool preserve_fpu = false;
 
 #define CALL_FUNCTION(z,n,unused) \
     fn();
@@ -66,6 +65,7 @@ static void f1( intptr_t)
         ctx::jump_fcontext( & fc, & fcm, 7, preserve_fpu);
 }
 
+#ifdef BOOST_CONTEXT_CYCLE
 cycle_t test_function_cycle( cycle_t ov)
 {
     boost::function< void() > fn( boost::bind( f3) );
@@ -136,6 +136,7 @@ BOOST_PP_REPEAT_FROM_TO( 0, BOOST_PP_LIMIT_MAG, CALL_FCONTEXT, ~)
 
     return total;
 }
+#endif
 
 #if _POSIX_C_SOURCE >= 199309L
 zeit_t test_function_zeit( zeit_t ov)
@@ -214,27 +215,9 @@ int main( int argc, char * argv[])
 {
     try
     {
-        po::options_description desc("allowed options");
-        desc.add_options()
-            ("help,h", "help message")
-            ("preserve-fpu,p", po::value< bool >( & preserve_fpu), "preserve floating point env");
-
-        po::variables_map vm;
-        po::store(
-            po::parse_command_line(
-                argc,
-                argv,
-                desc),
-            vm);
-        po::notify( vm);
-
-        if ( vm.count("help") )
-        {
-            std::cout << desc << std::endl;
-            return EXIT_SUCCESS;
-        }
         bind_to_processor( 0);
 
+#ifdef BOOST_CONTEXT_CYCLE
         {
             cycle_t ov( overhead_cycles() );
             std::cout << "overhead for rdtsc == " << ov << " cycles" << std::endl;
@@ -248,6 +231,7 @@ int main( int argc, char * argv[])
             res = test_function_cycle( ov);
             std::cout << "boost::function: average of " << res << " cycles per switch" << std::endl;
         }
+#endif
 
 #if _POSIX_C_SOURCE >= 199309L
         {

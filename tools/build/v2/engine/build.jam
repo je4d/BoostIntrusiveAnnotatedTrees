@@ -139,9 +139,8 @@ toolset-root = [ MATCH --toolset-root=(.*) : $(ARGV) ] ;
     toolset-root = $(toolset-root:J="") ;
 }
 
-# Configure the implemented toolsets. These are minimal
-# commands and options to compile the full Jam. When
-# adding new toolsets make sure to add them to the
+# Configure the implemented toolsets. These are minimal commands and options to
+# compile the full Jam. When adding new toolsets make sure to add them to the
 # "known" list also.
 
 rule toolset ( name command .type ? : opt.out + : opt.define * : flags * : linklibs * )
@@ -258,7 +257,8 @@ toolset kylix bc++ : -o : -D
     : -L$(--python-lib[1]) -l$(--python-lib[2]) ;
 ## Metrowerks CodeWarrior 8.x
 {
-    # Even though CW can compile all files at once, it crashes if it tries in the bjam case.
+    # Even though CW can compile all files at once, it crashes if it tries in
+    # the bjam case.
     local mwcc = ; if $(OS) = NT { mwcc = mwcc ; } else { mwcc = mwc$(OSPLAT:L) ; }
     mwcc ?= mwcc ;
     toolset metrowerks $(mwcc) : "-o " : -D
@@ -376,7 +376,7 @@ toolset vc11 cl : /Fe /Fe /Fd /Fo : -D
     [ opt --debug : /MTd /DEBUG /Z7 /Od /Ob0 /wd4996 ]
     -I$(--python-include) -I$(--extra-include)
     : kernel32.lib advapi32.lib user32.lib $(--python-lib[1]) ;
-    
+
 # First set the build commands and options according to the
 # preset toolset.
 toolset = [ MATCH --toolset=(.*) : $(ARGV) ] ;
@@ -477,17 +477,13 @@ if --show-locate-target in $(ARGV)
 
 # We have some different files for UNIX, and NT.
 jam.source =
-    command.c compile.c constants.c debug.c function.c glob.c
-    hash.c hcache.c headers.c hdrmacro.c
-    jam.c jambase.c jamgram.c
-    lists.c make.c make1.c mem.c object.c
-    option.c output.c parse.c regexp.c rules.c
-    scan.c search.c subst.c w32_getreg.c
-    timestamp.c variable.c modules.c strings.c filesys.c
-    builtins.c pwd.c class.c native.c md5.c modules/set.c
-    modules/path.c modules/regex.c modules/property-set.c
-    modules/sequence.c modules/order.c
-    ;
+    command.c compile.c constants.c debug.c execcmd.c frames.c function.c glob.c
+    hash.c hcache.c headers.c hdrmacro.c jam.c jambase.c jamgram.c lists.c
+    make.c make1.c mem.c object.c option.c output.c parse.c regexp.c rules.c
+    scan.c search.c subst.c w32_getreg.c timestamp.c variable.c modules.c
+    strings.c filesys.c builtins.c pwd.c class.c native.c md5.c modules/set.c
+    modules/path.c modules/regex.c modules/property-set.c modules/sequence.c
+    modules/order.c ;
 if $(OS) = NT
 {
     jam.source += execnt.c filent.c pathunix.c ;
@@ -710,7 +706,8 @@ SUFEXE ?= "" ;
 
 yacc ?= [ GLOB $(PATH) : yacc$(SUFEXE) ] ;
 yacc ?= [ GLOB $(PATH) : bison$(SUFEXE) ] ;
-yacc ?= [ GLOB "$(ProgramFiles:J= )\\GnuWin32\\bin" "C:\\Program Files\\GnuWin32\\bin" : bison$(SUFEXE) ] ;
+yacc ?= [ GLOB "$(ProgramFiles:J= )\\GnuWin32\\bin"
+    "C:\\Program Files\\GnuWin32\\bin" : bison$(SUFEXE) ] ;
 yacc = $(yacc[1]) ;
 switch $(yacc:D=:S=)
 {
@@ -778,7 +775,7 @@ rule .jam
 {
     $(>).exe = [ .exe $(>) : $(jam.source) ] ;
     DEPENDS all : $($(>).exe) ;
-    
+
     # Make a copy under the old name.
     $(<).exe = $(<:S=$($(>).exe:S)) ;
     LOCATE on $($(<).exe) = $(locate-target) ;

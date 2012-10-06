@@ -6,11 +6,13 @@
 #         http://www.boost.org/LICENSE_1_0.txt)
 
 import TestCmd
+
 import copy
 import fnmatch
 import glob
 import math
 import os
+import os.path
 import re
 import shutil
 import string
@@ -29,9 +31,8 @@ annotations = []
 
 
 def print_annotation(name, value, xml):
-    """Writes some named bits of information about test run.
-    """
-    if xml:      
+    """Writes some named bits of information about the current test run."""
+    if xml:
         print escape(name) + " {{{"
         print escape(value)
         print "}}}"
@@ -39,35 +40,44 @@ def print_annotation(name, value, xml):
         print name + " {{{"
         print value
         print "}}}"
-        
+
+
 def flush_annotations(xml=0):
     global annotations
     for ann in annotations:
         print_annotation(ann[0], ann[1], xml)
     annotations = []
 
+
 def clear_annotations():
     global annotations
     annotations = []
 
-defer_annotations = 0
 
+defer_annotations = 0
 
 def set_defer_annotations(n):
     global defer_annotations
     defer_annotations = n
 
 
+def annotate_stack_trace(tb=None):
+    if tb:
+        trace = TestCmd.caller(traceback.extract_tb(tb), 0)
+    else:
+        trace = TestCmd.caller(traceback.extract_stack(), 1)
+    annotation("stacktrace", trace)
+
+
 def annotation(name, value):
-    """Records an annotation about the test run.
-    """
+    """Records an annotation about the test run."""
     annotations.append((name, value))
     if not defer_annotations:
         flush_annotations()
 
 
 def get_toolset():
-    toolset = None;
+    toolset = None
     for arg in sys.argv[1:]:
         if not arg.startswith('-'):
             toolset = arg
@@ -75,57 +85,65 @@ def get_toolset():
 
 
 # Detect the host OS.
-windows = False
-cygwin = False
-if os.environ.get('OS', '').lower().startswith('windows'):
-    windows = True
-
-if os.__dict__.has_key('uname') and \
-       os.uname()[0].lower().startswith('cygwin'):
-    windows = True
-    cygwin = True
-
-suffixes = {}
+cygwin = hasattr(os, 'uname') and os.uname()[0].lower().startswith('cygwin')
+windows = cygwin or os.environ.get('OS', '').lower().startswith('windows')
 
 
-# Configuration stating whether Boost Build is expected to automatically prepend
-# prefixes to built library targets.
-lib_prefix = "lib"
-dll_prefix = "lib"
+def prepare_prefixes_and_suffixes(toolset):
+    prepare_suffix_map(toolset)
+    prepare_library_prefix(toolset)
 
-# Prepare the map of suffixes
+
 def prepare_suffix_map(toolset):
-    global windows
+    """
+      Set up suffix translation performed by the Boost Build testing framework
+    to accomodate different toolsets generating targets of the same type using
+    different filename extensions (suffixes).
+
+    """
     global suffixes
-    global cygwin
-    global lib_prefix
-    global dll_prefix
-    suffixes = {'.exe': '', '.dll': '.so', '.lib': '.a', '.obj': '.o'}
-    suffixes['.implib'] = '.no_implib_files_on_this_platform'
+    suffixes = {}
     if windows:
-        suffixes = {}
-        if toolset in ["gcc"]:
-            suffixes['.lib'] = '.a' # static libs have '.a' suffix with mingw...
+        if toolset == "gcc":
+            suffixes['.lib'] = '.a'  # mingw static libs use suffix '.a'.
             suffixes['.obj'] = '.o'
         if cygwin:
             suffixes['.implib'] = '.lib.a'
         else:
             suffixes['.implib'] = '.lib'
-    if os.__dict__.has_key('uname') and (os.uname()[0] == 'Darwin'):
-        suffixes['.dll'] = '.dylib'
-    
+    else:
+        suffixes['.exe'] = ''
+        suffixes['.dll'] = '.so'
+        suffixes['.lib'] = '.a'
+        suffixes['.obj'] = '.o'
+        suffixes['.implib'] = '.no_implib_files_on_this_platform'
+
+        if hasattr(os, 'uname') and os.uname()[0] == 'Darwin':
+            suffixes['.dll'] = '.dylib'
+
+
+def prepare_library_prefix(toolset):
+    """
+      Setup whether Boost Build is expected to automatically prepend prefixes
+    to its built library targets.
+
+    """
+    global lib_prefix
     lib_prefix = "lib"
-    dll_prefix = "lib"
+
+    global dll_prefix
     if cygwin:
         dll_prefix = "cyg"
-    elif windows and not toolset in ["gcc"]:
+    elif windows and toolset != "gcc":
         dll_prefix = None
+    else:
+        dll_prefix = "lib"
 
 
 def re_remove(sequence, regex):
     me = re.compile(regex)
     result = filter(lambda x: me.match(x), sequence)
-    if 0 == len(result):
+    if not result:
         raise ValueError()
     for r in result:
         sequence.remove(r)
@@ -133,11 +151,10 @@ def re_remove(sequence, regex):
 
 def glob_remove(sequence, pattern):
     result = fnmatch.filter(sequence, pattern)
-    if 0 == len(result):
+    if not result:
         raise ValueError()
     for r in result:
         sequence.remove(r)
-
 
 
 #
@@ -152,8 +169,7 @@ if os.name == 'posix':
     def _status(self):
         if os.WIFEXITED(self.status):
             return os.WEXITSTATUS(self.status)
-        else:
-            return -1
+        return -1
 elif os.name == 'nt':
     def _failed(self, status=0):
         return not self.status is None and self.status != status
@@ -186,8 +202,11 @@ class Tester(TestCmd.TestCmd):
                                     configuration file.
     `ignore_toolset_requirements` - Whether the test system should tell the run
                                     executable to ignore toolset requirements.
-    `workdir`                     - indicates an absolute directory where the
-                                    test will be run from.
+    `workdir`                     - Absolute directory where the test will be
+                                    run from.
+    `pass_d0`                     - If set, when tests are not explicitly run
+                                    in verbose mode, they are run as silent
+                                    (-d0 & --quiet Boost Jam options).
 
     Optional arguments inherited from the base class:
 
@@ -209,10 +228,10 @@ class Tester(TestCmd.TestCmd):
         ignore_toolset_requirements=True, workdir="", pass_d0=True, **keywords):
 
         self.original_workdir = os.getcwd()
-        if workdir != '' and not os.path.isabs(workdir):
-            raise "Parameter workdir <"+workdir+"> must point to an absolute directory: "
+        if workdir and not os.path.isabs(workdir):
+            raise ("Parameter workdir <%s> must point to an absolute "
+                "directory: " % workdir)
 
-        self.last_build_time_start = 0
         self.last_build_time_finish = 0
         self.translate_suffixes = translate_suffixes
         self.use_test_config = use_test_config
@@ -221,22 +240,26 @@ class Tester(TestCmd.TestCmd):
         self.pass_toolset = pass_toolset
         self.ignore_toolset_requirements = ignore_toolset_requirements
 
-        prepare_suffix_map(pass_toolset and self.toolset or 'gcc')
+        prepare_prefixes_and_suffixes(pass_toolset and self.toolset or 'gcc')
 
-        if not '--default-bjam' in sys.argv:
+        use_default_bjam = '--default-bjam' in sys.argv
+
+        if not use_default_bjam:
             jam_build_dir = ""
             if os.name == 'nt':
                 jam_build_dir = "bin.ntx86"
             elif (os.name == 'posix') and os.__dict__.has_key('uname'):
                 if os.uname()[0].lower().startswith('cygwin'):
                     jam_build_dir = "bin.cygwinx86"
-                    if 'TMP' in os.environ and os.environ['TMP'].find('~') != -1:
-                        print 'Setting $TMP to /tmp to get around problem with short path names'
+                    if ('TMP' in os.environ and
+                        os.environ['TMP'].find('~') != -1):
+                        print('Setting $TMP to /tmp to get around problem '
+                            'with short path names')
                         os.environ['TMP'] = '/tmp'
                 elif os.uname()[0] == 'Linux':
                     cpu = os.uname()[4]
                     if re.match("i.86", cpu):
-                        jam_build_dir = "bin.linuxx86";
+                        jam_build_dir = "bin.linuxx86"
                     else:
                         jam_build_dir = "bin.linux" + os.uname()[4]
                 elif os.uname()[0] == 'SunOS':
@@ -255,21 +278,22 @@ class Tester(TestCmd.TestCmd):
                 elif os.uname()[0] == "OSF1":
                     jam_build_dir = "bin.osf"
                 else:
-                    raise "Don't know directory where Jam is built for this system: " + os.name + "/" + os.uname()[0]
+                    raise ("Do not know directory where Jam is built for this "
+                        "system: %s/%s" % (os.name, os.uname()[0]))
             else:
-                raise "Don't know directory where Jam is built for this system: " + os.name
+                raise ("Do not know directory where Jam is built for this "
+                    "system: %s" % os.name)
 
             # Find where jam_src is located. Try for the debug version if it is
             # lying around.
             dirs = [os.path.join('../engine', jam_build_dir + '.debug'),
-                    os.path.join('../engine', jam_build_dir),
-                    ]
+                    os.path.join('../engine', jam_build_dir)]
             for d in dirs:
                 if os.path.exists(d):
                     jam_build_dir = d
                     break
             else:
-                print "Cannot find built Boost.Jam"
+                print("Cannot find built Boost.Jam")
                 sys.exit(1)
 
         verbosity = ['-d0', '--quiet']
@@ -283,26 +307,18 @@ class Tester(TestCmd.TestCmd):
             boost_build_path = self.original_workdir + "/.."
 
         program_list = []
-
-        if '--default-bjam' in sys.argv:
+        if use_default_bjam:
             program_list.append(executable)
-            inpath_bjam = True
         else:
             program_list.append(os.path.join(jam_build_dir, executable))
-            inpath_bjam = None
         program_list.append('-sBOOST_BUILD_PATH="' + boost_build_path + '"')
         if verbosity:
             program_list += verbosity
         if arguments:
             program_list += arguments.split(" ")
 
-        TestCmd.TestCmd.__init__(
-            self
-            , program=program_list
-            , match=match
-            , workdir=workdir
-            , inpath=inpath_bjam
-            , **keywords)
+        TestCmd.TestCmd.__init__(self, program=program_list, match=match,
+            workdir=workdir, inpath=use_default_bjam, **keywords)
 
         os.chdir(self.workdir)
 
@@ -330,12 +346,10 @@ class Tester(TestCmd.TestCmd):
         shutil.copytree(tree_location, self.workdir)
 
         os.chdir(d)
-
         def make_writable(unused, dir, entries):
             for e in entries:
                 name = os.path.join(dir, e)
                 os.chmod(name, os.stat(name)[0] | 0222)
-
         os.path.walk(".", make_writable, None)
 
     def write(self, file, content):
@@ -345,7 +359,9 @@ class Tester(TestCmd.TestCmd):
             os.makedirs(os.path.dirname(nfile))
         except Exception, e:
             pass
-        open(nfile, "wb").write(content)
+        f = open(nfile, "wb")
+        f.write(content)
+        f.close()
 
     def rename(self, old, new):
         try:
@@ -359,10 +375,9 @@ class Tester(TestCmd.TestCmd):
             pass
 
         os.rename(old, new)
-        self.touch(new);
+        self.touch(new)
 
     def copy(self, src, dst):
-        self.wait_for_time_change_since_last_build()
         try:
             self.write(dst, self.read(src, 1))
         except:
@@ -383,23 +398,20 @@ class Tester(TestCmd.TestCmd):
     def rm(self, names):
         if not type(names) == types.ListType:
             names = [names]
-            
-        if names == ["."]:
-            # If we're deleting the entire workspace, there's no
-            # need to wait for a clock tick.
-            self.last_build_time_start = 0
-            self.last_build_time_finish = 0
 
-        self.wait_for_time_change_since_last_build()
+        if names == ["."]:
+            # If we are deleting the entire workspace, there is no need to wait
+            # for a clock tick.
+            self.last_build_time_finish = 0
 
         # Avoid attempts to remove the current directory.
         os.chdir(self.original_workdir)
         for name in names:
-            n = self.native_file_name(name)
-            n = glob.glob(n)
+            n = glob.glob(self.native_file_name(name))
             if n: n = n[0]
             if not n:
-                n = self.glob_file(string.replace(name, "$toolset", self.toolset+"*"))
+                n = self.glob_file(string.replace(name, "$toolset",
+                    self.toolset + "*"))
             if n:
                 if os.path.isdir(n):
                     shutil.rmtree(n, ignore_errors=False)
@@ -412,11 +424,13 @@ class Tester(TestCmd.TestCmd):
         os.chdir(self.workdir)
 
     def expand_toolset(self, name):
-        """Expands $toolset in the given file to tested toolset.
         """
-        content = self.read(name)
-        content = string.replace(content, "$toolset", self.toolset)
-        self.write(name, content)
+          Expands $toolset placeholder in the given file to the name of the
+        toolset currently being tested.
+
+        """
+        self.write(name, string.replace(self.read(name), "$toolset",
+            self.toolset))
 
     def dump_stdio(self):
         annotation("STDOUT", self.stdout())
@@ -425,17 +439,17 @@ class Tester(TestCmd.TestCmd):
     #
     #   FIXME: Large portion copied from TestSCons.py, should be moved?
     #
-    def run_build_system(self, extra_args="", subdir="", stdout=None, stderr="",
-        status=0, match=None, pass_toolset=None, use_test_config=None,
-        ignore_toolset_requirements=None, expected_duration=None, **kw):
+    def run_build_system(self, extra_args="", subdir="", stdout=None,
+        stderr="", status=0, match=None, pass_toolset=None,
+        use_test_config=None, ignore_toolset_requirements=None,
+        expected_duration=None, **kw):
 
-        self.last_build_time_start = time.time()
+        build_time_start = time.time()
 
         try:
             if os.path.isabs(subdir):
-                if stderr:
-                    print "You must pass a relative directory to subdir <"+subdir+">."
-                status = 1
+                print("You must pass a relative directory to subdir <%s>." %
+                    subdir)
                 return
 
             self.previous_tree = tree.build_tree(self.workdir)
@@ -460,8 +474,8 @@ class Tester(TestCmd.TestCmd):
                 if pass_toolset:
                     kw['program'].append("toolset=" + self.toolset)
                 if use_test_config:
-                    kw['program'].append('--test-config="%s"'
-                        % os.path.join(self.original_workdir, "test-config.jam"))
+                    kw['program'].append('--test-config="%s"' % os.path.join(
+                        self.original_workdir, "test-config.jam"))
                 if ignore_toolset_requirements:
                     kw['program'].append("--ignore-toolset-requirements")
                 if "--python" in sys.argv:
@@ -473,20 +487,21 @@ class Tester(TestCmd.TestCmd):
                 self.dump_stdio()
                 raise
         finally:
+            old_last_build_time_finish = self.last_build_time_finish
             self.last_build_time_finish = time.time()
 
-        if (status != None) and _failed(self, status):
+        if status is not None and _failed(self, status):
             expect = ''
             if status != 0:
                 expect = " (expected %d)" % status
 
-            annotation("failure", '"%s" returned %d%s'
-                % (kw['program'], _status(self), expect))
-            
+            annotation("failure", '"%s" returned %d%s' % (kw['program'],
+                _status(self), expect))
+
             annotation("reason", "unexpected status returned by bjam")
             self.fail_test(1)
 
-        if not (stdout is None) and not match(self.stdout(), stdout):
+        if stdout is not None and not match(self.stdout(), stdout):
             annotation("failure", "Unexpected stdout")
             annotation("Expected STDOUT", stdout)
             annotation("Actual STDOUT", self.stdout())
@@ -500,7 +515,7 @@ class Tester(TestCmd.TestCmd):
         intel_workaround = re.compile("^xi(link|lib): executing.*\n", re.M)
         actual_stderr = re.sub(intel_workaround, "", self.stderr())
 
-        if not (stderr is None) and not match(actual_stderr, stderr):
+        if stderr is not None and not match(actual_stderr, stderr):
             annotation("failure", "Unexpected stderr")
             annotation("Expected STDERR", stderr)
             annotation("Actual STDERR", self.stderr())
@@ -508,9 +523,9 @@ class Tester(TestCmd.TestCmd):
             self.maybe_do_diff(actual_stderr, stderr)
             self.fail_test(1, dump_stdio=False)
 
-        if not expected_duration is None:
-            actual_duration = self.last_build_time_finish - self.last_build_time_start 
-            if (actual_duration > expected_duration):
+        if expected_duration is not None:
+            actual_duration = self.last_build_time_finish - build_time_start
+            if actual_duration > expected_duration:
                 print "Test run lasted %f seconds while it was expected to " \
                     "finish in under %f seconds." % (actual_duration,
                     expected_duration)
@@ -519,16 +534,21 @@ class Tester(TestCmd.TestCmd):
         self.tree = tree.build_tree(self.workdir)
         self.difference = tree.trees_difference(self.previous_tree, self.tree)
         if self.difference.empty():
-            # If nothing was changed, there's no need to wait
-            self.last_build_time_start = 0
-            self.last_build_time_finish = 0
+            # If nothing has been changed by this build and sufficient time has
+            # passed since the last build that actually changed something,
+            # there is no need to wait for touched or newly created files to
+            # start getting newer timestamps than the currently existing ones.
+            self.last_build_time_finish = old_last_build_time_finish
+
         self.difference.ignore_directories()
         self.unexpected_difference = copy.deepcopy(self.difference)
 
     def glob_file(self, name):
         result = None
         if hasattr(self, 'difference'):
-            for f in self.difference.added_files+self.difference.modified_files+self.difference.touched_files:
+            for f in (self.difference.added_files +
+                self.difference.modified_files +
+                self.difference.touched_files):
                 if fnmatch.fnmatch(f, name):
                     result = self.native_file_name(f)
                     break
@@ -548,7 +568,10 @@ class Tester(TestCmd.TestCmd):
                 openMode += "b"
             else:
                 openMode += "U"
-            return open(name, openMode).read()
+            f = open(name, openMode)
+            result = f.read()
+            f.close()
+            return result
         except:
             annotation("failure", "Could not open '%s'" % name)
             self.fail_test(1)
@@ -559,17 +582,18 @@ class Tester(TestCmd.TestCmd):
             return ''
         f = open(self.glob_file(name), "rb")
         lines = f.readlines()
+        f.close()
         result = string.join(map(string.rstrip, lines), "\n")
-        if lines and lines[-1][-1] == '\n':
+        if lines and lines[-1][-1] != '\n':
             return result + '\n'
-        else:
-            return result
+        return result
 
-    def fail_test(self, condition, dump_stdio=True, *args):
+    def fail_test(self, condition, dump_difference=True, dump_stdio=True,
+        dump_stack=True):
         if not condition:
             return
 
-        if hasattr(self, 'difference'):
+        if dump_difference and hasattr(self, 'difference'):
             f = StringIO.StringIO()
             self.difference.pprint(f)
             annotation("changes caused by the last build command", f.getvalue())
@@ -585,13 +609,13 @@ class Tester(TestCmd.TestCmd):
             if os.path.isdir(path):
                 shutil.rmtree(path, ignore_errors=False)
             elif os.path.exists(path):
-                raise "Path " + path + " already exists and is not a directory";
+                raise "Path " + path + " already exists and is not a directory"
             shutil.copytree(self.workdir, path)
             print "The failed command was:"
             print ' '.join(self.last_program_invocation)
 
-        at = TestCmd.caller(traceback.extract_stack(), 0)
-        annotation("stacktrace", at)
+        if dump_stack:
+            annotate_stack_trace()
         sys.exit(1)
 
     # A number of methods below check expectations with actual difference
@@ -599,7 +623,7 @@ class Tester(TestCmd.TestCmd):
     # methods require exact names to be passed. All the 'ignore*' methods allow
     # wildcards.
 
-    # All names can be lists, which are taken to be directory components.
+    # All names can be either a string or a list of strings.
     def expect_addition(self, names):
         for name in self.adjust_names(names):
             try:
@@ -693,14 +717,17 @@ class Tester(TestCmd.TestCmd):
             self.ignore('*.pdb')       # MSVC program database files.
             self.ignore('*.rsp')       # Response files.
             self.ignore('*.tds')       # Borland debug symbols.
-            self.ignore('*.manifest')  # MSVC DLL manifests.            
+            self.ignore('*.manifest')  # MSVC DLL manifests.
 
         # Debug builds of bjam built with gcc produce this profiling data.
         self.ignore('gmon.out')
         self.ignore('*/gmon.out')
 
+        # Boost Build's 'configure' functionality (unfinished at the time)
+        # produces this file.
         self.ignore("bin/config.log")
 
+        # Compiled Python files created when running Python based Boost Build.
         self.ignore("*.pyc")
 
         if not self.unexpected_difference.empty():
@@ -782,18 +809,28 @@ class Tester(TestCmd.TestCmd):
             self.fail_test(1)
 
     def maybe_do_diff(self, actual, expected):
-        if os.environ.has_key("DO_DIFF") and os.environ["DO_DIFF"] != '':
+        if os.environ.get("DO_DIFF"):
             e = tempfile.mktemp("expected")
             a = tempfile.mktemp("actual")
-            open(e, "w").write(expected)
-            open(a, "w").write(actual)
-            print "DIFFERENCE"
-            if os.system("diff -u " + e + " " + a):
-                print "Unable to compute difference: diff -u %s %s" % (e, a)
+            f = open(e, "w")
+            f.write(expected)
+            f.close()
+            f = open(a, "w")
+            f.write(actual)
+            f.close()
+            print("DIFFERENCE")
+            # Current diff should return 1 to indicate 'different input files'
+            # but some older diff versions may return 0 and depending on the
+            # exact Python/OS platform version, os.system() call may gobble up
+            # the external process's return code and return 0 itself.
+            if os.system('diff -u "%s" "%s"' % (e, a)) not in [0, 1]:
+                print('Unable to compute difference: diff -u "%s" "%s"' % (e,
+                    a))
             os.unlink(e)
             os.unlink(a)
         else:
-            print "Set environmental variable 'DO_DIFF' to examine difference."
+            print("Set environmental variable 'DO_DIFF' to examine "
+                "difference.")
 
     # Helpers.
     def mul(self, *arguments):
@@ -816,8 +853,7 @@ class Tester(TestCmd.TestCmd):
 
     # Internal methods.
     def ignore_elements(self, list, wildcard):
-        """Removes in-place, element of 'list' that match the given wildcard.
-        """
+        """Removes in-place 'list' elements matching the given 'wildcard'."""
         list[:] = filter(lambda x, w=wildcard: not fnmatch.fnmatch(x, w), list)
 
     def adjust_lib_name(self, name):
@@ -838,35 +874,29 @@ class Tester(TestCmd.TestCmd):
                 if dll_prefix:
                     tail = dll_prefix + tail
                     result = os.path.join(head, tail)
-        # If we want to use this name in a Jamfile, we better convert \ to /, as
-        # otherwise we would have to quote \.
+        # If we want to use this name in a Jamfile, we better convert \ to /,
+        # as otherwise we would have to quote \.
         result = string.replace(result, "\\", "/")
         return result
 
     def adjust_suffix(self, name):
         if not self.translate_suffixes:
             return name
-
         pos = string.rfind(name, ".")
-        if pos != -1:
-            suffix = name[pos:]
-            name = name[:pos]
+        if pos == -1:
+            return name
+        suffix = name[pos:]
+        return name[:pos] + suffixes.get(suffix, suffix)
 
-            if suffixes.has_key(suffix):
-                suffix = suffixes[suffix]
-        else:
-            suffix = ''
-
-        return name + suffix
-
-    # Acceps either a string or a list of strings and returns a list of strings.
-    # Adjusts suffixes on all names.
+    # Acceps either a string or a list of strings and returns a list of
+    # strings. Adjusts suffixes on all names.
     def adjust_names(self, names):
         if type(names) == types.StringType:
             names = [names]
         r = map(self.adjust_lib_name, names)
         r = map(self.adjust_suffix, r)
-        r = map(lambda x, t=self.toolset: string.replace(x, "$toolset", t+"*"), r)
+        r = map(lambda x, t=self.toolset: string.replace(x, "$toolset", t+"*"),
+            r)
         return r
 
     def native_file_name(self, name):
@@ -874,11 +904,14 @@ class Tester(TestCmd.TestCmd):
         elements = string.split(name, "/")
         return os.path.normpath(apply(os.path.join, [self.workdir]+elements))
 
-    # Wait while time is no longer equal to the time last "run_build_system"
-    # call finished. Used to avoid subsequent builds treating existing files as
-    # 'current'.
     def wait_for_time_change_since_last_build(self):
-        while 1:
+        """
+          Wait until newly assigned file system timestamps are larger than the
+        one assigned to files created by our previous build run. Used to make
+        subsequent builds correctly recognize newly created or touched files.
+
+        """
+        while True:
             # In fact, I'm not sure why "+ 2" as opposed to "+ 1" is needed but
             # empirically, "+ 1" sometimes causes 'touch' and other functions
             # not to bump the file time enough for a rebuild to happen.
@@ -893,15 +926,12 @@ class List:
     def __init__(self, s=""):
         elements = []
         if isinstance(s, type("")):
-            # Have to handle espaced spaces correctly.
+            # Have to handle escaped spaces correctly.
             s = string.replace(s, "\ ", '\001')
             elements = string.split(s)
         else:
-            elements = s;
-
-        self.l = []
-        for e in elements:
-            self.l.append(string.replace(e, '\001', ' '))
+            elements = s
+        self.l = [string.replace(e, '\001', ' ') for e in elements]
 
     def __len__(self):
         return len(self.l)
@@ -942,8 +972,9 @@ class List:
         result.l = self.l[:] + other.l[:]
         return result
 
+
 # Quickie tests. Should use doctest instead.
 if __name__ == '__main__':
     assert str(List("foo bar") * "/baz") == "['foo/baz', 'bar/baz']"
     assert repr("foo/" * List("bar baz")) == "__main__.List('foo/bar foo/baz')"
-    print 'tests passed'
+    print('tests passed')
