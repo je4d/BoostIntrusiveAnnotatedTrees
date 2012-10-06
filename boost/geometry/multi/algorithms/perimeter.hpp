@@ -30,21 +30,17 @@ namespace boost { namespace geometry
 #ifndef DOXYGEN_NO_DISPATCH
 namespace dispatch
 {
-template <typename MultiPolygon, typename Strategy>
-struct perimeter<multi_polygon_tag, MultiPolygon, Strategy> : detail::multi_sum
+template <typename MultiPolygon>
+struct perimeter<MultiPolygon, multi_polygon_tag> : detail::multi_sum
 {
+    template <typename Strategy>
     static inline typename default_length_result<MultiPolygon>::type
     apply(MultiPolygon const& multi, Strategy const& strategy)
     {
         return multi_sum::apply
                <
                    typename default_length_result<MultiPolygon>::type,
-                   perimeter
-                   <
-                       polygon_tag,
-                       typename boost::range_value<MultiPolygon>::type,
-                       Strategy
-                   >
+                   perimeter<typename boost::range_value<MultiPolygon>::type>
                >(multi, strategy);
     }
 };

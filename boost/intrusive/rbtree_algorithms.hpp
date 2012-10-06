@@ -952,27 +952,27 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
       //       node_traits::get_parent(node_traits::get_parent(p)) == p;
    }
 
-   static void rebalance_after_erasure(const node_ptr & header, const node_ptr &xnode, const node_ptr &xnode_parent)
+   static void rebalance_after_erasure(const node_ptr & header, node_ptr x, node_ptr x_parent)
    {
-      node_ptr x(xnode), x_parent(xnode_parent);
-      while(x != node_traits::get_parent(header) && (x == node_ptr() || node_traits::get_color(x) == node_traits::black())){
+      while(x != node_traits::get_parent(header) && (!x || node_traits::get_color(x) == node_traits::black())){
          if(x == node_traits::get_left(x_parent)){
             node_ptr w = node_traits::get_right(x_parent);
+            BOOST_ASSERT(w);
             if(node_traits::get_color(w) == node_traits::red()){
                node_traits::set_color(w, node_traits::black());
                node_traits::set_color(x_parent, node_traits::red());
                node_tree_algorithms::rotate_left(x_parent, header);
                w = node_traits::get_right(x_parent);
             }
-            if((node_traits::get_left(w) == node_ptr() || node_traits::get_color(node_traits::get_left(w))  == node_traits::black()) &&
-               (node_traits::get_right(w) == node_ptr() || node_traits::get_color(node_traits::get_right(w)) == node_traits::black())){
+            if((!node_traits::get_left(w) || node_traits::get_color(node_traits::get_left(w))  == node_traits::black()) &&
+               (!node_traits::get_right(w) || node_traits::get_color(node_traits::get_right(w)) == node_traits::black())){
                node_traits::set_color(w, node_traits::red());
                x = x_parent;
                annotation_algorithms::update(x_parent);
                x_parent = node_traits::get_parent(x_parent);
             }
             else {
-               if(node_traits::get_right(w) == node_ptr() || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()){
+               if(!node_traits::get_right(w) || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()){
                   node_traits::set_color(node_traits::get_left(w), node_traits::black());
                   node_traits::set_color(w, node_traits::red());
                   node_tree_algorithms::rotate_right(w, header);
@@ -996,15 +996,15 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
                node_tree_algorithms::rotate_right(x_parent, header);
                w = node_traits::get_left(x_parent);
             }
-            if((node_traits::get_right(w) == node_ptr() || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()) &&
-               (node_traits::get_left(w) == node_ptr() || node_traits::get_color(node_traits::get_left(w)) == node_traits::black())){
+            if((!node_traits::get_right(w) || node_traits::get_color(node_traits::get_right(w)) == node_traits::black()) &&
+               (!node_traits::get_left(w) || node_traits::get_color(node_traits::get_left(w)) == node_traits::black())){
                node_traits::set_color(w, node_traits::red());
                x = x_parent;
                annotation_algorithms::update(x_parent);
                x_parent = node_traits::get_parent(x_parent);
             }
             else {
-               if(node_traits::get_left(w) == node_ptr() || node_traits::get_color(node_traits::get_left(w)) == node_traits::black()){
+               if(!node_traits::get_left(w) || node_traits::get_color(node_traits::get_left(w)) == node_traits::black()){
                   node_traits::set_color(node_traits::get_right(w), node_traits::black());
                   node_traits::set_color(w, node_traits::red());
                   node_tree_algorithms::rotate_left(w, header);
@@ -1025,9 +1025,8 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
       annotation_algorithms::update_to_top(x_parent);
    }
 
-   static void rebalance_after_insertion(const node_ptr & header, const node_ptr &pnode)
+   static void rebalance_after_insertion(const node_ptr & header, node_ptr p)
    {
-      node_ptr p(pnode);
       node_traits::set_color(p, node_traits::red());
       while(p != node_traits::get_parent(header) && node_traits::get_color(node_traits::get_parent(p)) == node_traits::red()){
          node_ptr p_parent(node_traits::get_parent(p));

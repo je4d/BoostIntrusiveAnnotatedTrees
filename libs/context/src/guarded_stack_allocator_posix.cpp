@@ -61,13 +61,13 @@ static std::size_t page_count( std::size_t stacksize)
 {
     return static_cast< std::size_t >( 
         std::ceil(
-            static_cast< float >( stacksize) / boost::ctx::pagesize() ) );
+            static_cast< float >( stacksize) / boost::context::pagesize() ) );
 }
 
 }
 
 namespace boost {
-namespace ctx {
+namespace context {
 
 bool
 guarded_stack_allocator::is_stack_unbound()
@@ -87,13 +87,12 @@ guarded_stack_allocator::minimum_stacksize()
 std::size_t
 guarded_stack_allocator::default_stacksize()
 {
-    std::size_t size = 64 * 1024; // 64 kB
-    if ( is_stack_unbound() )
-        return std::max( size, minimum_stacksize() );
+    std::size_t size = 8 * minimum_stacksize();
+    if ( is_stack_unbound() ) return size;
     
     BOOST_ASSERT( maximum_stacksize() >= minimum_stacksize() );
-    return maximum_stacksize() == minimum_stacksize()
-        ? minimum_stacksize()
+    return maximum_stacksize() == size
+        ? size
         : std::min( size, maximum_stacksize() );
 }
 

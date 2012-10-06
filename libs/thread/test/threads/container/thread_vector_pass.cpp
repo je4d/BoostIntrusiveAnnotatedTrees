@@ -10,6 +10,7 @@
 #include <boost/container/vector.hpp>
 #include <iostream>
 #include <boost/detail/lightweight_test.hpp>
+#include <boost/static_assert.hpp>
 
 int count = 0;
 boost::mutex mutex;
@@ -40,6 +41,10 @@ void increment_count()
   boost::mutex::scoped_lock lock(mutex);
   std::cout << "count = " << ++count << std::endl;
 }
+
+#if defined  BOOST_NO_CXX11_RVALUE_REFERENCES && defined BOOST_THREAD_USES_MOVE
+BOOST_STATIC_ASSERT(::boost::is_function<boost::rv<boost::rv<boost::thread> >&>::value==false);
+#endif
 
 int main()
 {
@@ -83,6 +88,7 @@ int main()
       threads.emplace_back(&increment_count);
     }
     interrupt_all(threads);
+    join_all(threads);
   }
   return boost::report_errors();
 }

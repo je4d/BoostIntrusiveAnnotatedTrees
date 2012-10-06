@@ -77,7 +77,15 @@ test-suite numeric/uBLAS
             test33.cpp
         : : :
             <define>$(UBLAS_TESTSET_SPARSE)
+      ]
+      [ run test3.cpp
+            test31.cpp
+            test32.cpp
+            test33.cpp
+        : : :
             <define>$(UBLAS_TESTSET_SPARSE_COO)
+	: test3_coo
+	:
       ]
       [ run test3.cpp
             test31.cpp
@@ -162,8 +170,13 @@ test-suite numeric/uBLAS
       [ run test_complex_norms.cpp
       ]
 	  [ run test_assignment.cpp
+	  : : : <define>BOOST_UBLAS_COO_ALWAYS_DO_FULL_SORT
+	  : :
 	  ]
 	  [ run test_triangular.cpp
+        :
+        :
+        : <library>/boost/timer//boost_timer
 	  ]
 	  [ run test_ticket7296.cpp
 	  ]
@@ -187,5 +200,9 @@ test-suite numeric/uBLAS
         : <define>USE_MAPPED_VECTOR_OF_MAPPED_VECTOR
         : test_inplace_solve_mvov
         :
+      ]
+      [ run test_coordinate_vector_inplace_merge.cpp 
+      ]
+      [ run test_coordinate_matrix_inplace_merge.cpp 
       ]
     ;

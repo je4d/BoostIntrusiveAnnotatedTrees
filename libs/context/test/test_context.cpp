@@ -17,7 +17,7 @@
 
 #include <boost/context/all.hpp>
 
-namespace ctx = boost::ctx;
+namespace ctx = boost::context;
 
 ctx::fcontext_t fcm;
 ctx::fcontext_t * fc = 0;
@@ -78,16 +78,17 @@ void f8( intptr_t arg)
 
 void test_stack()
 {
-    std::size_t def = ctx::guarded_stack_allocator::default_stacksize();
-    std::size_t min = ctx::guarded_stack_allocator::minimum_stacksize();
+    ctx::guarded_stack_allocator alloc;
+
     bool unbound = ctx::guarded_stack_allocator::is_stack_unbound();
+    std::size_t min = ctx::guarded_stack_allocator::minimum_stacksize();
+    std::size_t def = ctx::guarded_stack_allocator::default_stacksize();
+    BOOST_CHECK( min <= def);
     if ( ! unbound)
     {
         std::size_t max = ctx::guarded_stack_allocator::maximum_stacksize();
-        BOOST_CHECK( unbound || ( max >= def) );
+        BOOST_CHECK( max >= def);
     }
-
-    BOOST_CHECK( min <= def);
 }
 
 void test_setup()
@@ -220,14 +221,14 @@ boost::unit_test::test_suite * init_unit_test_suite( int, char* [])
         BOOST_TEST_SUITE("Boost.Context: context test suite");
 
     test->add( BOOST_TEST_CASE( & test_stack) );
-   test->add( BOOST_TEST_CASE( & test_setup) );
-   test->add( BOOST_TEST_CASE( & test_start) );
-   test->add( BOOST_TEST_CASE( & test_jump) );
-   test->add( BOOST_TEST_CASE( & test_result) );
-   test->add( BOOST_TEST_CASE( & test_arg) );
-   test->add( BOOST_TEST_CASE( & test_transfer) );
-   test->add( BOOST_TEST_CASE( & test_exception) );
-   test->add( BOOST_TEST_CASE( & test_fp) );
+    test->add( BOOST_TEST_CASE( & test_setup) );
+    test->add( BOOST_TEST_CASE( & test_start) );
+    test->add( BOOST_TEST_CASE( & test_jump) );
+    test->add( BOOST_TEST_CASE( & test_result) );
+    test->add( BOOST_TEST_CASE( & test_arg) );
+    test->add( BOOST_TEST_CASE( & test_transfer) );
+    test->add( BOOST_TEST_CASE( & test_exception) );
+    test->add( BOOST_TEST_CASE( & test_fp) );
 
     return test;
 }

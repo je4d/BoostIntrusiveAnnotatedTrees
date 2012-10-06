@@ -129,6 +129,27 @@ struct no_result_type_or_result_template
 #endif
 };
 
+// sfinae_tests are derived from example code from Joel de Guzman,
+// which demonstrated the interaction between result_of and SFINAE.
+template <typename F, typename Arg>
+typename boost::result_of<F(Arg const&)>::type
+sfinae_test(F f, Arg const& arg)
+{
+    return f(arg);
+}
+
+template <typename F, typename Arg>
+typename boost::result_of<F(Arg&)>::type
+sfinae_test(F f, Arg& arg)
+{
+    return f(arg);
+}
+
+int sfinae_test_f(int& i)
+{
+    return i;
+}
+
 struct X {};
 
 int main()
@@ -139,6 +160,10 @@ int main()
   typedef int (&func_ref)(float, double);
   typedef int (*func_ptr_0)();
   typedef int (&func_ref_0)();
+  typedef void (*func_ptr_void)(float, double);
+  typedef void (&func_ref_void)(float, double);
+  typedef void (*func_ptr_void_0)();
+  typedef void (&func_ref_void_0)();
   typedef int (X::*mem_func_ptr)(float);
   typedef int (X::*mem_func_ptr_c)(float) const;
   typedef int (X::*mem_func_ptr_v)(float) volatile;
@@ -197,6 +222,10 @@ int main()
   BOOST_STATIC_ASSERT((is_same<result_of<func_ref(char, float)>::type, int>::value));
   BOOST_STATIC_ASSERT((is_same<result_of<func_ptr_0()>::type, int>::value)); 
   BOOST_STATIC_ASSERT((is_same<result_of<func_ref_0()>::type, int>::value)); 
+  BOOST_STATIC_ASSERT((is_same<result_of<func_ptr_void(char, float)>::type, void>::value));
+  BOOST_STATIC_ASSERT((is_same<result_of<func_ref_void(char, float)>::type, void>::value));
+  BOOST_STATIC_ASSERT((is_same<result_of<func_ptr_void_0()>::type, void>::value)); 
+  BOOST_STATIC_ASSERT((is_same<result_of<func_ref_void_0()>::type, void>::value)); 
   BOOST_STATIC_ASSERT((is_same<result_of<mem_func_ptr(X,char)>::type, int>::value));
   BOOST_STATIC_ASSERT((is_same<result_of<mem_func_ptr_c(X,char)>::type, int>::value));
   BOOST_STATIC_ASSERT((is_same<result_of<mem_func_ptr_v(X,char)>::type, int>::value));
@@ -207,6 +236,10 @@ int main()
   BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ref(char, float)>::type, int>::value));
   BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ptr_0()>::type, int>::value)); 
   BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ref_0()>::type, int>::value)); 
+  BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ptr_void(char, float)>::type, void>::value));
+  BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ref_void(char, float)>::type, void>::value));
+  BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ptr_void_0()>::type, void>::value)); 
+  BOOST_STATIC_ASSERT((is_same<tr1_result_of<func_ref_void_0()>::type, void>::value)); 
   BOOST_STATIC_ASSERT((is_same<tr1_result_of<mem_func_ptr(X,char)>::type, int>::value));
   BOOST_STATIC_ASSERT((is_same<tr1_result_of<mem_func_ptr_c(X,char)>::type, int>::value));
   BOOST_STATIC_ASSERT((is_same<tr1_result_of<mem_func_ptr_v(X,char)>::type, int>::value));
@@ -267,6 +300,11 @@ int main()
   BOOST_STATIC_ASSERT((is_same<result_of<no_result_type_or_result_template<void>(int const&)>::type, long>::value));
 #endif
 #endif
+
+#if defined(BOOST_RESULT_OF_USE_DECLTYPE)
+  int i = 123;
+  sfinae_test(sfinae_test_f, i);
+#endif // defined(BOOST_RESULT_OF_USE_DECLTYPE)
 
   return 0;
 }

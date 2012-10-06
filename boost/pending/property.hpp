@@ -55,7 +55,7 @@ namespace boost {
 
   // Code to look up one property in a property list:
   template <typename PList, typename PropName, typename Enable = void>
-  struct lookup_one_property_internal {BOOST_STATIC_CONSTANT(bool, found = false);};
+  struct lookup_one_property_internal {BOOST_STATIC_CONSTANT(bool, found = false); typedef void type;};
 
   // Special-case properties (vertex_all, edge_all, graph_all)
 #define BGL_ALL_PROP(tag) \
@@ -94,8 +94,14 @@ namespace boost {
     private: \
     typedef lookup_one_property_internal<Base, BOOST_JOIN(kind, _bundle_t)> base_type; \
     public: \
-    static typename base_type::type& lookup(property<Tag, T, Base>& p, BOOST_JOIN(kind, _bundle_t)) {return base_type::lookup(p.m_base, BOOST_JOIN(kind, _bundle_t)());} \
-    static const typename base_type::type& lookup(const property<Tag, T, Base>& p, BOOST_JOIN(kind, _bundle_t)) {return base_type::lookup(p.m_base, BOOST_JOIN(kind, _bundle_t)());} \
+    template <typename BundleTag> \
+    static typename lazy_enable_if_c<(base_type::found && (is_same<BundleTag, BOOST_JOIN(kind, _bundle_t)>::value)), \
+                                     add_reference<typename base_type::type> >::type \
+    lookup(property<Tag, T, Base>& p, BundleTag) {return base_type::lookup(p.m_base, BOOST_JOIN(kind, _bundle_t)());} \
+    template <typename BundleTag> \
+    static typename lazy_enable_if_c<(base_type::found && (is_same<BundleTag, BOOST_JOIN(kind, _bundle_t)>::value)), \
+                                     add_reference<const typename base_type::type> >::type \
+    lookup(const property<Tag, T, Base>& p, BundleTag) {return base_type::lookup(p.m_base, BOOST_JOIN(kind, _bundle_t)());} \
   }; \
 
   BGL_DO_ONE_BUNDLE_TYPE(vertex)
@@ -123,12 +129,14 @@ namespace boost {
     typedef lookup_one_property_internal<Base, PropName> base_type;
     public:
     template <typename PL>
-    static typename enable_if<is_same<PL, boost::property<Tag, T, Base> >, typename base_type::type&>::type
+    static typename lazy_enable_if<is_same<PL, boost::property<Tag, T, Base> >,
+                                   add_reference<typename base_type::type> >::type
     lookup(PL& prop, const PropName& tag) {
       return base_type::lookup(prop.m_base, tag);
     }
     template <typename PL>
-    static typename enable_if<is_same<PL, boost::property<Tag, T, Base> >, const typename base_type::type&>::type
+    static typename lazy_enable_if<is_same<PL, boost::property<Tag, T, Base> >,
+                                   add_reference<const typename base_type::type> >::type
     lookup(const PL& prop, const PropName& tag) {
       return base_type::lookup(prop.m_base, tag);
     }
@@ -154,7 +162,8 @@ namespace boost {
     BOOST_STATIC_CONSTANT(bool, found = (lookup_one_property_internal<T, Tag>::found));
     typedef const typename lookup_one_property_internal<T, Tag>::type type;
     template <typename U>
-    static typename enable_if<is_same<T, U>, const typename lookup_one_property_internal<T, Tag>::type&>::type
+    static typename lazy_enable_if<is_same<T, U>,
+                                   add_reference<const typename lookup_one_property_internal<T, Tag>::type> >::type
     lookup(const U& p, Tag tag) {
       return lookup_one_property_internal<T, Tag>::lookup(p, tag);
     }

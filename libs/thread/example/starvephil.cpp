@@ -4,6 +4,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#define BOOST_THREAD_VERSION 2
+
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/condition.hpp>
 #include <boost/thread/thread.hpp>
@@ -27,14 +29,14 @@ public:
         while (m_chickens == 0)
         {
             {
-                boost::mutex::scoped_lock lock(iomx);
+                boost::mutex::scoped_lock lk(iomx);
                 std::cout << "(" << clock() << ") Phil" << id <<
                     ": wot, no chickens?  I'll WAIT ..." << std::endl;
             }
             m_condition.wait(lock);
         }
         {
-            boost::mutex::scoped_lock lock(iomx);
+            boost::mutex::scoped_lock lk(iomx);
             std::cout << "(" << clock() << ") Phil" << id <<
                 ": those chickens look good ... one please ..." << std::endl;
         }
@@ -44,7 +46,7 @@ public:
     {
         boost::mutex::scoped_lock lock(m_mutex);
         {
-            boost::mutex::scoped_lock lock(iomx);
+            boost::mutex::scoped_lock lk(iomx);
             std::cout << "(" << clock()
                       << ") Chef: ouch ... make room ... this dish is "
                       << "very hot ..." << std::endl;
@@ -55,7 +57,7 @@ public:
         boost::thread::sleep(xt);
         m_chickens += value;
         {
-            boost::mutex::scoped_lock lock(iomx);
+            boost::mutex::scoped_lock lk(iomx);
             std::cout << "(" << clock() <<
                 ") Chef: more chickens ... " << m_chickens <<
                 " now available ... NOTIFYING ..." << std::endl;
@@ -116,13 +118,13 @@ struct phil
                 boost::thread::sleep(xt);
             }
             {
-                boost::mutex::scoped_lock lock(iomx);
+                boost::mutex::scoped_lock lk(iomx);
                 std::cout << "(" << clock() << ") Phil" << m_id
                           << ": gotta eat ..." << std::endl;
             }
             g_canteen.get(m_id);
             {
-                boost::mutex::scoped_lock lock(iomx);
+                boost::mutex::scoped_lock lk(iomx);
                 std::cout << "(" << clock() << ") Phil" << m_id
                           << ": mmm ... that's good ..." << std::endl;
             }
