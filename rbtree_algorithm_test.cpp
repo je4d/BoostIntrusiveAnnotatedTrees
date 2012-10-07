@@ -87,7 +87,8 @@ void test_algo()
 	Value::a = 0;
 	for (int i = 0; i < 50; ++i) {
 		// XXX the explicit temporary pointer is a workaround for bug #6978
-		ralgo::erase(&header, my_annotated_node_traits::node_ptr(my_annotated_node_traits::node_traits::get_left(&header)));
+		//ralgo::erase(&header, my_annotated_node_traits::node_ptr(my_annotated_node_traits::node_traits::get_left(&header)));
+		ralgo::erase(&header, my_annotated_node_traits::node_traits::get_left(&header));
 		check(&header, static_cast<MonoidNode*>(my_annotated_node_traits::node_traits::get_left(&header)));
 		std::cout << i << " ";
 	}
