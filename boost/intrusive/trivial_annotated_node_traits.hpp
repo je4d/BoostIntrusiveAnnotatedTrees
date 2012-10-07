@@ -38,9 +38,9 @@ struct trivial_annotated_node_traits
       typedef typename NodeTraits::node_ptr        annotation_list_ptr;
       typedef typename NodeTraits::const_node_ptr  const_annotation_list_ptr;
       template <class Annotation> static typename Annotation::type get_annotation_value(const_annotation_list_ptr n)
-      { static_assert(sizeof(Annotation)==0, "get_annotation_value called for unsupported annotation"); }
+      { BOOST_STATIC_ASSERT_MSG(sizeof(Annotation)==0, "get_annotation_value called for unsupported annotation"); }
       template <class Annotation> static void set_annotation_value(annotation_list_ptr n, typename Annotation::type value)
-      { static_assert(sizeof(Annotation)==0, "set_annotation_value called for unsupported annotation"); }
+      { BOOST_STATIC_ASSERT_MSG(sizeof(Annotation)==0, "set_annotation_value called for unsupported annotation"); }
 
 /*   template <class Annotation> static typename Annotation::type get_node_value(const_node_ptr n)
    { static_assert(sizeof(Annotation)!=sizeof(Annotation), "get_annotation_value called for unsupported annotation"); }*/

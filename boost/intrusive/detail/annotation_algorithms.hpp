@@ -57,14 +57,25 @@ struct annotation_algorithms
    }
 };
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+template <class NodeTraits, BOOST_INTRUSIVE_ANNOTATION_TATND>
+struct annotated_node_algorithms;
+#else
 template <class NodeTraits, class... Annotations>
 struct annotated_node_algorithms;
+#endif
 
 /*
 Specialize the no-annotation case to avoid iterating to the top of the tree for update_to_top
 */
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+// the base case for C++03 is where all annotations are no_annotation
+template <class AnnotatedNodeTraits>
+struct annotated_node_algorithms<AnnotatedNodeTraits,BOOST_INTRUSIVE_ANNOTATION_TAD>
+#else
 template <class AnnotatedNodeTraits>
 struct annotated_node_algorithms<AnnotatedNodeTraits>
+#endif
 {
    typedef typename AnnotatedNodeTraits::node_ptr        node_ptr;
    typedef typename AnnotatedNodeTraits::const_node_ptr  const_node_ptr;
@@ -75,11 +86,23 @@ struct annotated_node_algorithms<AnnotatedNodeTraits>
    static void update_to_top(const_node_ptr, node_ptr){}
 };
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+// the ..._TAN_SHIFT macro drops the first annotation and puts no_annotation on the end
+template <class AnnotatedNodeTraits, BOOST_INTRUSIVE_ANNOTATION_TATN>
+struct annotated_node_algorithms : private annotated_node_algorithms<AnnotatedNodeTraits, BOOST_INTRUSIVE_ANNOTATION_TAN_SHIFT>
+#else
 template <class AnnotatedNodeTraits, class AnnotationsHead, class... AnnotationsTail>
 struct annotated_node_algorithms<AnnotatedNodeTraits, AnnotationsHead, AnnotationsTail...> : private annotated_node_algorithms<AnnotatedNodeTraits, AnnotationsTail...>
+#endif
 {
 private:
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+   typedef A1                                                                  AnnotationsHead;
+   typedef annotated_node_algorithms<AnnotatedNodeTraits, BOOST_INTRUSIVE_ANNOTATION_TAN_SHIFT>
+                                                                               list_tail_algorithms;
+#else
    typedef annotated_node_algorithms<AnnotatedNodeTraits, AnnotationsTail...>  list_tail_algorithms;
+#endif
    typedef typename AnnotatedNodeTraits::node_traits                            node_traits;
    typedef node_tree_algorithms<node_traits>                                    base_tree_algorithms;
 
@@ -123,7 +146,7 @@ public:
 template <class AnnotatedNodeTraits, class Annotations>
 struct make_annotated_node_algorithms
 {
-   typedef typename Annotations::template apply<
+   typedef typename Annotations::template apply1<
          annotated_node_algorithms,
          AnnotatedNodeTraits
       >::type type;

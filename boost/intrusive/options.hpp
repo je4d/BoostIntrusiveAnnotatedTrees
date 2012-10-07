@@ -29,8 +29,29 @@ namespace intrusive {
 struct default_tag;
 struct member_tag;
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+// TAT = Template argument Types
+#define BOOST_INTRUSIVE_ANNOTATION_TAT class,class,class,class,class,class,class,class,class,class
+// TANN = Template argument Types and Names
+#define BOOST_INTRUSIVE_ANNOTATION_TATN class A1, class A2, class A3, class A4, class A5, class A6, class A7, class A8, class A9, class A10
+// TANND = Template argument Types and Names w/Defaults
+#define BOOST_INTRUSIVE_ANNOTATION_TATND class A1 = no_annotation, class A2 = no_annotation, class A3 = no_annotation, class A4 = no_annotation, class A5 = no_annotation, class A6 = no_annotation, class A7 = no_annotation, class A8 = no_annotation, class A9 = no_annotation, class A10 = no_annotation
+// TAD = Template Argument Defaults
+#define BOOST_INTRUSIVE_ANNOTATION_TAD no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation
+// TAN = Template Argument Names
+#define BOOST_INTRUSIVE_ANNOTATION_TAN A1,A2,A3,A4,A5,A6,A7,A8,A9,A10
+// TAN = Template Argument Names, first shifted off
+#define BOOST_INTRUSIVE_ANNOTATION_TAN_SHIFT A2,A3,A4,A5,A6,A7,A8,A9,A10
+struct no_annotation
+{
+};
+
+template <BOOST_INTRUSIVE_ANNOTATION_TATND>
+struct annotations;
+#else
 template <class ...Annotations>
 struct annotations;
+#endif
 
 namespace detail{
 
@@ -243,6 +264,64 @@ struct make_real_annotation
    };
 };
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+template<class Config, BOOST_INTRUSIVE_ANNOTATION_TATN>
+struct get_real_annotations_impl
+{
+   typedef annotations
+      <  typename eval_if_c
+         < apply_annotation_config_is_true<A1>::value
+         , make_real_annotation<A1, Config>
+         , identity<A1>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A2>::value
+         , make_real_annotation<A2, Config>
+         , identity<A2>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A3>::value
+         , make_real_annotation<A3, Config>
+         , identity<A3>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A4>::value
+         , make_real_annotation<A4, Config>
+         , identity<A4>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A5>::value
+         , make_real_annotation<A5, Config>
+         , identity<A5>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A6>::value
+         , make_real_annotation<A6, Config>
+         , identity<A6>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A7>::value
+         , make_real_annotation<A7, Config>
+         , identity<A7>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A8>::value
+         , make_real_annotation<A8, Config>
+         , identity<A8>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A9>::value
+         , make_real_annotation<A9, Config>
+         , identity<A9>
+         >::type
+      ,  typename eval_if_c
+         < apply_annotation_config_is_true<A10>::value
+         , make_real_annotation<A10, Config>
+         , identity<A10>
+         >::type
+      > type;
+};
+#else
 template<class Config, class... Annotations>
 struct get_real_annotations_impl
 {
@@ -254,11 +333,12 @@ struct get_real_annotations_impl
          >::type...
       > type;
 };
+#endif
 
 template<class Config, class Annotations>
 struct get_real_annotations
 {
-   typedef typename Annotations::template apply<get_real_annotations_impl, Config>::type::type type;
+   typedef typename Annotations::template apply1<get_real_annotations_impl, Config>::type::type type;
 };
 
 template<class ValueTraits>
@@ -668,7 +748,35 @@ struct incremental
    /// @endcond
 };
 
-#if defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+template <BOOST_INTRUSIVE_ANNOTATION_TATN>
+struct annotations
+{
+   template <template <BOOST_INTRUSIVE_ANNOTATION_TAT> class T>
+   struct apply0
+   {
+      typedef T<BOOST_INTRUSIVE_ANNOTATION_TAN> type;
+   };
+
+   template <template <class,BOOST_INTRUSIVE_ANNOTATION_TAT> class T, class TArg1>
+   struct apply1
+   {
+      typedef T<TArg1,BOOST_INTRUSIVE_ANNOTATION_TAN> type;
+   };
+
+   template <template <class,class,BOOST_INTRUSIVE_ANNOTATION_TAT> class T, class TArg1, class TArg2>
+   struct apply2
+   {
+      typedef T<TArg1,TArg2,BOOST_INTRUSIVE_ANNOTATION_TAN> type;
+   };
+
+   template<class Base>
+   struct pack : Base
+   {
+      typedef ::boost::intrusive::annotations<BOOST_INTRUSIVE_ANNOTATION_TAN> annotations;
+   };
+};
+#else
 template <class ...Annotations>
 struct annotations
 {
@@ -679,12 +787,25 @@ struct annotations
       typedef T<TArgs..., Annotations...> type;
    };
 
+   /* we can't fake the variadics here, so as long as we support C++03, we have
+    * to use apply0/1/2 thoughout the boost::intrusive codebase. These are
+    * all implemented in terms of the generic 'apply' in C++11, to ease
+    * understanding.
+    */
+   template <template <class ...> class T, class... TArgs>
+   using apply0 = apply<T,TArgs...>;
+   template <template <class ...> class T, class... TArgs>
+   using apply1 = apply<T,TArgs...>;
+   template <template <class ...> class T, class... TArgs>
+   using apply2 = apply<T,TArgs...>;
+
    template<class Base>
    struct pack : Base
    {
       typedef ::boost::intrusive::annotations<Annotations...> annotations;
    };
 };
+#endif
 
 namespace detail{
 
@@ -698,7 +819,6 @@ struct default_annotations
 };
 
 } //namespace detail
-#endif
 
 /// @cond
 

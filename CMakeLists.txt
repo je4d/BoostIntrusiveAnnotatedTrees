@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 #set(CMAKE_CXX_COMPILER clang)
-add_definitions(-std=c++0x -g -I${CMAKE_CURRENT_SOURCE_DIR})
+#add_definitions(-std=c++0x)
+add_definitions(-g -I${CMAKE_CURRENT_SOURCE_DIR})
 add_executable(algo_test rbtree_algorithm_test.cpp)
 add_executable(tree_test rbtree_test.cpp)

@@ -7,7 +7,7 @@
 #include "boost/intrusive/set_hook.hpp"
 #include "boost/intrusive/rbtree.hpp"
 #include <cstddef>
-#include <type_traits>
+//#include <type_traits>
 #include <iostream>
 
 struct value_count_monoid
@@ -131,7 +131,7 @@ bool check_hook(my_hook::boost_intrusive_tags::node_traits::node_ptr header, my_
 void test_hook()
 {
 	typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, my_annotation_list> node_algorithms;
-//	typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, boost::intrusive::annotations<>> node_algorithms;
+//	typedef boost::intrusive::annotated_rbtree_algorithms<my_hook::boost_intrusive_tags::annotated_node_traits, boost::intrusive::annotations<> > node_algorithms;
 	node_algorithms::node header;
 	node_algorithms::init_header(&header);
 
@@ -170,8 +170,8 @@ bool operator<(const ValueUsingHook& a, const ValueUsingHook& b) { return a.val 
 
 void test_tree()
 {
-	typedef boost::intrusive::rbtree<ValueUsingHook, boost::intrusive::base_hook<my_hook>> my_tree;
-//	typedef boost::intrusive::rbtree<ValueUsingHook, boost::intrusive::base_hook<my_hook>, boost::intrusive::annotations<>> my_tree;
+	typedef boost::intrusive::rbtree<ValueUsingHook, boost::intrusive::base_hook<my_hook> > my_tree;
+//	typedef boost::intrusive::rbtree<ValueUsingHook, boost::intrusive::base_hook<my_hook>, boost::intrusive::annotations<> > my_tree;
 
 	my_tree tree;
 
@@ -201,7 +201,7 @@ void test_tree()
 	}
 	std::cout << std::endl;
 	for (int i = 0; i < 50; ++i) {
-		auto endIt = tree.end();
+		my_tree::iterator endIt = tree.end();
 		tree.erase(--endIt);
 		check_hook(&header, static_cast<my_hook*>(node_traits::get_right(&header)));
 		std::cout << i << " ";

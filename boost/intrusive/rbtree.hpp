@@ -133,7 +133,7 @@ class rbtree_impl
    typedef typename detail::eval_if_c
       < detail::annotations_supported_is_true<real_value_traits>::value
       , detail::eval_annotated_node_traits<real_value_traits>
-      , detail::identity<trivial_annotated_node_traits<node_traits>>
+      , detail::identity<trivial_annotated_node_traits<node_traits> >
       >::type                                                        annotated_node_traits;
 /*   typedef typename detail::if_c
       < detail::annotations_supported_is_true<real_value_traits>::value

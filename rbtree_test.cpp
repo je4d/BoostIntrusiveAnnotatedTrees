@@ -7,7 +7,6 @@
 #include "boost/intrusive/set_hook.hpp"
 #include "boost/intrusive/rbtree.hpp"
 #include <cstddef>
-#include <type_traits>
 #include <cassert>
 #include <iostream>
 
@@ -70,14 +69,14 @@ int test_tree()
 		ret += check<value_traits, Hook, node_algorithms>(header, *tree.begin());
 	}
 	for (int i = 0; i < 50; ++i) {
-		auto endIt = tree.end();
+		typename Tree::iterator endIt = tree.end();
 		tree.erase(--endIt);
 		ret += check<value_traits, Hook, node_algorithms>(header, *tree.begin());
 	}
 	return ret;
 }
 
-typedef boost::intrusive::set_base_hook<boost::intrusive::annotations<subtree_count_annotation>> my_hook;
+typedef boost::intrusive::set_base_hook<boost::intrusive::annotations<subtree_count_annotation> > my_hook;
 
 struct ValueBaseHook : public my_hook
 {
@@ -90,7 +89,7 @@ int ValueBaseHook::a = 998;
 
 bool operator<(const ValueBaseHook& a, const ValueBaseHook& b) { return a.val < b.val; }
 
-typedef boost::intrusive::set_member_hook<boost::intrusive::annotations<subtree_count_annotation>> member_hook;
+typedef boost::intrusive::set_member_hook<boost::intrusive::annotations<subtree_count_annotation> > member_hook;
 
 struct ValueMemberHook
 {
@@ -118,11 +117,11 @@ int main()
 {
 //	test_algo();
 //	test_hook();
-	assert((test_tree<boost::intrusive::rbtree<ValueBaseHook, boost::intrusive::base_hook<my_hook>>, my_hook>() == 0));
-	assert((test_tree<boost::intrusive::rbtree<ValueBaseHook, boost::intrusive::base_hook<my_hook>, boost::intrusive::annotations<>>, my_hook>() != 0));
+	assert((test_tree<boost::intrusive::rbtree<ValueBaseHook, boost::intrusive::base_hook<my_hook> >, my_hook>() == 0));
+	assert((test_tree<boost::intrusive::rbtree<ValueBaseHook, boost::intrusive::base_hook<my_hook>, boost::intrusive::annotations<> >, my_hook>() != 0));
 
-	assert((test_tree<boost::intrusive::rbtree<ValueMemberHook, boost::intrusive::member_hook<ValueMemberHook, member_hook, &ValueMemberHook::hook>>, member_hook>() == 0));
-	assert((test_tree<boost::intrusive::rbtree<ValueMemberHook, boost::intrusive::member_hook<ValueMemberHook, member_hook, &ValueMemberHook::hook>, boost::intrusive::annotations<>>, member_hook>() != 0)); 
+	assert((test_tree<boost::intrusive::rbtree<ValueMemberHook, boost::intrusive::member_hook<ValueMemberHook, member_hook, &ValueMemberHook::hook> >, member_hook>() == 0));
+	assert((test_tree<boost::intrusive::rbtree<ValueMemberHook, boost::intrusive::member_hook<ValueMemberHook, member_hook, &ValueMemberHook::hook>, boost::intrusive::annotations<> >, member_hook>() != 0));
 
 //	int x = *((int*)0); 
 

@@ -15,6 +15,20 @@ struct annotation_holder
    typename Annotation::type value;
 };
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+template <BOOST_INTRUSIVE_ANNOTATION_TATND>
+struct generic_annotation_list;
+
+template <>
+struct generic_annotation_list<BOOST_INTRUSIVE_ANNOTATION_TAD>
+{ };
+
+template <BOOST_INTRUSIVE_ANNOTATION_TATN>
+struct generic_annotation_list :
+   public generic_annotation_list<BOOST_INTRUSIVE_ANNOTATION_TAN_SHIFT>,
+   public annotation_holder<A1>
+{ };
+#else
 template <class... Annotations>
 struct generic_annotation_list;
 
@@ -27,6 +41,7 @@ struct generic_annotation_list<Annotation, Annotations...> :
    public generic_annotation_list<Annotations...>,
    public annotation_holder<Annotation>
 { };
+#endif
 
 template <class Annotation>
 typename Annotation::type get_annotation_value_helper(const annotation_holder<Annotation>* node)
@@ -36,11 +51,21 @@ template <class Annotation>
 void set_annotation_value_helper(annotation_holder<Annotation>* node, typename Annotation::type value)
 { node->value = value; }
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+template <class VoidPointer, class AnnotationsOpt, BOOST_INTRUSIVE_ANNOTATION_TATND>
+struct generic_annotation_list_traits_impl
+#else
 template <class VoidPointer, class AnnotationsOpt, class... Annotations>
 struct generic_annotation_list_traits_impl
+#endif
 {
    typedef AnnotationsOpt                          annotations;
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+   typedef generic_annotation_list<BOOST_INTRUSIVE_ANNOTATION_TAN>
+                                                   annotation_list;
+#else
    typedef generic_annotation_list<Annotations...> annotation_list;
+#endif
    typedef typename boost::pointer_to_other<
       VoidPointer, annotation_list>::type          annotation_list_ptr;
    typedef typename boost::pointer_to_other<
@@ -61,7 +86,7 @@ struct generic_annotation_list_traits_impl
 
 template <class VoidPointer, class Annotations>
 struct generic_annotation_list_traits :
-   public Annotations::template apply<
+   public Annotations::template apply2<
          generic_annotation_list_traits_impl,
          VoidPointer,
          Annotations
