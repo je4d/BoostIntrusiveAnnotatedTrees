@@ -86,25 +86,51 @@ struct make_default_definer
       , no_default_definer>::type type;
 };
 
+template<class GetNodeAlgorithms, bool AnnotationsEnabled>
+struct maybe_get_annotated_node
+{
+   typedef typename GetNodeAlgorithms::type::node type;
+};
+
+template<class GetNodeAlgorithms>
+struct maybe_get_annotated_node<GetNodeAlgorithms, EnableAnnotations>
+{
+   typedef typename GetNodeAlgorithms::type::annotated_node type;
+};
+
 template
    < class GetNodeAlgorithms
    , class Tag
    , link_mode_type LinkMode
    , int HookType
+   , int AnnotationsEnabled = DisableAnnotations
    >
 struct make_node_holder
 {
-   typedef typename GetNodeAlgorithms::type::annotated_node annotated_node;
+   typedef typename maybe_get_annotated_node
+      <GetNodeAlgorithms, AnnotationsEnabled>::type possibly_annotated_node;
 
    typedef typename detail::if_c
       <!detail::is_same<Tag, member_tag>::value
       , detail::node_holder
-         < annotated_node
+         < possibly_annotated_node
          , Tag
          , LinkMode
          , HookType>
-      , annotated_node
+      , possibly_annotated_node
       >::type type;
+};
+
+template<class GetNodeAlgorithms, bool AnnotationsEnabled>
+struct boost_intrusive_annotation_tags
+{
+};
+
+template<class GetNodeAlgorithms>
+struct boost_intrusive_annotation_tags<GetNodeAlgorithms, EnableAnnotations>
+{
+   typedef typename GetNodeAlgorithms::type::annotated_node         annotated_node;
+   typedef typename GetNodeAlgorithms::type::annotated_node_traits  annotated_node_traits;
 };
 
 /// @endcond
@@ -114,6 +140,7 @@ template
    , class Tag
    , link_mode_type LinkMode
    , int HookType
+   , int AnnotationsEnabled = DisableAnnotations
    >
 class generic_hook
    /// @cond
@@ -125,10 +152,10 @@ class generic_hook
    //If the hook is a member hook, generic hook will directly derive
    //from the hook.
    : public make_default_definer
-      < generic_hook<GetNodeAlgorithms, Tag, LinkMode, HookType>
+      < generic_hook<GetNodeAlgorithms, Tag, LinkMode, HookType, AnnotationsEnabled>
       , detail::is_same<Tag, default_tag>::value*HookType
       >::type
-   , public make_node_holder<GetNodeAlgorithms, Tag, LinkMode, HookType>::type
+   , public make_node_holder<GetNodeAlgorithms, Tag, LinkMode, HookType, AnnotationsEnabled>::type
    /// @endcond
 {
    /// @cond
@@ -138,13 +165,14 @@ class generic_hook
    typedef typename node_algorithms::const_node_ptr   const_node_ptr;
 
    public:
-   struct boost_intrusive_tags
+   struct boost_intrusive_tags :
+      public boost_intrusive_annotation_tags<GetNodeAlgorithms, AnnotationsEnabled>
    {
+      static const int                                                 annotations_enabled = AnnotationsEnabled;
       static const int                                                 hook_type = HookType;
       static const link_mode_type                                      link_mode = LinkMode;
       typedef Tag                                                      tag;
       typedef typename GetNodeAlgorithms::type::node_traits            node_traits;
-      typedef typename GetNodeAlgorithms::type::annotated_node_traits  annotated_node_traits;
       static const bool                                                is_base_hook
          = !detail::is_same<Tag, member_tag>::value;
       static const bool                                                safemode_or_autounlink

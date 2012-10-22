@@ -62,23 +62,23 @@ struct annotation
 
 need => update()
 
-struct annotation
+struct annotation_for_algo
 {
-   const bool explicit_annotation_hook; // optional
-   typedef annotation annotation_hook;
-   const bool this_or_that_optimization;
+   const bool explicit_annotation_hook_type = true; // optional
+   typedef annotation_for_hook annotation_hook;
+   const bool this_or_that_optimization = true/false;
 
    template <class AnnotatedNodeTraits>
-   static void update(typename AnnotatedNodeTraits::annotation_list_ptr n) {
+   static void update_node(typename AnnotatedNodeTraits::annotation_list_ptr n) {
       ...
    }
 };
 
 ==== For trees/hooks
 
-struct annotation
+struct annotation_for_hook
 {
-   typedef ... type; // required if 
+   typedef ... type; // only required if hook is going to provide storage? TODO - check on this
 
    static const bool apply_config = true;
 
@@ -86,12 +86,43 @@ struct annotation
    // It reduces template explosion as unused parts of options do not become part of the type of the type passed to the algorithms
    template <typename Config>
    struct make_real_annotation {
-      typedef ... type;
+      typedef annotation_for_algo type; // in real usage, annotation_for_algo will be templated on types/values extracted from Config
    }
 
 };
 
 make_real_annotation::type => for-algo annotation
+
+==== Typical way of forming the above two types
+* make the for-algo annotation an inner class of the for-hook annotation.
+** this convineintly makes the hook annotation name available in the for-algo annotation for typedef'ing
+* identifiers starting with "my" are names to be chosen by the user, all other names are part of the interface to the library
+
+struct my_annotation
+{
+   typedef my_annotation_type type;
+   static const bool apply_config = true;
+
+   template <class MyRealAnnotationArg1>
+   struct my_real_annotation {
+      typedef int type;
+      static const bool explicit_annotation_hook = true;
+      typedef my_annotation annotation_hook;
+
+      template <class AnnotatedNodeTraits>
+      static void update_node(typename AnnotatedNodeTraits::annotation_list_ptr n) {
+         ...
+      }
+   };
+
+   template <class Config>
+   struct make_real_annotation {
+      typedef typename my_make_template_argument_1_for_real_annotation_from_config<Config>::type  my_real_annotation_arg1;
+
+      typedef my_real_annotation<my_real_annotation_arg1> type;
+   };
+};
+
 
 =================
 Terminology
@@ -127,3 +158,9 @@ The make_real_annotation class pulls value_traits out of the config, and instant
 
 
 
+  trival annotated node traits != empty basic annotated node triats w/no algorithms
+
+  rbtree_algorthms should be usable on a class with a normal hook. Currently they can't.
+
+
+  hooks get their node type via algorithms. set_hook has what algorithms? set hook has annotated_rbtree_algorithms based on basic_annotated_node_traits

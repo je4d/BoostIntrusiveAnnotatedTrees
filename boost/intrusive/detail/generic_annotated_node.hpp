@@ -1,5 +1,8 @@
-#ifndef BOOST_INTRUSIVE_DETAIL_ANNOTATION_LIST_HPP
-#define BOOST_INTRUSIVE_DETAIL_ANNOTATION_LIST_HPP
+#ifndef BOOST_INTRUSIVE_DETAIL_GENERIC_ANNOTATED_NODE_HPP
+#define BOOST_INTRUSIVE_DETAIL_GENERIC_ANNOTATED_NODE_HPP
+
+#include <boost/pointer_to_other.hpp>
+#include <boost/intrusive/detail/utilities.hpp>
 
 namespace boost {
 namespace intrusive {
@@ -74,4 +77,4 @@ struct generic_annotated_node_traits
 }
 }
 
-#endif // BOOST_INTRUSIVE_DETAIL_ANNOTATION_LIST_HPP
+#endif // BOOST_INTRUSIVE_DETAIL_GENERIC_ANNOTATED_NODE_HPP

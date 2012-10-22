@@ -18,8 +18,12 @@
 #include <boost/intrusive/link_mode.hpp>
 #include <boost/intrusive/detail/mpl.hpp>
 #include <boost/intrusive/detail/utilities.hpp>
+#include <boost/intrusive/annotations.hpp>
 #include <boost/static_assert.hpp>
 
+#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
+#include <boost/intrusive/detail/annotations_compat.hpp>
+#endif
 
 namespace boost {
 namespace intrusive {
@@ -28,30 +32,6 @@ namespace intrusive {
 
 struct default_tag;
 struct member_tag;
-
-#if !defined(BOOST_INTRUSIVE_VARIADIC_TEMPLATES)
-// TAT = Template argument Types
-#define BOOST_INTRUSIVE_ANNOTATION_TAT class,class,class,class,class,class,class,class,class,class
-// TANN = Template argument Types and Names
-#define BOOST_INTRUSIVE_ANNOTATION_TATN class A1, class A2, class A3, class A4, class A5, class A6, class A7, class A8, class A9, class A10
-// TANND = Template argument Types and Names w/Defaults
-#define BOOST_INTRUSIVE_ANNOTATION_TATND class A1 = no_annotation, class A2 = no_annotation, class A3 = no_annotation, class A4 = no_annotation, class A5 = no_annotation, class A6 = no_annotation, class A7 = no_annotation, class A8 = no_annotation, class A9 = no_annotation, class A10 = no_annotation
-// TAD = Template Argument Defaults
-#define BOOST_INTRUSIVE_ANNOTATION_TAD no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation,no_annotation
-// TAN = Template Argument Names
-#define BOOST_INTRUSIVE_ANNOTATION_TAN A1,A2,A3,A4,A5,A6,A7,A8,A9,A10
-// TAN = Template Argument Names, first shifted off
-#define BOOST_INTRUSIVE_ANNOTATION_TAN_SHIFT A2,A3,A4,A5,A6,A7,A8,A9,A10
-struct no_annotation
-{
-};
-
-template <BOOST_INTRUSIVE_ANNOTATION_TATND>
-struct annotations;
-#else
-template <class ...Annotations>
-struct annotations;
-#endif
 
 namespace detail{
 
@@ -94,7 +74,7 @@ struct concrete_hook_base_value_traits
    typedef typename BaseHook::boost_intrusive_tags tags;
    typedef detail::base_hook_traits
       < T
-      , typename tags::annotated_node_traits
+      , typename get_annotated_node_traits<tags>::type
       , tags::link_mode
       , typename tags::tag
       , tags::hook_type> type;
@@ -161,7 +141,7 @@ struct get_value_traits
    // Base hooks with no Tag option will have default_x_tag defined via
    // make_default_definer. if the user doesn't specify a hook to the container,
    // SupposedValueTraits will be detail::default_x_tag. In this case, use
-   // apply to get default_x_tag out of T, yielding the real hook type.
+   // apply to get default_x_hook out of T, yielding the real hook type.
    typedef typename eval_if_c
       < is_convertible<SupposedValueTraits*, default_hook_tag*>::value
       , apply<SupposedValueTraits, T>
@@ -339,13 +319,6 @@ template<class Config, class Annotations>
 struct get_real_annotations
 {
    typedef typename Annotations::template apply1<get_real_annotations_impl, Config>::type::type type;
-};
-
-template<class ValueTraits>
-struct eval_annotated_node_traits
-{
-   typedef typename get_real_value_traits<ValueTraits>::type  real_value_traits;
-   typedef typename real_value_traits::annotated_node_traits type;
 };
 
 }  //namespace detail

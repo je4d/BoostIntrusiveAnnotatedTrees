@@ -781,7 +781,7 @@ class annotated_rbtree_algorithms : public node_rbtree_algorithms<typename Annot
    static void clone
       (const const_node_ptr & source_header, const node_ptr & target_header, Cloner cloner, Disposer disposer)
    {
-      typename base_rbtree_algorithms::template rbtree_node_cloner<Cloner> new_cloner(cloner);
+      rbtree_node_cloner<Cloner> new_cloner(cloner);
       annotated_tree_algorithms::clone(source_header, target_header, new_cloner, disposer);
    }
 

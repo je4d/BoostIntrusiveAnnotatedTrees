@@ -82,6 +82,8 @@ struct annotated_node_algorithms<AnnotatedNodeTraits>
 
    static void update(node_ptr){}
    static void clone_node(const_node_ptr source, node_ptr target){}
+   static void on_left_rotation(const_node_ptr){}
+   static void on_right_rotation(const_node_ptr){}
    static void update_to_top(node_ptr){}
    static void update_to_top(const_node_ptr, node_ptr){}
 };

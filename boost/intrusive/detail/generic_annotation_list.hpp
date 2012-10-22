@@ -1,8 +1,9 @@
 #ifndef BOOST_INTRUSIVE_DETAIL_GENERIC_ANNOTATION_LIST_HPP
 #define BOOST_INTRUSIVE_DETAIL_GENERIC_ANNOTATION_LIST_HPP
 
-#include  <boost/intrusive/detail/pointer_to_other.hpp>
-#include  <boost/intrusive/detail/utilities.hpp>
+#include <boost/intrusive/detail/pointer_to_other.hpp>
+#include <boost/intrusive/detail/utilities.hpp>
+#include <boost/intrusive/detail/annotations_compat.hpp>
 
 namespace boost {
 namespace intrusive {

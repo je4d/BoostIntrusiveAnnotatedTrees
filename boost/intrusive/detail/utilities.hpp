@@ -21,6 +21,7 @@
 #include <boost/intrusive/detail/mpl.hpp>
 #include <boost/intrusive/detail/assert.hpp>
 #include <boost/intrusive/detail/is_stateful_value_traits.hpp>
+#include <boost/intrusive/trivial_annotated_node_traits.hpp>
 #include <boost/intrusive/pointer_traits.hpp>
 #include <boost/cstdint.hpp>
 #include <cstddef>
@@ -127,6 +128,30 @@ template <class T>
 struct explicit_annotation_hook_is_true
 {
    static const bool value = explicit_annotation_hook_bool<T>::value > sizeof(one)*2;
+};
+
+/* annotations are pointless for lists and hashes, so hooks that don't set
+ * EnableAnnotations don't have to create the extra typedefs
+ */
+enum
+{  DisableAnnotations
+,  EnableAnnotations
+};
+
+template<class ValueTraits>
+struct eval_annotated_node_traits
+{
+   typedef typename ValueTraits::annotated_node_traits type;
+};
+
+template <class Tags>
+struct get_annotated_node_traits
+{
+   typedef typename eval_if_c
+      < Tags::annotations_enabled == EnableAnnotations
+      , eval_annotated_node_traits<Tags>
+      , identity<trivial_annotated_node_traits<typename Tags::node_traits> >
+      >::type type;
 };
 
 template<class Node, class Tag, link_mode_type LinkMode, int>
@@ -441,7 +466,7 @@ struct member_hook_traits
    typedef typename hook_type::boost_intrusive_tags                  hook_tags;
 
    public:
-   typedef typename hook_tags::annotated_node_traits                 annotated_node_traits;
+   typedef typename get_annotated_node_traits<hook_tags>::type       annotated_node_traits;
    typedef typename hook_tags::node_traits                           node_traits;
    typedef typename node_traits::node                                node;
    typedef T                                                         value_type;

@@ -18,7 +18,7 @@
 #include <boost/intrusive/intrusive_fwd.hpp>
 #include <cstddef>
 #include <boost/intrusive/detail/utilities.hpp>
-#include <boost/intrusive/annotated_tree_algorithms.hpp>
+#include <boost/intrusive/detail/annotated_tree_algorithms.hpp>
 #include <boost/intrusive/trivial_annotated_node_traits.hpp>
 
 namespace boost {
@@ -26,7 +26,7 @@ namespace intrusive {
 namespace detail {
 
 template<class NodeTraits>
-class tree_algorithms : public annotated_tree_algorithms<::boost::intrusive::trivial_annotated_node_traits<NodeTraits>>
+class tree_algorithms : public annotated_tree_algorithms< ::boost::intrusive::trivial_annotated_node_traits<NodeTraits> >
 {
 };
 

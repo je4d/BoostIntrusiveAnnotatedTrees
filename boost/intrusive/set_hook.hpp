@@ -21,9 +21,7 @@
 #include <boost/intrusive/rbtree_algorithms.hpp>
 #include <boost/intrusive/options.hpp>
 #include <boost/intrusive/detail/generic_hook.hpp>
-
-#include <boost/intrusive/detail/generic_annotated_node.hpp>
-#include <boost/intrusive/detail/generic_annotation_list.hpp>
+#include <boost/intrusive/detail/basic_annotated_node.hpp>
 
 namespace boost {
 namespace intrusive {
@@ -32,12 +30,11 @@ namespace intrusive {
 template<class VoidPointer, bool OptimizeSize = false, class Annotations = annotations<> >
 struct get_set_node_algo
 {
-   typedef annotated_rbtree_algorithms<
-      detail::generic_annotated_node_traits<
-         rbtree_node_traits<VoidPointer, OptimizeSize>
-         ,detail::generic_annotation_list_traits<VoidPointer,Annotations>
-      >
-      ,Annotations> type;
+   typedef annotated_rbtree_algorithms
+      < detail::basic_annotated_node_traits
+         < rbtree_node_traits<VoidPointer, OptimizeSize>
+         , Annotations>
+      , Annotations> type;
 };
 /// @endcond
 
@@ -67,6 +64,7 @@ struct make_set_base_hook
    , typename packed_options::tag
    , packed_options::link_mode
    , detail::SetBaseHook
+   , detail::EnableAnnotations
    > implementation_defined;
    /// @endcond
    typedef implementation_defined type;
@@ -200,6 +198,7 @@ struct make_set_member_hook
    , member_tag
    , packed_options::link_mode
    , detail::NoBaseHook
+   , detail::EnableAnnotations
    > implementation_defined;
    /// @endcond
    typedef implementation_defined type;

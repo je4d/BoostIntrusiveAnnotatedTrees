@@ -153,8 +153,9 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
       clone_annotations_cloner(Cloner& cloner) : c(cloner) {}
 
       node_ptr operator()(node_ptr n) {
-         node_ptr new_node = cloner(n);
+         node_ptr new_node = c(n);
          annotation_algorithms::clone_node(n, new_node);
+         return new_node;
       }
       Cloner& c;
    };
