@@ -766,11 +766,11 @@ struct annotations
     * understanding.
     */
    template <template <class ...> class T, class... TArgs>
-   using apply0 = apply<T,TArgs...>;
+   struct apply0 : apply<T,TArgs...> {};
    template <template <class ...> class T, class... TArgs>
-   using apply1 = apply<T,TArgs...>;
+   struct apply1 : apply<T,TArgs...> {};
    template <template <class ...> class T, class... TArgs>
-   using apply2 = apply<T,TArgs...>;
+   struct apply2 : apply<T,TArgs...> {};
 
    template<class Base>
    struct pack : Base
