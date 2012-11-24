@@ -6,24 +6,20 @@
 // (C) Copyright 2007-10 Anthony Williams
 // (C) Copyright 20011-12 Vicente J. Botet Escriba
 
-//===----------------------------------------------------------------------===//
-//
-//                     The LLVM Compiler Infrastructure
-//
-// This file is dual licensed under the MIT and the University of Illinois Open
-// Source Licenses. See LICENSE.TXT for details.
-//
-// The code taking care of thread creation and invoke have been taken from libcxx.
-//===----------------------------------------------------------------------===//
 #include <boost/thread/detail/config.hpp>
+
 #include <boost/thread/exceptions.hpp>
 #ifndef BOOST_NO_IOSTREAM
 #include <ostream>
 #endif
 #include <boost/thread/detail/move.hpp>
 #include <boost/thread/mutex.hpp>
+#if defined BOOST_THREAD_USES_DATETIME
 #include <boost/thread/xtime.hpp>
+#endif
 #include <boost/thread/detail/thread_heap_alloc.hpp>
+#include <boost/thread/detail/make_tuple_indices.hpp>
+#include <boost/thread/detail/invoke.hpp>
 #include <boost/assert.hpp>
 #include <list>
 #include <algorithm>
@@ -61,92 +57,6 @@ namespace boost
 
 #if defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
 
-      // __make_tuple_indices
-
-      template <std::size_t...> struct tuple_indices {};
-
-      template <std::size_t Sp, class IntTuple, std::size_t Ep>
-      struct make_indices_imp;
-
-      template <std::size_t Sp, std::size_t ...Indices, std::size_t Ep>
-      struct make_indices_imp<Sp, tuple_indices<Indices...>, Ep>
-      {
-          typedef typename make_indices_imp<Sp+1, tuple_indices<Indices..., Sp>, Ep>::type type;
-      };
-
-      template <std::size_t Ep, std::size_t ...Indices>
-      struct make_indices_imp<Ep, tuple_indices<Indices...>, Ep>
-      {
-          typedef tuple_indices<Indices...> type;
-      };
-
-      template <std::size_t Ep, std::size_t Sp = 0>
-      struct make_tuple_indices
-      {
-          static_assert(Sp <= Ep, "make_tuple_indices input error");
-          typedef typename make_indices_imp<Sp, tuple_indices<>, Ep>::type type;
-      };
-
-
-//      // bullets 1 and 2
-//
-//      template <class Fp, class A0, class ...Args>
-//      inline
-//      auto
-//      invoke(Fp&& f, A0&& a0, Args&& ...args)
-//          -> decltype((boost::forward<A0>(a0).*f)(boost::forward<Args>(args)...))
-//      {
-//          return (boost::forward<A0>(a0).*f)(boost::forward<Args>(args)...);
-//      }
-//
-//      template <class Fp, class A0, class ...Args>
-//      inline
-//      auto
-//      invoke(Fp&& f, A0&& a0, Args&& ...args)
-//          -> decltype(((*boost::forward<A0>(a0)).*f)(boost::forward<Args>(args)...))
-//      {
-//          return ((*boost::forward<A0>(a0)).*f)(boost::forward<Args>(args)...);
-//      }
-//
-//      // bullets 3 and 4
-//
-//      template <class Fp, class A0>
-//      inline
-//      auto
-//      invoke(Fp&& f, A0&& a0)
-//          -> decltype(boost::forward<A0>(a0).*f)
-//      {
-//          return boost::forward<A0>(a0).*f;
-//      }
-//
-//      template <class Fp, class A0>
-//      inline
-//      auto
-//      invoke(Fp&& f, A0&& a0)
-//          -> decltype((*boost::forward<A0>(a0)).*f)
-//      {
-//          return (*boost::forward<A0>(a0)).*f;
-//      }
-
-      // bullet 5
-
-      template <class Fp, class ...Args>
-      inline
-      auto
-      invoke(Fp&& f, Args&& ...args)
-          -> decltype(boost::forward<Fp>(f)(boost::forward<Args>(args)...))
-      {
-          return boost::forward<Fp>(f)(boost::forward<Args>(args)...);
-      }
-
-//      template <class Tp, class ...Args>
-//      struct invoke_return
-//      {
-//          typedef decltype(invoke(boost::declval<Tp>(), boost::declval<Args>()...)) type;
-//      };
-
-
-
       template<typename F, class ...ArgTypes>
       class thread_data:
           public detail::thread_data_base
@@ -172,8 +82,6 @@ namespace boost
           }
 
       private:
-          //F f;
-          //std::tuple<ArgTypes...> args;
           std::tuple<typename decay<F>::type, typename decay<ArgTypes>::type...> fp;
       };
 #else // defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
@@ -262,10 +170,6 @@ namespace boost
 
         detail::thread_data_ptr thread_info;
 
-#ifdef BOOST_THREAD_PLATFORM_WIN32
-        void start_thread();
-        void start_thread(const attributes& attr);
-#else
     private:
         bool start_thread_noexcept();
         bool start_thread_noexcept(const attributes& attr);
@@ -285,7 +189,6 @@ namespace boost
           }
         }
 
-#endif
         explicit thread(detail::thread_data_ptr data);
 
         detail::thread_data_ptr get_thread_info BOOST_PREVENT_MACRO_SUBSTITUTION () const;
@@ -342,6 +245,7 @@ namespace boost
         thread() BOOST_NOEXCEPT;
         ~thread()
         {
+
     #if defined BOOST_THREAD_PROVIDES_THREAD_DESTRUCTOR_CALLS_TERMINATE_IF_JOINABLE
           if (joinable()) {
             std::terminate();
@@ -355,7 +259,7 @@ namespace boost
           class F
         >
         explicit thread(BOOST_THREAD_RV_REF(F) f
-        , typename disable_if<is_same<typename decay<F>::type, thread>, dummy* >::type=0
+        //, typename disable_if<is_same<typename decay<F>::type, thread>, dummy* >::type=0
         ):
           thread_info(make_thread_info(thread_detail::decay_copy(boost::forward<F>(f))))
         {
@@ -364,7 +268,7 @@ namespace boost
         template <
           class F
         >
-        thread(attributes& attrs, BOOST_THREAD_RV_REF(F) f):
+        thread(attributes const& attrs, BOOST_THREAD_RV_REF(F) f):
           thread_info(make_thread_info(thread_detail::decay_copy(boost::forward<F>(f))))
         {
             start_thread(attrs);
@@ -379,7 +283,7 @@ namespace boost
             start_thread();
         }
         template <class F>
-        thread(attributes& attrs, F f):
+        thread(attributes const& attrs, F f):
             thread_info(make_thread_info(f))
         {
             start_thread(attrs);
@@ -388,15 +292,18 @@ namespace boost
         template <class F>
         explicit thread(F f
         , typename disable_if_c<
-            boost::is_convertible<F&,BOOST_THREAD_RV_REF(F)>::value || is_same<typename decay<F>::type, thread>::value,
-            dummy* >::type=0):
+            boost::is_convertible<F&,BOOST_THREAD_RV_REF(F)>::value
+            //|| is_same<typename decay<F>::type, thread>::value
+           , dummy* >::type=0
+        ):
             thread_info(make_thread_info(f))
         {
             start_thread();
         }
         template <class F>
-        thread(attributes& attrs, F f
-        , typename disable_if<boost::is_convertible<F&,BOOST_THREAD_RV_REF(F) >, dummy* >::type=0):
+        thread(attributes const& attrs, F f
+        , typename disable_if<boost::is_convertible<F&,BOOST_THREAD_RV_REF(F) >, dummy* >::type=0
+        ):
             thread_info(make_thread_info(f))
         {
             start_thread(attrs);
@@ -416,7 +323,7 @@ namespace boost
         }
 
         template <class F>
-        thread(attributes& attrs, BOOST_THREAD_RV_REF(F) f):
+        thread(attributes const& attrs, BOOST_THREAD_RV_REF(F) f):
 #ifdef BOOST_THREAD_USES_MOVE
             thread_info(make_thread_info(boost::move<F>(f))) // todo : Add forward
 #else
@@ -464,7 +371,17 @@ namespace boost
         {
           start_thread();
         }
+        template <class F, class Arg, class ...Args>
+        thread(attributes const& attrs, F&& f, Arg&& arg, Args&&... args) :
+          thread_info(make_thread_info(
+              thread_detail::decay_copy(boost::forward<F>(f)),
+              thread_detail::decay_copy(boost::forward<Arg>(arg)),
+              thread_detail::decay_copy(boost::forward<Args>(args))...)
+          )
 
+        {
+          start_thread(attrs);
+        }
 #else
         template <class F,class A1>
         thread(F f,A1 a1,typename disable_if<boost::is_convertible<F&,thread_attributes >, dummy* >::type=0):
@@ -542,14 +459,10 @@ namespace boost
 
 
         bool joinable() const BOOST_NOEXCEPT;
-#if defined(BOOST_THREAD_PLATFORM_WIN32)
-        void join();
-#else
     private:
         bool join_noexcept();
     public:
         inline void join();
-#endif
 
 #ifdef BOOST_THREAD_USES_CHRONO
         template <class Rep, class Period>
@@ -574,10 +487,15 @@ namespace boost
         }
 #endif
 #if defined(BOOST_THREAD_PLATFORM_WIN32)
-        bool timed_join(const system_time& abs_time);
     private:
-        bool do_try_join_until(uintmax_t milli);
+        bool do_try_join_until_noexcept(uintmax_t milli, bool& res);
+        inline bool do_try_join_until(uintmax_t milli);
     public:
+        bool timed_join(const system_time& abs_time);
+        //{
+        //  return do_try_join_until(get_milliseconds_until(wait_until));
+        //}
+
 #ifdef BOOST_THREAD_USES_CHRONO
         bool try_join_until(const chrono::time_point<chrono::system_clock, chrono::nanoseconds>& tp)
         {
@@ -592,7 +510,7 @@ namespace boost
         bool do_try_join_until_noexcept(struct timespec const &timeout, bool& res);
         inline bool do_try_join_until(struct timespec const &timeout);
     public:
-#if defined BOOST_THREAD_PROVIDES_DEPRECATED_FEATURES_SINCE_V3_0_0 || defined BOOST_THREAD_DONT_USE_CHRONO
+#if defined BOOST_THREAD_USES_DATETIME
         bool timed_join(const system_time& abs_time)
         {
           struct timespec const ts=detail::get_timespec(abs_time);
@@ -615,7 +533,7 @@ namespace boost
 #endif
       public:
 
-#if defined BOOST_THREAD_PROVIDES_DEPRECATED_FEATURES_SINCE_V3_0_0 || defined BOOST_THREAD_DONT_USE_CHRONO
+#if defined BOOST_THREAD_USES_DATETIME
         template<typename TimeDuration>
         inline bool timed_join(TimeDuration const& rel_time)
         {
@@ -630,27 +548,29 @@ namespace boost
         typedef detail::thread_data_base::native_handle_type native_handle_type;
         native_handle_type native_handle();
 
-#if defined BOOST_THREAD_PROVIDES_DEPRECATED_FEATURES_SINCE_V3_0_0
+#if defined BOOST_THREAD_PROVIDES_THREAD_EQ
         // Use thread::id when comparisions are needed
         // backwards compatibility
         bool operator==(const thread& other) const;
         bool operator!=(const thread& other) const;
 #endif
+#if defined BOOST_THREAD_USES_DATETIME
         static inline void yield() BOOST_NOEXCEPT
         {
             this_thread::yield();
         }
 
-#if defined BOOST_THREAD_PROVIDES_DEPRECATED_FEATURES_SINCE_V3_0_0 || defined BOOST_THREAD_DONT_USE_CHRONO
         static inline void sleep(const system_time& xt)
         {
             this_thread::sleep(xt);
         }
 #endif
 
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
         // extensions
         void interrupt();
         bool interruption_requested() const BOOST_NOEXCEPT;
+#endif
     };
 
     inline void swap(thread& lhs,thread& rhs) BOOST_NOEXCEPT
@@ -675,11 +595,13 @@ namespace boost
         thread::id BOOST_THREAD_DECL get_id() BOOST_NOEXCEPT;
 #endif
 
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
         void BOOST_THREAD_DECL interruption_point();
         bool BOOST_THREAD_DECL interruption_enabled() BOOST_NOEXCEPT;
         bool BOOST_THREAD_DECL interruption_requested() BOOST_NOEXCEPT;
+#endif
 
-#if defined BOOST_THREAD_PROVIDES_DEPRECATED_FEATURES_SINCE_V3_0_0 || defined BOOST_THREAD_DONT_USE_CHRONO
+#if defined BOOST_THREAD_USES_DATETIME
         inline BOOST_SYMBOL_VISIBLE void sleep(xtime const& abs_time)
         {
             sleep(system_time(abs_time));
@@ -720,11 +642,7 @@ namespace boost
     public:
         id() BOOST_NOEXCEPT:
 #if defined BOOST_THREAD_PROVIDES_BASIC_THREAD_ID
-#if defined(BOOST_THREAD_PLATFORM_WIN32)
         thread_data(0)
-#else
-        thread_data(0)
-#endif
 #else
         thread_data()
 #endif
@@ -825,25 +743,25 @@ namespace boost
         #endif
         }
     }
-    void thread::join() {
-        if (this_thread::get_id() == get_id())
-        {
-            boost::throw_exception(thread_resource_error(system::errc::resource_deadlock_would_occur, "boost thread: trying joining itself"));
-        }
-        if (!join_noexcept())
-        {
-#ifdef BOOST_THREAD_THROW_IF_PRECONDITION_NOT_SATISFIED
-            boost::throw_exception(thread_resource_error(system::errc::invalid_argument, "boost thread: thread not joinable"));
 #endif
-        }
+    void thread::join() {
+        BOOST_THREAD_ASSERT_PRECONDITION(  this_thread::get_id() != get_id(),
+            thread_resource_error(system::errc::resource_deadlock_would_occur, "boost thread: trying joining itself")
+        );
+        BOOST_THREAD_VERIFY_PRECONDITION( join_noexcept(),
+            thread_resource_error(system::errc::invalid_argument, "boost thread: thread not joinable")
+        );
     }
 
+#ifdef BOOST_THREAD_PLATFORM_PTHREAD
     bool thread::do_try_join_until(struct timespec const &timeout)
+#else
+    bool thread::do_try_join_until(uintmax_t timeout)
+#endif
     {
-        if (this_thread::get_id() == get_id())
-        {
-            boost::throw_exception(thread_resource_error(system::errc::resource_deadlock_would_occur, "boost thread: trying joining itself"));
-        }
+        BOOST_THREAD_ASSERT_PRECONDITION( this_thread::get_id() != get_id(),
+            thread_resource_error(system::errc::resource_deadlock_would_occur, "boost thread: trying joining itself")
+        );
         bool res;
         if (do_try_join_until_noexcept(timeout, res))
         {
@@ -851,14 +769,12 @@ namespace boost
         }
         else
         {
-#ifdef BOOST_THREAD_THROW_IF_PRECONDITION_NOT_SATISFIED
-            boost::throw_exception(thread_resource_error(system::errc::invalid_argument, "boost thread: thread not joinable"));
-#endif
-            return false;
+          BOOST_THREAD_THROW_ELSE_RETURN(
+            thread_resource_error(system::errc::invalid_argument, "boost thread: thread not joinable"),
+            false
+          );
         }
     }
-
-#endif
 
 #if !defined(BOOST_NO_IOSTREAM) && defined(BOOST_NO_MEMBER_TEMPLATE_FRIENDS)
     template<class charT, class traits>
@@ -870,7 +786,7 @@ namespace boost
     }
 #endif
 
-#if defined BOOST_THREAD_PROVIDES_DEPRECATED_FEATURES_SINCE_V3_0_0
+#if defined BOOST_THREAD_PROVIDES_THREAD_EQ
     inline bool thread::operator==(const thread& other) const
     {
         return get_id()==other.get_id();

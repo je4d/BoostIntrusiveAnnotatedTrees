@@ -36,18 +36,11 @@ namespace detail { namespace for_each
 
 // Implementation of multi, for both point and segment,
 // just calling the single version.
-template
-<
-    typename MultiGeometry,
-    typename Functor,
-    bool IsConst,
-    typename Policy
->
+template <typename Policy>
 struct for_each_multi
 {
-    static inline Functor apply(
-                    typename add_const_if_c<IsConst, MultiGeometry>::type& multi,
-                    Functor f)
+    template <typename MultiGeometry, typename Functor>
+    static inline Functor apply(MultiGeometry& multi, Functor f)
     {
         for(BOOST_AUTO_TPL(it, boost::begin(multi)); it != boost::end(multi); ++it)
         {
@@ -66,55 +59,35 @@ struct for_each_multi
 namespace dispatch
 {
 
-template
-<
-    typename MultiGeometry,
-    typename Functor,
-    bool IsConst
->
-struct for_each_point<multi_tag, MultiGeometry, Functor, IsConst>
+template <typename MultiGeometry>
+struct for_each_point<MultiGeometry, multi_tag>
     : detail::for_each::for_each_multi
         <
-            MultiGeometry,
-            Functor,
-            IsConst,
             // Specify the dispatch of the single-version as policy
             for_each_point
                 <
-                    typename single_tag_of
+                    typename add_const_if_c
                         <
-                            typename tag<MultiGeometry>::type
-                        >::type,
-                    typename boost::range_value<MultiGeometry>::type,
-                    Functor,
-                    IsConst
+                            is_const<MultiGeometry>::value,
+                            typename boost::range_value<MultiGeometry>::type
+                        >::type
                 >
         >
 {};
 
 
-template
-<
-    typename MultiGeometry,
-    typename Functor,
-    bool IsConst
->
-struct for_each_segment<multi_tag, MultiGeometry, Functor, IsConst>
+template <typename MultiGeometry>
+struct for_each_segment<MultiGeometry, multi_tag>
     : detail::for_each::for_each_multi
         <
-            MultiGeometry,
-            Functor,
-            IsConst,
             // Specify the dispatch of the single-version as policy
             for_each_segment
                 <
-                    typename single_tag_of
+                    typename add_const_if_c
                         <
-                            typename tag<MultiGeometry>::type
-                        >::type,
-                    typename boost::range_value<MultiGeometry>::type,
-                    Functor,
-                    IsConst
+                            is_const<MultiGeometry>::value,
+                            typename boost::range_value<MultiGeometry>::type
+                        >::type
                 >
         >
 {};

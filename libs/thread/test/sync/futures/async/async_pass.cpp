@@ -27,6 +27,7 @@
 
 #include <boost/thread/future.hpp>
 #include <boost/thread/thread.hpp>
+#include <boost/thread/detail/memory.hpp>
 #include <boost/interprocess/smart_ptr/unique_ptr.hpp>
 #include <memory>
 #include <boost/detail/lightweight_test.hpp>
@@ -39,7 +40,7 @@ class A
     long data_;
 
 public:
-    typedef int result_type;
+    typedef long result_type;
 
     explicit A(long i) : data_(i) {}
 
@@ -94,14 +95,13 @@ boost::interprocess::unique_ptr<int, boost::default_delete<int> > f3(int i)
   return boost::interprocess::unique_ptr<int, boost::default_delete<int> >(new int(i));
 }
 
-//typedef boost::interprocess::unique_ptr<int, boost::default_delete<int> > XXT;
-//boost::interprocess::unique_ptr<int, boost::default_delete<int> > f4(
-//    BOOST_THREAD_RV_REF(boost::interprocess::unique_ptr<int, boost::default_delete<int> > ) p)
-//{
-//  boost::this_thread::sleep_for(ms(200));
-//  return boost::move(p);
-//}
-
+boost::interprocess::unique_ptr<int, boost::default_delete<int> > f4(
+    BOOST_THREAD_RV_REF_BEG boost::interprocess::unique_ptr<int, boost::default_delete<int> > BOOST_THREAD_RV_REF_END p
+)
+{
+  boost::this_thread::sleep_for(ms(200));
+  return boost::move(p);
+}
 
 int main()
 {
@@ -122,7 +122,7 @@ int main()
     BOOST_TEST(t1 - t0 < ms(100));
   }
   {
-    boost::future<int> f = boost::async(boost::launch::async, A(3));
+    boost::future<long> f = boost::async(boost::launch::async, A(3));
     boost::this_thread::sleep_for(ms(300));
     Clock::time_point t0 = Clock::now();
     BOOST_TEST(f.get() == 3);
@@ -145,15 +145,16 @@ int main()
     Clock::time_point t1 = Clock::now();
     BOOST_TEST(t1 - t0 < ms(100));
   }
-//  {
-//    boost::future<int> f = boost::async(boost::launch::deferred, f0);
-//    boost::this_thread::sleep_for(ms(300));
-//    Clock::time_point t0 = Clock::now();
-//    BOOST_TEST(f.get() == 3);
-//    Clock::time_point t1 = Clock::now();
-//    BOOST_TEST(t1 - t0 > ms(100));
-//  }
-//
+#if defined BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK && defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
+  {
+    boost::future<int> f = boost::async(boost::launch::deferred, f0);
+    boost::this_thread::sleep_for(ms(300));
+    Clock::time_point t0 = Clock::now();
+    BOOST_TEST(f.get() == 3);
+    Clock::time_point t1 = Clock::now();
+    BOOST_TEST(t1 - t0 > ms(100));
+  }
+#endif
   {
     boost::future<int&> f = boost::async(f1);
     boost::this_thread::sleep_for(ms(300));
@@ -178,15 +179,16 @@ int main()
     Clock::time_point t1 = Clock::now();
     BOOST_TEST(t1 - t0 < ms(100));
   }
-//  {
-//    boost::future<int&> f = boost::async(boost::launch::deferred, f1);
-//    boost::this_thread::sleep_for(ms(300));
-//    Clock::time_point t0 = Clock::now();
-//    BOOST_TEST(&f.get() == &i);
-//    Clock::time_point t1 = Clock::now();
-//    BOOST_TEST(t1 - t0 > ms(100));
-//  }
-//
+#if defined BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK && defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
+  {
+    boost::future<int&> f = boost::async(boost::launch::deferred, f1);
+    boost::this_thread::sleep_for(ms(300));
+    Clock::time_point t0 = Clock::now();
+    BOOST_TEST(&f.get() == &i);
+    Clock::time_point t1 = Clock::now();
+    BOOST_TEST(t1 - t0 > ms(100));
+  }
+#endif
   {
     boost::future<void> f = boost::async(f2);
     boost::this_thread::sleep_for(ms(300));
@@ -211,32 +213,39 @@ int main()
     Clock::time_point t1 = Clock::now();
     BOOST_TEST(t1 - t0 < ms(100));
   }
-//  {
-//    boost::future<void> f = boost::async(boost::launch::deferred, f2);
-//    boost::this_thread::sleep_for(ms(300));
-//    Clock::time_point t0 = Clock::now();
-//    f.get();
-//    Clock::time_point t1 = Clock::now();
-//    BOOST_TEST(t1 - t0 > ms(100));
-//  }
+#if defined BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK && defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
+  {
+    boost::future<void> f = boost::async(boost::launch::deferred, f2);
+    boost::this_thread::sleep_for(ms(300));
+    Clock::time_point t0 = Clock::now();
+    f.get();
+    Clock::time_point t1 = Clock::now();
+    BOOST_TEST(t1 - t0 > ms(100));
+  }
+#endif
 
-//  {
-//    boost::future<boost::interprocess::unique_ptr<int, boost::default_delete<int> > > f = boost::async(f3, 3);
-//    boost::this_thread::sleep_for(ms(300));
-//    Clock::time_point t0 = Clock::now();
-//    BOOST_TEST(*f.get() == 3);
-//    Clock::time_point t1 = Clock::now();
-//    BOOST_TEST(t1 - t0 < ms(100));
-//  }
+  // todo fixme
+#if 0 && defined BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK && defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
+  {
+    boost::future<boost::interprocess::unique_ptr<int, boost::default_delete<int> > > f = boost::async(boost::launch::async, &f3, 3);
+    boost::this_thread::sleep_for(ms(300));
+    Clock::time_point t0 = Clock::now();
+    BOOST_TEST(*f.get() == 3);
+    Clock::time_point t1 = Clock::now();
+    BOOST_TEST(t1 - t0 < ms(100));
+  }
+#endif
 
-//  {
-//    boost::future<boost::interprocess::unique_ptr<int, boost::default_delete<int> > > f = boost::async(f4, boost::interprocess::unique_ptr<int, boost::default_delete<int> >(new int(3)));
-//    boost::this_thread::sleep_for(ms(300));
-//    Clock::time_point t0 = Clock::now();
-//    BOOST_TEST(*f.get() == 3);
-//    Clock::time_point t1 = Clock::now();
-//    BOOST_TEST(t1 - t0 < ms(100));
-//  }
+  // todo fixme
+#if 0 && defined BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK && defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
+  {
+    boost::future<boost::interprocess::unique_ptr<int, boost::default_delete<int> > > f = boost::async(&f4, boost::interprocess::unique_ptr<int, boost::default_delete<int> >(new int(3)));
+    boost::this_thread::sleep_for(ms(300));
+    Clock::time_point t0 = Clock::now();
+    BOOST_TEST(*f.get() == 3);
+    Clock::time_point t1 = Clock::now();
+    BOOST_TEST(t1 - t0 < ms(100));
+  }
+#endif
   return boost::report_errors();
 }
-

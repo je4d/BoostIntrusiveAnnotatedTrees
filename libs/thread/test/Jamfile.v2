@@ -23,6 +23,8 @@ project
     : requirements
         <threading>multi
 
+        <define>BOOST_THREAD_THROW_IF_PRECONDITION_NOT_SATISFIED
+
         <warnings>all
         <toolset>gcc:<cxxflags>-Wextra
         <toolset>gcc:<cxxflags>-pedantic
@@ -76,7 +78,7 @@ project
         <toolset>intel:<cxxflags>-wd193,304,383,444
         <toolset>intel:<cxxflags>-wd593,981
         <toolset>intel:<cxxflags>-wd1418
-	<toolset>intel:<cxxflags>-wd2415 
+	<toolset>intel:<cxxflags>-wd2415
 
 
     ;
@@ -204,6 +206,7 @@ rule thread-compile-fail ( sources : reqs * : name )
           [ thread-run test_6174.cpp ]
           [ thread-run test_7160.cpp ]
           [ thread-run test_7328.cpp ]
+          [ thread-run test_7571.cpp ]
     ;
 
 
@@ -241,7 +244,7 @@ rule thread-compile-fail ( sources : reqs * : name )
           [ thread-run2 ./sync/conditions/notify_all_at_thread_exit_pass.cpp : notify_all_at_thread_exit_p ]
     ;
 
-    explicit ts_async ;
+    #explicit ts_async ;
     test-suite ts_async
     :
           [ thread-run2 ./sync/futures/async/async_pass.cpp : async__async_p ]
@@ -264,6 +267,11 @@ rule thread-compile-fail ( sources : reqs * : name )
           [ thread-run2 ./sync/futures/promise/set_value_const_pass.cpp : promise__set_value_const_p ]
           [ thread-run2 ./sync/futures/promise/set_value_void_pass.cpp : promise__set_value_void_p ]
           [ thread-run2 ./sync/futures/promise/use_allocator_pass.cpp : promise__use_allocator_p ]
+          [ thread-run2 ./sync/futures/promise/set_exception_at_thread_exit_pass.cpp : promise__set_exception_at_thread_exit_p ]
+          [ thread-run2 ./sync/futures/promise/set_lvalue_at_thread_exit_pass.cpp : promise__set_lvalue_at_thread_exit_p ]
+          [ thread-run2 ./sync/futures/promise/set_rvalue_at_thread_exit_pass.cpp : promise__set_rvalue_at_thread_exit_p ]
+          [ thread-run2 ./sync/futures/promise/set_value_at_thread_exit_const_pass.cpp : promise__set_value_at_thread_exit_const_p ]
+          [ thread-run2 ./sync/futures/promise/set_value_at_thread_exit_void_pass.cpp : promise__set_value_at_thread_exit_void_p ]
     ;
 
     #explicit ts_future ;
@@ -277,6 +285,19 @@ rule thread-compile-fail ( sources : reqs * : name )
           [ thread-run2 ./sync/futures/future/move_ctor_pass.cpp : future__move_ctor_p ]
           [ thread-run2 ./sync/futures/future/move_assign_pass.cpp : future__move_asign_p ]
           [ thread-run2 ./sync/futures/future/share_pass.cpp : future__share_p ]
+          [ thread-run2 ./sync/futures/future/then_pass.cpp : future__then_p ]
+    ;
+
+    #explicit ts_shared_future ;
+    test-suite ts_shared_future
+    :
+          [ thread-run2 ./sync/futures/shared_future/copy_assign_pass.cpp : shared_future__copy_assign_p ]
+          [ thread-run2 ./sync/futures/shared_future/copy_ctor_pass.cpp : shared_future__copy_ctor_p ]
+          [ thread-run2 ./sync/futures/shared_future/default_pass.cpp : shared_future__default_p ]
+          [ thread-run2 ./sync/futures/shared_future/dtor_pass.cpp : shared_future__dtor_p ]
+          [ thread-run2 ./sync/futures/shared_future/get_pass.cpp : shared_future__get_p ]
+          [ thread-run2 ./sync/futures/shared_future/move_ctor_pass.cpp : shared_future__move_ctor_p ]
+          [ thread-run2 ./sync/futures/shared_future/move_assign_pass.cpp : shared_future__move_asign_p ]
     ;
 
     #explicit ts_packaged_task ;
@@ -297,6 +318,7 @@ rule thread-compile-fail ( sources : reqs * : name )
           [ thread-run2 ./sync/futures/packaged_task/types_pass.cpp : packaged_task__types_p ]
           [ thread-run2 ./sync/futures/packaged_task/member_swap_pass.cpp : packaged_task__member_swap_p ]
           [ thread-run2 ./sync/futures/packaged_task/non_member_swap_pass.cpp : packaged_task__non_member_swap_p ]
+          [ thread-run2 ./sync/futures/packaged_task/make_ready_at_thread_exit_pass.cpp : packaged_task__make_ready_at_thread_exit_p ]
     ;
 
 
@@ -523,6 +545,12 @@ rule thread-compile-fail ( sources : reqs * : name )
           #[ thread-run ../example/vhh_shared_monitor.cpp ]
           #[ thread-run ../example/vhh_shared_mutex.cpp ]
           [ thread-run ../example/make_future.cpp ]
+          [ thread-run ../example/future_then.cpp ]
+          [ thread-run ../example/synchronized_value.cpp ]
+          [ thread-run ../example/thread_guard.cpp ]
+          [ thread-run ../example/scoped_thread.cpp ]
+          [ thread-run ../example/strict_lock.cpp ]
+          [ thread-run ../example/ba_externallly_locked.cpp ]
 
     ;
 
@@ -561,6 +589,9 @@ rule thread-compile-fail ( sources : reqs * : name )
     explicit ts_ ;
     test-suite ts_
     :
+          #[ thread-run test_7665.cpp ]
+          #[ thread-run test_7666.cpp ]
+          #[ compile ../example/tes_is_function.cpp ]
           #[ thread-run ../example/unwrap.cpp ]
     ;
 

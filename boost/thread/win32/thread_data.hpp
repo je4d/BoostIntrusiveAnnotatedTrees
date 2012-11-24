@@ -72,6 +72,7 @@ namespace boost
 
     namespace detail
     {
+        struct future_object_base;
         struct tss_cleanup_function;
         struct thread_exit_callback_node;
         struct tss_data_node
@@ -93,24 +94,35 @@ namespace boost
         {
             long count;
             detail::win32::handle_manager thread_handle;
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
             detail::win32::handle_manager interruption_handle;
+#endif
             boost::detail::thread_exit_callback_node* thread_exit_callbacks;
             std::map<void const*,boost::detail::tss_data_node> tss_data;
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
             bool interruption_enabled;
+#endif
             unsigned id;
             typedef std::vector<std::pair<condition_variable*, mutex*>
             //, hidden_allocator<std::pair<condition_variable*, mutex*> >
             > notify_list_t;
             notify_list_t notify;
 
+            typedef std::vector<shared_ptr<future_object_base> > async_states_t;
+            async_states_t async_states_;
 
             thread_data_base():
                 count(0),thread_handle(detail::win32::invalid_handle_value),
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
                 interruption_handle(create_anonymous_event(detail::win32::manual_reset_event,detail::win32::event_initially_reset)),
+#endif
                 thread_exit_callbacks(0),tss_data(),
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
                 interruption_enabled(true),
+#endif
                 id(0),
-                notify()
+                notify(),
+                async_states_()
             {}
             virtual ~thread_data_base();
 
@@ -127,11 +139,12 @@ namespace boost
                 }
             }
 
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
             void interrupt()
             {
                 BOOST_VERIFY(detail::win32::SetEvent(interruption_handle)!=0);
             }
-
+#endif
             typedef detail::win32::handle native_handle_type;
 
             virtual void run()=0;
@@ -141,7 +154,13 @@ namespace boost
               notify.push_back(std::pair<condition_variable*, mutex*>(cv, m));
             }
 
+            void make_ready_at_thread_exit(shared_ptr<future_object_base> as)
+            {
+              async_states_.push_back(as);
+            }
+
         };
+        BOOST_THREAD_DECL thread_data_base* get_current_thread_data();
 
         typedef boost::intrusive_ptr<detail::thread_data_base> thread_data_ptr;
 
@@ -240,7 +259,6 @@ namespace boost
         {
             interruptible_wait(detail::win32::invalid_handle_value,abs_time);
         }
-
         template<typename TimeDuration>
         inline BOOST_SYMBOL_VISIBLE void sleep(TimeDuration const& rel_time)
         {

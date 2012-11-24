@@ -6,15 +6,18 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#define BOOST_THREAD_VERSION 2
 #include <boost/thread/detail/config.hpp>
 
 #include <boost/thread/thread.hpp>
+#if defined BOOST_THREAD_USES_DATETIME
 #include <boost/thread/xtime.hpp>
+#endif
 #include <boost/thread/condition_variable.hpp>
 #include <boost/thread/locks.hpp>
 #include <boost/thread/once.hpp>
 #include <boost/thread/tss.hpp>
-#include <boost/throw_exception.hpp>
+#include <boost/thread/future.hpp>
 
 #ifdef __GLIBC__
 #include <sys/sysinfo.h>
@@ -33,14 +36,17 @@ namespace boost
     {
         thread_data_base::~thread_data_base()
         {
-          {
             for (notify_list_t::iterator i = notify.begin(), e = notify.end();
                     i != e; ++i)
             {
                 i->second->unlock();
                 i->first->notify_all();
             }
-          }
+            for (async_states_t::iterator i = async_states_.begin(), e = async_states_.end();
+                    i != e; ++i)
+            {
+                (*i)->make_ready();
+            }
         }
 
         struct thread_exit_callback_node
@@ -72,6 +78,7 @@ namespace boost
                     {
                         while(!thread_info->tss_data.empty() || thread_info->thread_exit_callbacks)
                         {
+
                             while(thread_info->thread_exit_callbacks)
                             {
                                 detail::thread_exit_callback_node* const current_node=thread_info->thread_exit_callbacks;
@@ -97,7 +104,10 @@ namespace boost
                                 thread_info->tss_data.erase(current);
                             }
                         }
-                        thread_info->self.reset();
+                        if (thread_info) // fixme: should we test this?
+                        {
+                          thread_info->self.reset();
+                        }
                     }
                 }
             }
@@ -148,9 +158,13 @@ namespace boost
                 boost::detail::thread_data_ptr thread_info = static_cast<boost::detail::thread_data_base*>(param)->self;
                 thread_info->self.reset();
                 detail::set_current_thread_data(thread_info.get());
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
                 BOOST_TRY
                 {
+#endif
                     thread_info->run();
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
+
                 }
                 BOOST_CATCH (thread_interrupted const&)
                 {
@@ -159,15 +173,18 @@ namespace boost
 // Unhandled exceptions still cause the application to terminate
 //                 BOOST_CATCH(...)
 //                 {
+//                   throw;
+//
 //                     std::terminate();
 //                 }
                 BOOST_CATCH_END
-
+#endif
                 detail::tls_destructor(thread_info.get());
                 detail::set_current_thread_data(0);
                 boost::lock_guard<boost::mutex> lock(thread_info->data_mutex);
                 thread_info->done=true;
                 thread_info->done_condition.notify_all();
+
                 return 0;
             }
         }
@@ -177,7 +194,9 @@ namespace boost
         {
             externally_launched_thread()
             {
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
                 interrupt_enabled=false;
+#endif
             }
 
             void run()
@@ -404,6 +423,7 @@ namespace boost
         /// Workaround of DECCXX issue of incorrect template substitution
         template<>
 #endif
+#if defined BOOST_THREAD_USES_DATETIME
         void sleep(const system_time& st)
         {
             detail::thread_data_base* const thread_info=detail::get_current_thread_data();
@@ -443,17 +463,19 @@ namespace boost
                 }
             }
         }
-
+#endif
         void yield() BOOST_NOEXCEPT
         {
 #   if defined(BOOST_HAS_SCHED_YIELD)
             BOOST_VERIFY(!sched_yield());
 #   elif defined(BOOST_HAS_PTHREAD_YIELD)
             BOOST_VERIFY(!pthread_yield());
-#   else
+#   elif defined BOOST_THREAD_USES_DATETIME
             xtime xt;
             xtime_get(&xt, TIME_UTC_);
             sleep(xt);
+#   else
+            sleep_for(chrono::milliseconds(0));
 #   endif
         }
     }
@@ -475,6 +497,7 @@ namespace boost
 #endif
     }
 
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
     void thread::interrupt()
     {
         detail::thread_data_ptr const local_thread_info=(get_thread_info)();
@@ -503,6 +526,7 @@ namespace boost
             return false;
         }
     }
+#endif
 
     thread::native_handle_type thread::native_handle()
     {
@@ -520,6 +544,7 @@ namespace boost
 
 
 
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
     namespace this_thread
     {
         void interruption_point()
@@ -591,6 +616,7 @@ namespace boost
             }
         }
     }
+#endif
 
     namespace detail
     {

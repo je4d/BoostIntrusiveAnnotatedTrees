@@ -8,7 +8,8 @@
 
 #include <boost/thread/detail/config.hpp>
 #include <boost/thread/exceptions.hpp>
-#include <boost/thread/locks.hpp>
+#include <boost/thread/lock_guard.hpp>
+#include <boost/thread/lock_types.hpp>
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/pthread/condition_variable_fwd.hpp>
 
@@ -77,6 +78,7 @@ namespace boost
 
     namespace detail
     {
+        struct future_object_base;
         struct tss_cleanup_function;
         struct thread_exit_callback_node;
         struct tss_data_node
@@ -107,8 +109,10 @@ namespace boost
             bool joined;
             boost::detail::thread_exit_callback_node* thread_exit_callbacks;
             std::map<void const*,boost::detail::tss_data_node> tss_data;
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
             bool interrupt_enabled;
             bool interrupt_requested;
+#endif
             pthread_mutex_t* cond_mutex;
             pthread_cond_t* current_cond;
             typedef std::vector<std::pair<condition_variable*, mutex*>
@@ -116,13 +120,19 @@ namespace boost
             > notify_list_t;
             notify_list_t notify;
 
+            typedef std::vector<shared_ptr<future_object_base> > async_states_t;
+            async_states_t async_states_;
+
             thread_data_base():
                 done(false),join_started(false),joined(false),
                 thread_exit_callbacks(0),
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
                 interrupt_enabled(true),
                 interrupt_requested(false),
+#endif
                 current_cond(0),
-                notify()
+                notify(),
+                async_states_()
             {}
             virtual ~thread_data_base();
 
@@ -133,10 +143,17 @@ namespace boost
             {
               notify.push_back(std::pair<condition_variable*, mutex*>(cv, m));
             }
+
+            void make_ready_at_thread_exit(shared_ptr<future_object_base> as)
+            {
+              async_states_.push_back(as);
+            }
+
         };
 
         BOOST_THREAD_DECL thread_data_base* get_current_thread_data();
 
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
         class interruption_checker
         {
             thread_data_base* const thread_info;
@@ -189,6 +206,7 @@ namespace boost
             }
         };
     }
+#endif
 
     namespace this_thread
     {
@@ -233,6 +251,7 @@ namespace boost
 #endif
         void BOOST_THREAD_DECL yield() BOOST_NOEXCEPT;
 
+#if defined BOOST_THREAD_USES_DATETIME
 #ifdef __DECXXX
         /// Workaround of DECCXX issue of incorrect template substitution
         template<typename TimeDuration>
@@ -251,6 +270,7 @@ namespace boost
         {
             this_thread::sleep(get_system_time()+rel_time);
         }
+#endif
 #endif
     }
 }

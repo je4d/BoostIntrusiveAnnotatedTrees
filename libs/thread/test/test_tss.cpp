@@ -6,6 +6,7 @@
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
 #define BOOST_THREAD_VERSION 2
+#define BOOST_THREAD_PROVIDES_INTERRUPTIONS
 
 #include <boost/thread/detail/config.hpp>
 
@@ -33,14 +34,14 @@ struct tss_value_t
 {
     tss_value_t()
     {
-        boost::mutex::scoped_lock lock(tss_mutex);
+        boost::unique_lock<boost::mutex> lock(tss_mutex);
         ++tss_instances;
         ++tss_total;
         value = 0;
     }
     ~tss_value_t()
     {
-        boost::mutex::scoped_lock lock(tss_mutex);
+        boost::unique_lock<boost::mutex> lock(tss_mutex);
         --tss_instances;
     }
     int value;
@@ -58,7 +59,7 @@ void test_tss_thread()
         // be thread safe. Must evaluate further.
         if (n != i)
         {
-            boost::mutex::scoped_lock lock(check_mutex);
+            boost::unique_lock<boost::mutex> lock(check_mutex);
             BOOST_CHECK_EQUAL(n, i);
         }
         ++n;

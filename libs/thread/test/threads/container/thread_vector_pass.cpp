@@ -29,16 +29,18 @@ void join_all(TC & tc)
 template <typename TC>
 void interrupt_all(TC & tc)
 {
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
   for (typename TC::iterator it = tc.begin(); it != tc.end(); ++it)
   {
     it->interrupt();
   }
+#endif
 }
 }
 
 void increment_count()
 {
-  boost::mutex::scoped_lock lock(mutex);
+  boost::unique_lock<boost::mutex> lock(mutex);
   std::cout << "count = " << ++count << std::endl;
 }
 

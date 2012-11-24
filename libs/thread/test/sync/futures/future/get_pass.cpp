@@ -14,9 +14,11 @@
 
 // <boost/thread/future.hpp>
 
-// class promise<R>
+// class future<R>
 
-// future<R> get_future();
+// const R& future::get();
+// R& future<R&>::get();
+// void future<void>::get();
 
 //#define BOOST_THREAD_VERSION 3
 #define BOOST_THREAD_VERSION 4

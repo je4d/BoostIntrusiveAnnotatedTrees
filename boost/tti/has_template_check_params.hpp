@@ -4,8 +4,10 @@
 //  Version 1.0. (See accompanying file LICENSE_1_0.txt or copy at
 //  http://www.boost.org/LICENSE_1_0.txt).
 
-#if !defined(TTI_HAS_TEMPLATE_CHECK_PARAMS_HPP)
-#define TTI_HAS_TEMPLATE_CHECK_PARAMS_HPP
+#if !defined(BOOST_TTI_HAS_TEMPLATE_CHECK_PARAMS_HPP)
+#define BOOST_TTI_HAS_TEMPLATE_CHECK_PARAMS_HPP
+
+#if defined(BOOST_TTI_VERSION_1_5)
 
 #include <boost/config.hpp>
 #include <boost/preprocessor/cat.hpp>
@@ -51,7 +53,7 @@
     
 */
 #define BOOST_TTI_TRAIT_HAS_TEMPLATE_CHECK_PARAMS(trait,name,tpSeq) \
-  TTI_DETAIL_TRAIT_HAS_TEMPLATE_CHECK_PARAMS(BOOST_PP_CAT(trait,_detail),name,tpSeq) \
+  BOOST_TTI_DETAIL_TRAIT_CALL_HAS_TEMPLATE_CHECK_PARAMS(BOOST_PP_CAT(trait,_detail),name,tpSeq) \
   template<class TTI_T> \
   struct trait : \
     BOOST_PP_CAT(trait,_detail)<TTI_T> \
@@ -95,4 +97,5 @@
   ) \
 /**/
 
-#endif // TTI_HAS_TEMPLATE_CHECK_PARAMS_HPP
+#endif // BOOST_TTI_VERSION_1_5
+#endif // !BOOST_TTI_HAS_TEMPLATE_CHECK_PARAMS_HPP

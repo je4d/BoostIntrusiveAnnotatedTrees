@@ -3,6 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#define BOOST_THREAD_VERSION 2
+
 #include <boost/thread/thread.hpp>
 #include <boost/thread/condition.hpp>
 #include <boost/thread/recursive_mutex.hpp>
@@ -25,7 +27,7 @@ void ThreadFuncWaiter()
   for (int j = 0; j < 10; j++)
   {
     {
-      boost::recursive_mutex::scoped_lock lockMtx(theMutex);
+      boost::unique_lock<boost::recursive_mutex> lockMtx(theMutex);
       theConditions.push_back(&con1);
 
       cout << "Added " << boost::this_thread::get_id() << " " << &con1 << endl;
@@ -54,7 +56,7 @@ void ThreadFuncNotifier()
   for (int j = 0; j < 70; j++)
   {
     {
-      boost::recursive_mutex::scoped_lock lockMtx(theMutex);
+      boost::unique_lock<boost::recursive_mutex> lockMtx(theMutex);
       cout << "<Notifier " << j << endl;
 
       unsigned int i = 0;

@@ -3,6 +3,8 @@
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
+#define BOOST_THREAD_VERSION 2
+
 #include <boost/thread/thread.hpp>
 #include <boost/thread/shared_mutex.hpp>
 #include <boost/detail/no_exceptions_support.hpp>
@@ -18,15 +20,28 @@ void thread()
   {
     for (int i =0; i<10; ++i)
     {
+#if 0
       boost::system_time timeout = boost::get_system_time() + boost::posix_time::milliseconds(50);
 
       if (mutex.timed_lock(timeout))
       {
-        std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+        std::cout << __FILE__ << ":" << __LINE__ << " i="<<i << std::endl;
         boost::this_thread::sleep(boost::posix_time::milliseconds(10));
         mutex.unlock();
-        std::cout << __FILE__ << ":" << __LINE__ << std::endl;
+        std::cout << __FILE__ << ":" << __LINE__ << " i="<<i << std::endl;
       }
+#else
+      boost::chrono::system_clock::time_point timeout = boost::chrono::system_clock::now() + boost::chrono::milliseconds(50);
+
+      std::cout << __FILE__ << ":" << __LINE__ << " i="<<i << std::endl;
+      if (mutex.try_lock_until(timeout))
+      {
+        std::cout << __FILE__ << ":" << __LINE__ << " i="<<i << std::endl;
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
+        mutex.unlock();
+        std::cout << __FILE__ << ":" << __LINE__ << " i="<<i << std::endl;
+      }
+#endif
     }
   }
   BOOST_CATCH (boost::lock_error& le)

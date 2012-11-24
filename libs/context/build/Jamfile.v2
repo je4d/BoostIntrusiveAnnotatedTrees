@@ -256,18 +256,7 @@ alias asm_context_sources
      <architecture>x86
      <binary-format>mach-o
      <target-os>darwin
-     <toolset>gcc
-   ;
-
-alias asm_context_sources
-   : asm/make_i386_sysv_macho_gas.S
-     asm/jump_i386_sysv_macho_gas.S
-   : <abi>sysv
-     <address-model>32
-     <architecture>x86
-     <binary-format>mach-o
-     <target-os>darwin
-     <toolset>qcc
+     <toolset>darwin
    ;
 
 alias asm_context_sources
@@ -371,7 +360,7 @@ alias asm_context_sources
      <architecture>x86
      <binary-format>mach-o
      <target-os>darwin
-     <toolset>gcc
+     <toolset>darwin
    ;
 
 alias asm_context_sources
@@ -440,15 +429,11 @@ alias select_asm_context_sources
 alias context_sources
    : fcontext.cpp
      seh.cpp
-     guarded_stack_allocator_windows.cpp
-     utils_windows.cpp
    : <target-os>windows
    ;
 
 alias context_sources
    : fcontext.cpp
-     guarded_stack_allocator_posix.cpp
-     utils_posix.cpp
    ;
 
 explicit context_sources ;

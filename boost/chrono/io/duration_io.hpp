@@ -105,6 +105,8 @@ namespace boost
       }
 
     private:
+      duration_style_io_saver& operator=(duration_style_io_saver const& rhs) ;
+
       state_type& s_save_;
       aspect_type a_save_;
     };
@@ -127,7 +129,7 @@ namespace boost
         BOOST_TRY
         {
           typename std::basic_ostream<CharT, Traits>::sentry opfx(os);
-          if (opfx)
+          if (bool(opfx))
           {
             if (!std::has_facet<duration_put<CharT> >(os.getloc()))
             {
@@ -185,7 +187,7 @@ namespace boost
       BOOST_TRY
       {
         typename std::basic_istream<CharT, Traits>::sentry ipfx(is);
-        if (ipfx)
+        if (bool(ipfx))
         {
           if (!std::has_facet<duration_get<CharT> >(is.getloc()))
           {
