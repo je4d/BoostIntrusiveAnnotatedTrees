@@ -15,6 +15,7 @@
 
 #ifndef BOOST_NO_EXCEPTIONS
 
+//#include <boost/thread/detail/log.hpp>
 #include <boost/detail/scoped_enum_emulation.hpp>
 #include <stdexcept>
 #include <boost/thread/detail/move.hpp>
@@ -28,7 +29,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/type_traits/is_fundamental.hpp>
-#include <boost/type_traits/is_convertible.hpp>
+#include <boost/thread/detail/is_convertible.hpp>
 #include <boost/type_traits/remove_reference.hpp>
 #include <boost/type_traits/remove_cv.hpp>
 #include <boost/mpl/if.hpp>
@@ -45,7 +46,7 @@
 #include <boost/next_prior.hpp>
 #include <vector>
 
-#include <boost/system/error_code.hpp>
+#include <boost/thread/future_error_code.hpp>
 #ifdef BOOST_THREAD_USES_CHRONO
 #include <boost/chrono/system_clocks.hpp>
 #endif
@@ -66,86 +67,46 @@
 namespace boost
 {
 
-  //enum class future_errc
-  BOOST_SCOPED_ENUM_DECLARE_BEGIN(future_errc)
-  {
-      broken_promise = 1,
-      future_already_retrieved,
-      promise_already_satisfied,
-      no_state
-  }
-  BOOST_SCOPED_ENUM_DECLARE_END(future_errc)
-
-  namespace system
-  {
-    template <>
-    struct BOOST_SYMBOL_VISIBLE is_error_code_enum<future_errc> : public true_type {};
-
-    #ifdef BOOST_NO_CXX11_SCOPED_ENUMS
-    template <>
-    struct BOOST_SYMBOL_VISIBLE is_error_code_enum<future_errc::enum_type> : public true_type { };
-    #endif
-  }
-
-  //enum class launch
-  BOOST_SCOPED_ENUM_DECLARE_BEGIN(launch)
-  {
-      async = 1,
-      deferred = 2,
-      any = async | deferred
-  }
-  BOOST_SCOPED_ENUM_DECLARE_END(launch)
-
-  //enum class future_status
-  BOOST_SCOPED_ENUM_DECLARE_BEGIN(future_status)
-  {
-      ready,
-      timeout,
-      deferred
-  }
-  BOOST_SCOPED_ENUM_DECLARE_END(future_status)
-
-  BOOST_THREAD_DECL
-  const system::error_category& future_category() BOOST_NOEXCEPT;
-
-  namespace system
-  {
-    inline
-    error_code
-    make_error_code(future_errc e) //BOOST_NOEXCEPT
+    //enum class launch
+    BOOST_SCOPED_ENUM_DECLARE_BEGIN(launch)
     {
-        return error_code(underlying_cast<int>(e), boost::future_category());
+        none = 0,
+        async = 1,
+        deferred = 2,
+        any = async | deferred
     }
+    BOOST_SCOPED_ENUM_DECLARE_END(launch)
 
-    inline
-    error_condition
-    make_error_condition(future_errc e) //BOOST_NOEXCEPT
+    //enum class future_status
+    BOOST_SCOPED_ENUM_DECLARE_BEGIN(future_status)
     {
-        return error_condition(underlying_cast<int>(e), future_category());
+        ready,
+        timeout,
+        deferred
     }
-  }
+    BOOST_SCOPED_ENUM_DECLARE_END(future_status)
 
-  class BOOST_SYMBOL_VISIBLE future_error
-      : public std::logic_error
-  {
-      system::error_code ec_;
-  public:
-      future_error(system::error_code ec)
-      : logic_error(ec.message()),
-        ec_(ec)
-      {
-      }
+    class BOOST_SYMBOL_VISIBLE future_error
+        : public std::logic_error
+    {
+        system::error_code ec_;
+    public:
+        future_error(system::error_code ec)
+        : logic_error(ec.message()),
+          ec_(ec)
+        {
+        }
 
-      const system::error_code& code() const BOOST_NOEXCEPT
-      {
-        return ec_;
-      }
-      const char* what() const BOOST_THREAD_NOEXCEPT_OR_THROW
-      {
-        return code().message().c_str();
-      }
+        const system::error_code& code() const BOOST_NOEXCEPT
+        {
+          return ec_;
+        }
+        const char* what() const BOOST_THREAD_NOEXCEPT_OR_THROW
+        {
+          return code().message().c_str();
+        }
 
-  };
+    };
 
     class BOOST_SYMBOL_VISIBLE future_uninitialized:
         public future_error
@@ -189,23 +150,23 @@ namespace boost
         {}
     };
 
-        class BOOST_SYMBOL_VISIBLE task_moved:
-            public future_error
-        {
-        public:
-            task_moved():
-              future_error(system::make_error_code(future_errc::no_state))
-            {}
-        };
+    class BOOST_SYMBOL_VISIBLE task_moved:
+        public future_error
+    {
+    public:
+        task_moved():
+          future_error(system::make_error_code(future_errc::no_state))
+        {}
+    };
 
-            class promise_moved:
-                public future_error
-            {
-            public:
-                  promise_moved():
-                  future_error(system::make_error_code(future_errc::no_state))
-                {}
-            };
+    class promise_moved:
+        public future_error
+    {
+    public:
+          promise_moved():
+          future_error(system::make_error_code(future_errc::no_state))
+        {}
+    };
 
     namespace future_state
     {
@@ -266,34 +227,47 @@ namespace boost
             bool is_deferred_;
             launch policy_;
             bool is_constructed;
-#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
-            bool thread_was_interrupted;
-#endif
             boost::mutex mutex;
             boost::condition_variable waiters;
             typedef std::list<boost::condition_variable_any*> waiter_list;
             waiter_list external_waiters;
             boost::function<void()> callback;
+//#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
+            bool thread_was_interrupted;
+//#endif
 #if defined BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
             shared_ptr<future_continuation_base> continuation_ptr;
+#else
+            shared_ptr<void> continuation_ptr;
 #endif
             future_object_base():
                 done(false),
                 is_deferred_(false),
-                policy_(launch::any),
+                policy_(launch::none),
                 is_constructed(false)
-#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
-               , thread_was_interrupted(false)
-#endif
-#if defined BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
+//#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
+              , thread_was_interrupted(false)
+//#endif
+//#if defined BOOST_THREAD_PROVIDES_FUTURE_CONTINUATION
                , continuation_ptr()
-#endif
+//#endif
             {}
             virtual ~future_object_base()
             {}
 
-            void set_deferred() {is_deferred_ = true;}
-            void set_launch_policy(launch policy) {policy_ = policy;}
+            void set_deferred()
+            {
+              is_deferred_ = true;
+              set_launch_policy(launch::deferred);
+            }
+            void set_async()
+            {
+              set_launch_policy(launch::async);
+            }
+            void set_launch_policy(launch policy)
+            {
+              policy_ = policy;
+            }
 
             waiter_list::iterator register_external_waiter(boost::condition_variable_any& cv)
             {
@@ -505,7 +479,9 @@ namespace boost
 #endif
                     );
             }
-            void is_deferred() {is_deferred_ = true;}
+            bool is_deferred()  const BOOST_NOEXCEPT {
+                return is_deferred_ == true;
+            }
 
             launch launch_policy() const BOOST_NOEXCEPT
             {
@@ -515,6 +491,7 @@ namespace boost
             template<typename F,typename U>
             void set_wait_callback(F f,U* u)
             {
+                boost::lock_guard<boost::mutex> lock(mutex);
                 callback=boost::bind(f,boost::ref(*u));
             }
             virtual void execute(boost::unique_lock<boost::mutex>&) {}
@@ -539,8 +516,8 @@ namespace boost
             typedef typename boost::mpl::if_<boost::has_move_emulation_enabled<T>,BOOST_THREAD_RV_REF(T),T>::type move_dest_type;
 #else
             typedef T& source_reference_type;
-            typedef typename boost::mpl::if_<boost::is_convertible<T&,BOOST_THREAD_RV_REF(T) >,BOOST_THREAD_RV_REF(T),T const&>::type rvalue_source_type;
-            typedef typename boost::mpl::if_<boost::is_convertible<T&,BOOST_THREAD_RV_REF(T) >,BOOST_THREAD_RV_REF(T),T>::type move_dest_type;
+            typedef typename boost::mpl::if_<boost::thread_detail::is_convertible<T&,BOOST_THREAD_RV_REF(T) >,BOOST_THREAD_RV_REF(T),T const&>::type rvalue_source_type;
+            typedef typename boost::mpl::if_<boost::thread_detail::is_convertible<T&,BOOST_THREAD_RV_REF(T) >,BOOST_THREAD_RV_REF(T),T>::type move_dest_type;
 #endif
 
             typedef const T& shared_future_get_result_type;
@@ -858,84 +835,100 @@ namespace boost
             future_object& operator=(future_object const&);
         };
 
+        /////////////////////////
         /// future_async_object
+        /////////////////////////
         template<typename Rp, typename Fp>
         struct future_async_object: future_object<Rp>
         {
           typedef future_object<Rp> base_type;
-          Fp func_;
+          typedef typename base_type::move_dest_type move_dest_type;
+
           boost::thread thr_;
 
         public:
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-          explicit future_async_object(Fp&& f)
-          : func_(boost::forward<Fp>(f))
-        #else
-          explicit future_async_object(Fp f)
-          : func_(f)
-        #endif
-          , thr_(&future_async_object::execute, *this)
+          explicit future_async_object(BOOST_THREAD_FWD_REF(Fp) f) :
+            thr_(&future_async_object::run, this, boost::forward<Fp>(f))
           {
+            this->set_async();
           }
 
           ~future_async_object()
           {
-            thr_.join();
+            if (thr_.joinable()) thr_.join();
           }
 
-          virtual void execute(boost::unique_lock<boost::mutex>& lock) {
+          move_dest_type get()
+          {
+              if (thr_.joinable()) thr_.join();
+              // fixme Is the lock needed during the whole scope?
+              //this->wait();
+              boost::unique_lock<boost::mutex> lock(this->mutex);
+              this->wait_internal(lock);
+
+              return static_cast<move_dest_type>(*(this->result));
+          }
+
+          static void run(future_async_object* that, BOOST_THREAD_FWD_REF(Fp) f)
+          {
             try
             {
-              this->mark_finished_with_result_internal(func_(), lock);
+              that->mark_finished_with_result(f());
             }
-            catch (...)
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
+            catch(thread_interrupted& )
             {
-              this->mark_exceptional_finish_internal(current_exception(), lock);
+              that->mark_interrupted_finish();
             }
-
+#endif
+            catch(...)
+            {
+              that->mark_exceptional_finish();
+            }
           }
-
         };
 
         template<typename Fp>
         struct future_async_object<void, Fp>: public future_object<void>
         {
           typedef future_object<void> base_type;
-          Fp func_;
+
           boost::thread thr_;
 
         public:
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-          explicit future_async_object(Fp&& f)
-          : func_(boost::forward<Fp>(f))
-        #else
-          explicit future_async_object(Fp f)
-          : func_(f)
-        #endif
-          , thr_(&future_async_object::execute, *this)
+          explicit future_async_object(BOOST_THREAD_FWD_REF(Fp) f) :
+           thr_(&future_async_object::run, this, boost::forward<Fp>(f))
           {
+            this->set_async();
           }
 
           ~future_async_object()
           {
-            thr_.join();
+            if (thr_.joinable()) thr_.join();
           }
 
-          virtual void execute(boost::unique_lock<boost::mutex>& lock) {
+          static void run(future_async_object* that, BOOST_THREAD_FWD_REF(Fp) f)
+          {
             try
             {
-              func_();
-              this->mark_finished_with_result_internal(lock);
+              f();
+              that->mark_finished_with_result();
             }
-            catch (...)
+#if defined BOOST_THREAD_PROVIDES_INTERRUPTIONS
+            catch(thread_interrupted& )
             {
-              this->mark_exceptional_finish_internal(current_exception(), lock);
+              that->mark_interrupted_finish();
             }
-
+#endif
+            catch(...)
+            {
+              that->mark_exceptional_finish();
+            }
           }
-
         };
+        //////////////////////////
         /// future_deferred_object
+        //////////////////////////
         template<typename Rp, typename Fp>
         struct future_deferred_object: future_object<Rp>
         {
@@ -943,13 +936,8 @@ namespace boost
           Fp func_;
 
         public:
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-          explicit future_deferred_object(Fp&& f)
+          explicit future_deferred_object(BOOST_THREAD_FWD_REF(Fp) f)
           : func_(boost::forward<Fp>(f))
-        #else
-          explicit future_deferred_object(Fp f)
-          : func_(f)
-        #endif
           {
             this->set_deferred();
           }
@@ -973,13 +961,8 @@ namespace boost
           Fp func_;
 
         public:
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-          explicit future_deferred_object(Fp&& f)
+          explicit future_deferred_object(BOOST_THREAD_FWD_REF(Fp) f)
           : func_(boost::forward<Fp>(f))
-        #else
-          explicit future_deferred_object(Fp f)
-          : func_(f)
-        #endif
           {
             this->set_deferred();
           }
@@ -1314,7 +1297,7 @@ namespace boost
         launch launch_policy() const BOOST_NOEXCEPT
         {
             if ( future_ ) return future_->launch_policy();
-            else return launch(launch::any);
+            else return launch(launch::none);
         }
 
         bool valid() const BOOST_NOEXCEPT
@@ -1377,19 +1360,11 @@ namespace boost
     {
         template <class Rp, class Fp>
         BOOST_THREAD_FUTURE<Rp>
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-        make_future_async_object(Fp&& f);
-        #else
-        make_future_async_object(Fp f);
-        #endif
+        make_future_async_object(BOOST_THREAD_FWD_REF(Fp) f);
 
         template <class Rp, class Fp>
         BOOST_THREAD_FUTURE<Rp>
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-        make_future_deferred_object(Fp&& f);
-        #else
-        make_future_deferred_object(Fp f);
-        #endif
+        make_future_deferred_object(BOOST_THREAD_FWD_REF(Fp) f);
     }
 
     template <typename R>
@@ -1414,19 +1389,11 @@ namespace boost
 
         template <class Rp, class Fp>
         friend BOOST_THREAD_FUTURE<Rp>
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-        detail::make_future_async_object(Fp&& f);
-        #else
-        detail::make_future_async_object(Fp f);
-        #endif
+        detail::make_future_async_object(BOOST_THREAD_FWD_REF(Fp) f);
 
         template <class Rp, class Fp>
         friend BOOST_THREAD_FUTURE<Rp>
-        #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-        detail::make_future_deferred_object(Fp&& f);
-        #else
-        detail::make_future_deferred_object(Fp f);
-        #endif
+        detail::make_future_deferred_object(BOOST_THREAD_FWD_REF(Fp) f);
 
         typedef typename detail::future_traits<R>::move_dest_type move_dest_type;
 
@@ -2837,11 +2804,7 @@ namespace boost
     ////////////////////////////////
     template <class Rp, class Fp>
     BOOST_THREAD_FUTURE<Rp>
-    #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-    make_future_deferred_object(Fp&& f)
-    #else
-    make_future_deferred_object(Fp f)
-    #endif
+    make_future_deferred_object(BOOST_THREAD_FWD_REF(Fp) f)
     {
       shared_ptr<future_deferred_object<Rp, Fp> >
           h(new future_deferred_object<Rp, Fp>(boost::forward<Fp>(f)));
@@ -2853,11 +2816,7 @@ namespace boost
     ////////////////////////////////
     template <class Rp, class Fp>
     BOOST_THREAD_FUTURE<Rp>
-    #if ! defined BOOST_NO_CXX11_RVALUE_REFERENCES
-    make_future_async_object(Fp&& f)
-    #else
-    make_future_async_object(Fp f)
-    #endif
+    make_future_async_object(BOOST_THREAD_FWD_REF(Fp) f)
     {
       shared_ptr<future_async_object<Rp, Fp> >
           h(new future_async_object<Rp, Fp>(boost::forward<Fp>(f)));
@@ -2971,6 +2930,14 @@ namespace boost
 
         if (int(policy) & int(launch::async))
         {
+#if defined BOOST_THREAD_PROVIDES_SIGNATURE_PACKAGED_TASK && defined(BOOST_THREAD_PROVIDES_VARIADIC_THREAD)
+          return boost::detail::make_future_async_object<Rp>(
+              BF(
+                  thread_detail::decay_copy(boost::forward<F>(f))
+                  , thread_detail::decay_copy(boost::forward<ArgTypes>(args))...
+              )
+          );
+#else
           packaged_task_type pt( boost::forward<F>(f) );
 
           BOOST_THREAD_FUTURE<R> ret = pt.get_future();
@@ -2980,6 +2947,7 @@ namespace boost
           boost::thread( boost::move(pt) ).detach();
 #endif
           return ::boost::move(ret);
+#endif
         }
         else if (int(policy) & int(launch::deferred))
         {

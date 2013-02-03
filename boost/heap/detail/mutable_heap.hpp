@@ -146,7 +146,7 @@ protected:
         return *this;
     }
 
-#ifdef BOOST_HAS_RVALUE_REFS
+#ifndef BOOST_NO_CXX11_RVALUE_REFERENCES
     priority_queue_mutable_wrapper (priority_queue_mutable_wrapper && rhs):
         q_(std::move(rhs.q_))
     {
@@ -339,7 +339,7 @@ public:
         return handle_type(ret);
     }
 
-#if defined(BOOST_HAS_RVALUE_REFS) && !defined(BOOST_NO_VARIADIC_TEMPLATES)
+#if !defined(BOOST_NO_CXX11_RVALUE_REFERENCES) && !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES)
     template <class... Args>
     handle_type emplace(Args&&... args)
     {
@@ -382,7 +382,7 @@ public:
     {
         list_iterator it = handle.iterator;
         value_type const & current_value = it->first;
-        value_compare const & cmp = q_;
+        value_compare const & cmp = q_.value_comp();
         if (cmp(v, current_value))
             decrease(handle, v);
         else

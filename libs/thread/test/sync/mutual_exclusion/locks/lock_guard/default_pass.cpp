@@ -16,7 +16,7 @@
 
 // template <class Mutex> class lock_guard;
 
-// lock_guard(lock_guard const&) = delete;
+// lock_guard(Mutex &);
 
 #include <boost/thread/lock_guard.hpp>
 #include <boost/thread/mutex.hpp>

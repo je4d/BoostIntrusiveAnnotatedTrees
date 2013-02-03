@@ -1,12 +1,12 @@
 // Copyright (C) 2001-2003
 // William E. Kempf
 // Copyright (C) 2007-8 Anthony Williams
-// (C) Copyright 2011 Vicente J. Botet Escriba
+// (C) Copyright 2011-2012 Vicente J. Botet Escriba
 //
 //  Distributed under the Boost Software License, Version 1.0. (See accompanying
 //  file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#define BOOST_THREAD_VERSION 2
+#define BOOST_THREAD_VERSION 3
 #include <boost/thread/detail/config.hpp>
 
 #include <boost/thread/thread.hpp>
@@ -351,7 +351,7 @@ namespace boost
                 unique_lock<mutex> lock(local_thread_info->data_mutex);
                 while(!local_thread_info->done)
                 {
-                    if(!local_thread_info->done_condition.do_timed_wait(lock,timeout))
+                    if(!local_thread_info->done_condition.do_wait_until(lock,timeout))
                     {
                       res=false;
                       return true;
@@ -395,7 +395,7 @@ namespace boost
 
     bool thread::joinable() const BOOST_NOEXCEPT
     {
-        return (get_thread_info)();
+        return (get_thread_info)()?true:false;
     }
 
 
@@ -418,64 +418,100 @@ namespace boost
 
     namespace this_thread
     {
-
-#ifdef __DECXXX
-        /// Workaround of DECCXX issue of incorrect template substitution
-        template<>
-#endif
-#if defined BOOST_THREAD_USES_DATETIME
-        void sleep(const system_time& st)
+      namespace hiden
+      {
+        void BOOST_THREAD_DECL sleep_for(const timespec& ts)
         {
-            detail::thread_data_base* const thread_info=detail::get_current_thread_data();
+            boost::detail::thread_data_base* const thread_info=boost::detail::get_current_thread_data();
 
             if(thread_info)
             {
-                unique_lock<mutex> lk(thread_info->sleep_mutex);
-                while(thread_info->sleep_condition.timed_wait(lk,st)) {}
+              unique_lock<mutex> lk(thread_info->sleep_mutex);
+              while( thread_info->sleep_condition.do_wait_for(lk,ts)) {}
             }
             else
             {
-                xtime const xt=get_xtime(st);
 
-                for (int foo=0; foo < 5; ++foo)
-                {
-#   if defined(BOOST_HAS_PTHREAD_DELAY_NP)
-                    timespec ts;
-                    to_timespec_duration(xt, ts);
-                    BOOST_VERIFY(!pthread_delay_np(&ts));
-#   elif defined(BOOST_HAS_NANOSLEEP)
-                    timespec ts;
-                    to_timespec_duration(xt, ts);
+              if (boost::detail::timespec_ge(ts, boost::detail::timespec_zero()))
+              {
 
-                    //  nanosleep takes a timespec that is an offset, not
-                    //  an absolute time.
-                    nanosleep(&ts, 0);
-#   else
-                    mutex mx;
-                    mutex::scoped_lock lock(mx);
-                    condition cond;
-                    cond.timed_wait(lock, xt);
-#   endif
-                    xtime cur;
-                    xtime_get(&cur, TIME_UTC_);
-                    if (xtime_cmp(xt, cur) <= 0)
-                        return;
-                }
+  #   if defined(BOOST_HAS_PTHREAD_DELAY_NP)
+                BOOST_VERIFY(!pthread_delay_np(&ts));
+  #   elif defined(BOOST_HAS_NANOSLEEP)
+                //  nanosleep takes a timespec that is an offset, not
+                //  an absolute time.
+                nanosleep(&ts, 0);
+  #   else
+                mutex mx;
+                unique_lock<mutex> lock(mx);
+                condition_variable cond;
+                cond.do_wait_for(lock, ts);
+  #   endif
+              }
             }
         }
-#endif
+
+        void BOOST_THREAD_DECL sleep_until(const timespec& ts)
+        {
+            boost::detail::thread_data_base* const thread_info=boost::detail::get_current_thread_data();
+
+            if(thread_info)
+            {
+              unique_lock<mutex> lk(thread_info->sleep_mutex);
+              while(thread_info->sleep_condition.do_wait_until(lk,ts)) {}
+            }
+            else
+            {
+              timespec now = boost::detail::timespec_now();
+              if (boost::detail::timespec_gt(ts, now))
+              {
+                for (int foo=0; foo < 5; ++foo)
+                {
+
+  #   if defined(BOOST_HAS_PTHREAD_DELAY_NP)
+                  timespec d = boost::detail::timespec_minus(ts, now);
+                  BOOST_VERIFY(!pthread_delay_np(&d));
+  #   elif defined(BOOST_HAS_NANOSLEEP)
+                  //  nanosleep takes a timespec that is an offset, not
+                  //  an absolute time.
+                  timespec d = boost::detail::timespec_minus(ts, now);
+                  nanosleep(&d, 0);
+  #   else
+                  mutex mx;
+                  unique_lock<mutex> lock(mx);
+                  condition_variable cond;
+                  cond.do_wait_until(lock, ts);
+  #   endif
+                  timespec now2 = boost::detail::timespec_now();
+                  if (boost::detail::timespec_ge(now2, ts))
+                  {
+                    return;
+                  }
+                }
+              }
+            }
+        }
+      } // hiden
+    } // this_thread
+    namespace this_thread
+    {
         void yield() BOOST_NOEXCEPT
         {
 #   if defined(BOOST_HAS_SCHED_YIELD)
             BOOST_VERIFY(!sched_yield());
 #   elif defined(BOOST_HAS_PTHREAD_YIELD)
             BOOST_VERIFY(!pthread_yield());
-#   elif defined BOOST_THREAD_USES_DATETIME
-            xtime xt;
-            xtime_get(&xt, TIME_UTC_);
-            sleep(xt);
+//#   elif defined BOOST_THREAD_USES_DATETIME
+//            xtime xt;
+//            xtime_get(&xt, TIME_UTC_);
+//            sleep(xt);
+//            sleep_for(chrono::milliseconds(0));
 #   else
-            sleep_for(chrono::milliseconds(0));
+#error
+            timespec ts;
+            ts.tv_sec= 0;
+            ts.tv_nsec= 0;
+            hiden::sleep_for(ts);
 #   endif
         }
     }
@@ -692,6 +728,7 @@ namespace boost
             }
         }
     }
+
     BOOST_THREAD_DECL void notify_all_at_thread_exit(condition_variable& cond, unique_lock<mutex> lk)
     {
       detail::thread_data_base* const current_thread_data(detail::get_current_thread_data());

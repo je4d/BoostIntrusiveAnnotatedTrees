@@ -145,4 +145,13 @@
 * New floating point hasher - will hash the binary representation on more
   platforms, which should be faster.
 
+[h2 Boost 1.53.0]
+
+* Add support for `boost::int128_type` and `boost::uint128_type` where
+  available - currently only `__int128` and `unsigned __int128` on some
+  versions of gcc.
+* On platforms that are known to have the standard floating point functions,
+  don't use automatic detection - which can break if there are ambiguous
+  overloads.
+
 [endsect]

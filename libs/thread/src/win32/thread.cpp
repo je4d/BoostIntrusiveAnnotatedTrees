@@ -3,6 +3,7 @@
 // http://www.boost.org/LICENSE_1_0.txt)
 // (C) Copyright 2007 Anthony Williams
 // (C) Copyright 2007 David Deakins
+// (C) Copyright 2011-2012 Vicente J. Botet Escriba
 
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x400
@@ -11,7 +12,7 @@
 #ifndef WINVER
 #define WINVER 0x400
 #endif
-#define BOOST_THREAD_VERSION 2
+#define BOOST_THREAD_VERSION 3
 
 #include <boost/thread/thread.hpp>
 #include <boost/thread/once.hpp>
@@ -329,7 +330,7 @@ namespace boost
 
     bool thread::joinable() const BOOST_NOEXCEPT
     {
-        return (get_thread_info)();
+        return (get_thread_info)() ? true : false;
     }
     bool thread::join_noexcept()
     {

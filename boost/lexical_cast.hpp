@@ -112,7 +112,7 @@ namespace boost
             return *target;
         }
 
-#ifndef BOOST_NO_NOEXCEPT
+#ifndef BOOST_NO_CXX11_NOEXCEPT
         virtual const char *what() const noexcept
 #else
         virtual const char *what() const throw()
@@ -122,7 +122,7 @@ namespace boost
                    "source type value could not be interpreted as target";
         }
 
-#ifndef BOOST_NO_NOEXCEPT
+#ifndef BOOST_NO_CXX11_NOEXCEPT
         virtual ~bad_lexical_cast() BOOST_NOEXCEPT
 #else
         virtual ~bad_lexical_cast() throw()
@@ -151,7 +151,7 @@ namespace boost
 #include <cmath>
 #include <istream>
 
-#if !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#ifndef BOOST_NO_CXX11_HDR_ARRAY
 #include <array>
 #endif
 
@@ -185,10 +185,10 @@ namespace boost {
                     #ifndef BOOST_LCAST_NO_WCHAR_T
                         boost::is_same< T, wchar_t >::value,
                     #endif
-                    #ifndef BOOST_NO_CHAR16_T
+                    #ifndef BOOST_NO_CXX11_CHAR16_T
                         boost::is_same< T, char16_t >::value,
                     #endif
-                    #ifndef BOOST_NO_CHAR32_T
+                    #ifndef BOOST_NO_CXX11_CHAR32_T
                         boost::is_same< T, char32_t >::value,
                     #endif
                     boost::is_same< T, unsigned char >::value,
@@ -294,7 +294,7 @@ namespace boost {
             boost::detail::deduce_character_type_later< boost::array< const Char, N > >
         > {};
 
-#if !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#ifndef BOOST_NO_CXX11_HDR_ARRAY
         template < typename Char, std::size_t N >
         struct stream_char_common< std::array<Char, N > >: public boost::mpl::if_c<
             boost::detail::is_char_or_wchar< Char >::value,
@@ -308,7 +308,7 @@ namespace boost {
             Char,
             boost::detail::deduce_character_type_later< std::array< const Char, N > >
         > {};
-#endif // !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#endif
 
 #if !defined(BOOST_LCAST_NO_WCHAR_T) && defined(BOOST_NO_INTRINSIC_WCHAR_T)
         template <>
@@ -667,12 +667,12 @@ namespace boost {
                 target_char_t, src_char_t
             >::type char_type;
 
-#if !defined(BOOST_NO_CHAR16_T) && defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR16_T) && defined(BOOST_NO_CXX11_UNICODE_LITERALS)
             BOOST_STATIC_ASSERT_MSG(( !boost::is_same<char16_t, src_char_t>::value
                                         && !boost::is_same<char16_t, target_char_t>::value),
                 "Your compiler does not have full support for char16_t" );
 #endif
-#if !defined(BOOST_NO_CHAR32_T) && defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR32_T) && defined(BOOST_NO_CXX11_UNICODE_LITERALS)
             BOOST_STATIC_ASSERT_MSG(( !boost::is_same<char32_t, src_char_t>::value
                                         && !boost::is_same<char32_t, target_char_t>::value),
                 "Your compiler does not have full support for char32_t" );
@@ -738,7 +738,7 @@ namespace boost {
         };
 #endif
 
-#if !defined(BOOST_NO_CHAR16_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR16_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
         template<>
         struct lcast_char_constants<char16_t>
         {
@@ -751,7 +751,7 @@ namespace boost {
         };
 #endif
 
-#if !defined(BOOST_NO_CHAR32_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR32_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
         template<>
         struct lcast_char_constants<char32_t>
         {
@@ -1101,7 +1101,7 @@ namespace boost {
         }
 
 #endif
-#if !defined(BOOST_NO_CHAR16_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR16_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
         template <class T>
         bool parse_inf_nan(const char16_t* begin, const char16_t* end, T& value) BOOST_NOEXCEPT
         {
@@ -1117,7 +1117,7 @@ namespace boost {
             return put_inf_nan_impl(begin, end, value, u"nan", u"infinity");
         }
 #endif
-#if !defined(BOOST_NO_CHAR32_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR32_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
         template <class T>
         bool parse_inf_nan(const char32_t* begin, const char32_t* end, T& value) BOOST_NOEXCEPT
         {
@@ -1704,12 +1704,12 @@ namespace boost {
             bool operator<<(wchar_t ch)                 { return shl_char(ch); }
 #endif
 #endif
-#if !defined(BOOST_NO_CHAR16_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR16_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
             bool operator<<(char16_t ch)                { return shl_char(ch); }
             bool operator<<(char16_t * str)             { return shl_char_array(str); }
             bool operator<<(char16_t const * str)       { return shl_char_array(str); }
 #endif
-#if !defined(BOOST_NO_CHAR32_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR32_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
             bool operator<<(char32_t ch)                { return shl_char(ch); }
             bool operator<<(char32_t * str)             { return shl_char_array(str); }
             bool operator<<(char32_t const * str)       { return shl_char_array(str); }
@@ -1768,10 +1768,13 @@ namespace boost {
             bool operator<<(boost::array<const signed char, N> const& input) BOOST_NOEXCEPT
             { return ((*this) << reinterpret_cast<boost::array<const char, N> const& >(input)); }
  
-#if !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#ifndef BOOST_NO_CXX11_HDR_ARRAY
             template <std::size_t N>
             bool operator<<(std::array<CharT, N> const& input) BOOST_NOEXCEPT
-            { return shl_char_array_limited(input.begin(), N); }
+            { 
+                if (input.size()) return shl_char_array_limited(&input[0], N);
+                else return true; 
+            }
 
             template <std::size_t N>
             bool operator<<(std::array<unsigned char, N> const& input) BOOST_NOEXCEPT
@@ -1783,7 +1786,10 @@ namespace boost {
 
             template <std::size_t N>
             bool operator<<(std::array<const CharT, N> const& input) BOOST_NOEXCEPT
-            { return shl_char_array_limited(input.begin(), N); }
+            { 
+                if (input.size()) return shl_char_array_limited(&input[0], N);
+                else return true; 
+            }
 
             template <std::size_t N>
             bool operator<<(std::array<const unsigned char, N> const& input) BOOST_NOEXCEPT
@@ -1792,7 +1798,7 @@ namespace boost {
             template <std::size_t N>
             bool operator<<(std::array<const signed char, N> const& input) BOOST_NOEXCEPT
             { return ((*this) << reinterpret_cast<boost::array<const char, N> const& >(input)); }
-#endif // !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#endif
             
             template <class InStreamable>
             bool operator<<(const InStreamable& input)  { return shl_input_streamable(input); }
@@ -1961,10 +1967,10 @@ namespace boost {
 #if !defined(BOOST_LCAST_NO_WCHAR_T) && !defined(BOOST_NO_INTRINSIC_WCHAR_T)
             bool operator>>(wchar_t& output)                    { return shr_xchar(output); }
 #endif
-#if !defined(BOOST_NO_CHAR16_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR16_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
             bool operator>>(char16_t& output)                   { return shr_xchar(output); }
 #endif
-#if !defined(BOOST_NO_CHAR32_T) && !defined(BOOST_NO_UNICODE_LITERALS)
+#if !defined(BOOST_NO_CXX11_CHAR32_T) && !defined(BOOST_NO_CXX11_UNICODE_LITERALS)
             bool operator>>(char32_t& output)                   { return shr_xchar(output); }
 #endif
             template<class Alloc>
@@ -1984,8 +1990,8 @@ namespace boost {
                     return false;
                 }
 
-                memcpy(output.begin(), start, size * sizeof(CharT));
-                *(output.begin() + size) = Traits::to_char_type(0);
+                memcpy(&output[0], start, size * sizeof(CharT));
+                output[size] = Traits::to_char_type(0);
                 return true;
             }
 
@@ -2009,7 +2015,7 @@ namespace boost {
                 return ((*this) >> reinterpret_cast<boost::array<char, N>& >(output)); 
             }
  
-#if !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#ifndef BOOST_NO_CXX11_HDR_ARRAY
             template <std::size_t N>
             bool operator>>(std::array<CharT, N>& output) BOOST_NOEXCEPT
             { 
@@ -2023,11 +2029,11 @@ namespace boost {
             }
 
             template <std::size_t N>
-            bool operator>>(std::array<signed char, N>& in)   
+            bool operator>>(std::array<signed char, N>& output)
             { 
                 return ((*this) >> reinterpret_cast<std::array<char, N>& >(output)); 
             }
-#endif // !defined(BOOST_NO_CXX11_HDR_ARRAY) && defined(BOOST_HAS_TR1_ARRAY)
+#endif
 
 
             /*

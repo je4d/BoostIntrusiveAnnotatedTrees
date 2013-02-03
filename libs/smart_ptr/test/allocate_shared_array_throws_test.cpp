@@ -43,5 +43,35 @@ int main() {
     } catch (...) {
         BOOST_TEST(type::instances == 0);
     }
+#if !defined(BOOST_NO_CXX11_VARIADIC_TEMPLATES) && !defined(BOOST_NO_CXX11_RVALUE_REFERENCES)
+    BOOST_TEST(type::instances == 0);
+    try {
+        boost::allocate_shared<type[6]>(std::allocator<type>());
+        BOOST_ERROR("allocate_shared did not throw");
+    } catch (...) {
+        BOOST_TEST(type::instances == 0);
+    }
+    BOOST_TEST(type::instances == 0);
+    try {
+        boost::allocate_shared<type[3][2]>(std::allocator<type>());
+        BOOST_ERROR("allocate_shared did not throw");
+    } catch (...) {
+        BOOST_TEST(type::instances == 0);
+    }
+#endif
+    BOOST_TEST(type::instances == 0);
+    try {
+        boost::allocate_shared_noinit<type[]>(std::allocator<type>(), 6);
+        BOOST_ERROR("allocate_shared_noinit did not throw");
+    } catch (...) {
+        BOOST_TEST(type::instances == 0);
+    }
+    BOOST_TEST(type::instances == 0);
+    try {
+        boost::allocate_shared_noinit<type[][2]>(std::allocator<type>(), 3);
+        BOOST_ERROR("allocate_shared_noinit did not throw");
+    } catch (...) {
+        BOOST_TEST(type::instances == 0);
+    }
     return boost::report_errors();
 }

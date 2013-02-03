@@ -255,7 +255,7 @@ struct spsc_queue_tester
 {
     spsc_queue<int, capacity<128> > sf;
 
-    atomic<long> spsc_queue_cnt, received_nodes;
+    boost::lockfree::detail::atomic<long> spsc_queue_cnt, received_nodes;
 
     static_hashed_set<int, 1<<16 > working_set;
 
@@ -266,7 +266,6 @@ struct spsc_queue_tester
     void add(void)
     {
         for (boost::uint32_t i = 0; i != nodes_per_thread; ++i) {
-
             int id = generate_id<int>();
             working_set.insert(id);
 
@@ -275,12 +274,12 @@ struct spsc_queue_tester
 
             ++spsc_queue_cnt;
         }
+        running = false;
     }
 
     bool get_element(void)
     {
         int data;
-
         bool success = sf.pop(data);
 
         if (success) {
@@ -293,15 +292,17 @@ struct spsc_queue_tester
             return false;
     }
 
-    atomic<bool> running;
+    boost::lockfree::detail::atomic<bool> running;
 
     void get(void)
     {
         for(;;) {
             bool success = get_element();
             if (!running && !success)
-                return;
+                break;
         }
+
+        while ( get_element() );
     }
 
     void run(void)
@@ -317,7 +318,6 @@ struct spsc_queue_tester
         writer.join();
         cout << "writer threads joined. waiting for readers to finish" << endl;
 
-        running = false;
         reader.join();
 
         BOOST_REQUIRE_EQUAL(received_nodes, nodes_per_thread);
@@ -329,18 +329,18 @@ struct spsc_queue_tester
 
 BOOST_AUTO_TEST_CASE( spsc_queue_test_caching )
 {
-    spsc_queue_tester test1;
-    test1.run();
+    boost::shared_ptr<spsc_queue_tester> test1(new spsc_queue_tester);
+    test1->run();
 }
 
 struct spsc_queue_tester_buffering
 {
     spsc_queue<int, capacity<128> > sf;
 
-    atomic<long> spsc_queue_cnt;
+    boost::lockfree::detail::atomic<long> spsc_queue_cnt;
 
     static_hashed_set<int, 1<<16 > working_set;
-    atomic<long> received_nodes;
+    boost::lockfree::detail::atomic<long> received_nodes;
 
     spsc_queue_tester_buffering(void):
         spsc_queue_cnt(0), received_nodes(0)
@@ -367,6 +367,7 @@ struct spsc_queue_tester_buffering
 
             spsc_queue_cnt+=buf_size;
         }
+        running = false;
     }
 
     bool get_elements(void)
@@ -389,15 +390,17 @@ struct spsc_queue_tester_buffering
             return false;
     }
 
-    atomic<bool> running;
+    boost::lockfree::detail::atomic<bool> running;
 
     void get(void)
     {
         for(;;) {
             bool success = get_elements();
             if (!running && !success)
-                return;
+                break;
         }
+
+        while ( get_elements() );
     }
 
     void run(void)
@@ -411,7 +414,6 @@ struct spsc_queue_tester_buffering
         writer.join();
         cout << "writer threads joined. waiting for readers to finish" << endl;
 
-        running = false;
         reader.join();
 
         BOOST_REQUIRE_EQUAL(received_nodes, nodes_per_thread);
@@ -421,9 +423,9 @@ struct spsc_queue_tester_buffering
     }
 };
 
-spsc_queue_tester_buffering test1;
 
 BOOST_AUTO_TEST_CASE( spsc_queue_test_buffering )
 {
-    test1.run();
+    boost::shared_ptr<spsc_queue_tester_buffering> test1(new spsc_queue_tester_buffering);
+    test1->run();
 }

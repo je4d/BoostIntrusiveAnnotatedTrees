@@ -133,7 +133,8 @@ class map_view_base
         return derived().base().replace(
             derived().template functor<iterator_to_base_>()(position),
             derived().template functor<value_to_base_>()(
-                value_type_(k,position->second)
+                ::boost::bimaps::relation::detail::
+                    copy_with_first_replaced(*position,k)
             )
         );
     }
@@ -144,7 +145,8 @@ class map_view_base
         return derived().base().replace(
             derived().template functor<iterator_to_base_>()(position),
             derived().template functor<value_to_base_>()(
-                value_type_(position->first,d)
+                ::boost::bimaps::relation::detail::
+                    copy_with_second_replaced(*position,d)
             )
         );
     }
@@ -482,7 +484,7 @@ void assign(BOOST_DEDUCED_TYPENAME BASE::size_type n,                         \
             const BOOST_DEDUCED_TYPENAME BASE::value_type& v)                 \
 {                                                                             \
     this->clear();                                                            \
-    for(BOOST_DEDUCED_TYPENAME BASE::size_type i = 0 ; i < n ; ++n)           \
+    for(BOOST_DEDUCED_TYPENAME BASE::size_type i = 0 ; i < n ; ++i)           \
     {                                                                         \
         this->push_back(v);                                                   \
     }                                                                         \
