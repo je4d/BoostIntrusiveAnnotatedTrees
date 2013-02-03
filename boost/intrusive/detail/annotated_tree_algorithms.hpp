@@ -190,7 +190,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    // rotate parent p to left (with header and p's parent fixup)
    static void rotate_left(node_ptr p, node_ptr header)
    {
-      bool     p_was_left(is_left_child(p));
+      bool     p_was_left(base_type::is_left_child(p));
       node_ptr p_old_parent(node_traits::get_parent(p));
       node_ptr x(rotate_left(p));
       node_traits::set_parent(x, p_old_parent);
@@ -208,11 +208,11 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    // rotate parent p to right (with header and p's parent fixup)
    static void rotate_right(node_ptr p, node_ptr header)
    {
-      bool     p_was_left(is_left_child(p));
+      bool     p_was_left(base_type::is_left_child(p));
       node_ptr p_old_parent(node_traits::get_parent(p));
       node_ptr x(rotate_right(p));
       node_traits::set_parent(x, p_old_parent);
-      replace_own_impl(p, x, header, p_old_parent, p_was_left);
+      base_type::replace_own_impl(p, x, header, p_old_parent, p_was_left);
    }
 
    static void erase(const node_ptr & header, const node_ptr & z)
@@ -232,7 +232,7 @@ class annotated_tree_algorithms : public node_tree_algorithms<typename Annotated
    {
       node_ptr x = node_traits::get_parent(node);
       if(x){
-         while(!is_header(x))
+         while(!base_type::is_header(x))
             x = node_traits::get_parent(x);
          erase(x, node);
       }
