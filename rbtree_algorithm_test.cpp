@@ -10,22 +10,12 @@
 //#include <type_traits>
 #include <iostream>
 
-struct value_count_monoid
-{
-	typedef std::size_t              type;
-	typedef std::plus<type>          operation;
-	static const type                identity = 0;
-};
-
-struct subtree_count_monoid
-{
-	typedef std::size_t              type;
-	typedef std::plus<type>          operation;
-	static const type                identity = 0;
-	static const type                value = 1;
-};
-
-typedef boost::intrusive::fixed_value_monoid_annotation<subtree_count_monoid> subtree_count_annotation;
+struct subtree_count_annotation :
+	boost::intrusive::fixed_value_semigroup_annotation< subtree_count_annotation
+	                                                  , std::size_t
+	                                                  , std::plus<std::size_t>
+	                                                  , 1>
+{};
 
 typedef boost::intrusive::annotations<subtree_count_annotation> my_annotation_list;
 

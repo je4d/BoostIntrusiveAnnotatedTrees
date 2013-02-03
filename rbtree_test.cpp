@@ -1,6 +1,7 @@
 #include "boost/intrusive/options.hpp"
 #include "boost/intrusive/rbtree_algorithms.hpp"
 #include "boost/intrusive/monoid_annotation.hpp"
+#include "boost/intrusive/semigroup_annotation.hpp"
 #include "boost/intrusive/detail/generic_annotation_list.hpp"
 #include "boost/intrusive/detail/generic_annotated_node.hpp"
 #include "boost/intrusive/detail/rbtree_node.hpp"
@@ -13,20 +14,25 @@
 class ValueMemberHook;
 class ValueBaseHook;
 
-struct subtree_count_monoid
+struct subtree_count_annotation :
+	boost::intrusive::fixed_value_semigroup_annotation< subtree_count_annotation
+	                                                  , std::size_t
+	                                                  , std::plus<std::size_t>
+	                                                  , 1>
+{};
+
+struct sum_annotation_get_input
 {
-	typedef std::size_t              type;
-	typedef std::plus<type>          operation;
-	static const type                identity = 0;
-	static const type                value = 1;
-	struct get_input_value {
-		type operator()(ValueMemberHook&);
-		type operator()(ValueBaseHook&);
-	};
+	std::size_t operator()(ValueMemberHook&);
+	std::size_t operator()(ValueBaseHook&);
 };
 
-typedef boost::intrusive::function_monoid_annotation<subtree_count_monoid> subtree_count_annotation;
-//typedef boost::intrusive::fixed_value_monoid_annotation<subtree_count_monoid> subtree_count_annotation;
+struct sum_annotation :
+	boost::intrusive::function_semigroup_annotation< sum_annotation
+	                                                     , std::size_t
+	                                                     , std::plus<std::size_t>
+	                                                     , sum_annotation_get_input>
+{};
 
 template <class ValueTraits, class Hook, class Algo>
 int check(typename Algo::node_traits::node_ptr header, typename ValueTraits::value_type& value)
@@ -101,12 +107,12 @@ struct ValueMemberHook
 
 int ValueMemberHook::a = 998;
 
-subtree_count_monoid::type subtree_count_monoid::get_input_value::operator()(ValueMemberHook& val)
+std::size_t sum_annotation_get_input::operator()(ValueMemberHook& val)
 {
 	return 1;
 }
 
-subtree_count_monoid::type subtree_count_monoid::get_input_value::operator()(ValueBaseHook& val)
+std::size_t sum_annotation_get_input::operator()(ValueBaseHook& val)
 {
 	return 1;
 }
@@ -115,15 +121,11 @@ bool operator<(const ValueMemberHook& a, const ValueMemberHook& b) { return a.va
 
 int main()
 {
-//	test_algo();
-//	test_hook();
 	assert((test_tree<boost::intrusive::rbtree<ValueBaseHook, boost::intrusive::base_hook<my_hook> >, my_hook>() == 0));
 	assert((test_tree<boost::intrusive::rbtree<ValueBaseHook, boost::intrusive::base_hook<my_hook>, boost::intrusive::annotations<> >, my_hook>() != 0));
 
 	assert((test_tree<boost::intrusive::rbtree<ValueMemberHook, boost::intrusive::member_hook<ValueMemberHook, member_hook, &ValueMemberHook::hook> >, member_hook>() == 0));
 	assert((test_tree<boost::intrusive::rbtree<ValueMemberHook, boost::intrusive::member_hook<ValueMemberHook, member_hook, &ValueMemberHook::hook>, boost::intrusive::annotations<> >, member_hook>() != 0));
-
-//	int x = *((int*)0); 
 
 	return 0;
 }
